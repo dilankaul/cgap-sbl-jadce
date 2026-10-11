@@ -1,9 +1,9 @@
-# AGENTS.md — CASBL JADCE Reproducibility Project
+# AGENTS.md — CGAP-SBL JADCE Reproducibility Project
 
 ## Project purpose
 
 This repository implements reproducible experiments for the paper
-**Correlation-Aware SBL for Device Detection and Channel Estimation in MTC**.
+**Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**.
 The implementation must remain mathematically consistent with the paper and
 suitable for reproducible IEEE journal experiments.
 
@@ -29,18 +29,16 @@ unnumbered because they do not represent extra experimental stages.
 - Task 02: generate activity realizations
 - Task 03: generate the communication-model preview
 - Task 04: construct spatial correlation
-- Task 05: tune CA-SBL alpha and beta
+- Task 05: tune CGAP-SBL alpha and beta
 - Task 06: tune activity thresholds
 - Task 07: run estimators
 - Task 08: convergence analysis
 - Task 09: evaluation / aggregation
 
-Standard figures must be saved automatically by the numbered task that produces
-their source data, in both PNG and vector PDF by default. Separate plotting scripts
-are regeneration utilities only and must not be required for the normal workflow.
-The unnumbered utilities are `preview_activity.py`, `plot_selected_realization.py`,
-`plot_activity_s_distribution.py`, `make_figures.py`, `task_status.py`, and
-`run_all.py`.
+Numbered tasks automatically save PNG figures. The paper activity script
+`scripts/paper_figures/activity_realization.py` exports one title-free vector PDF
+from saved data. Numbered CLI options are only --config and --no-progress.
+Plotting functions remain callable on saved data for regeneration.
 
 After each task inspect saved outputs before continuing. Long-running tasks must
 show progress. Figures must remain regenerable from saved data without rerunning
@@ -68,8 +66,11 @@ Use paper notation in new code where practical:
 - `Y`: received pilots `(L, M)`
 - `gamma`: SBL row-variance vector `(N,)`
 - `Gamma = diag(gamma)`
-- `C`: spatial correlation matrix
-- `Omega`: correlation interaction matrix
+- `C`: spatial dependence matrix
+- `Omega`: symmetric spatial interaction matrix
+- `lambda_`: nonnegative adaptive penalty vector
+- `sigma2`: noise variance
+- `S_q`: realized active count; `B_q`: feasible greedy oracle budget
 
 The system model is `Z = diag(a) H^T` and `Y = Theta Z + W`.
 Do **not** replace `H^T` with `H^H`.
@@ -91,27 +92,37 @@ Use the observation covariance
 and Cholesky solves rather than `inv(Pi)`. Do not construct full `N x N`
 posterior covariance during normal runs. Compute `mu` and `diag(Sigma)` only.
 
-## Corrected CA-SBL theory
+## Revised CGAP-SBL theory
 
-Keep
+Follow `Publications___CASBL (7).pdf`, equations (29)–(41) and (65)–(69).
+Use `lambda = positive_part(Omega @ gamma_previous)` without dividing lambda by M.
+For each iteration freeze lambda and eta, then use
+`gamma_new = 2*eta/(1 + sqrt(1 + 4*lambda*eta/M))`.
+Zero penalty recovers conventional SBL exactly. Never upper-clip gamma.
 
-`Omega = alpha * (beta * 1 - C)`
+The general interaction is finite and symmetric, not necessarily PSD. It is a
+Gaussian-inspired design for iteration-specific penalization, not a proper
+Gaussian hyperprior or a fixed-global MAP/MM convergence guarantee.
+The ANC matrix is `Omega_ANC = alpha*(beta*1-C)` with its diagonal retained;
+`1` means all ones. Compute `lambda = alpha*positive_part(beta*sum(gamma)-C@gamma)`
+without constructing dense Omega. Match `rho=kappa`, `U=D` from saved Task-02 data.
 
-unchanged. Do not insert an artificial `M` into the gamma interaction term.
-The corrected complex-MMV interaction is
+Use the relative stopping criterion `norm(gamma_new-gamma)/norm(gamma) < delta`,
+with `K=500`, `delta=1e-4`. Independently retune thresholds and ANC parameters;
+reject old method/setup selections. The final channel estimate is the unmasked
+posterior mean from final gamma.
 
-`phi = (Omega @ gamma) / M`.
-
-For `phi_i > 0`, use the stable root
-
-`gamma_i_new = 2 * eta_i / (sqrt(1 + 4 * phi_i * eta_i) + 1)`.
-
-Do not use the cancellation-prone quadratic form. For `phi_i <= 0`, retain the
-current SBL fallback unless the theory is explicitly revisited. Do not upper-clip
-gamma to 1; only numerical non-negativity safeguards are allowed.
-
-Because the interaction scaling is corrected, alpha, beta, and activity
-thresholds must be retuned. Do not reuse legacy optimal values as if unchanged.
+Tuning: 100 samples at L=25, SNR=12 dB; alpha in 2:2:14, beta in .05:.05:.35.
+Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
+Convergence: L=30, 12 dB. Preserve the six existing seeds and use the seventh
+explicit spatial_randomization seed for uniformly randomized paired supports.
+Task 02 generates and saves paired randomized evaluation supports and spatial maps.
+Task 07 loads saved supports and does not randomize activity. Randomized maps omit
+event markers, cutoff circles, and event probability backgrounds.
+Paired scenarios retain S_q, geometry, H, Theta, and C, with separately scaled
+common standardized noise and fixed correlated-tuning selections. Evaluate only
+CGAP-SBL-ANC and SBL in the randomized scenario. Do not import provisional
+manuscript results as measured data or relabel historical CA-SBL results.
 
 ## Spatial activity model
 
@@ -127,22 +138,22 @@ For multiple events use
 
 Current intended event influence radius is `D = 15 m`. The main experiment uses
 variable realized activity. Do not force every realization to have exactly
-`S=10`; instead calibrate `kappa` so that `E[S] ~= 10`. The configured
-`kappa=3.785` is provisional until Task 01 calibration is inspected.
+`S=10`; instead calibrate `kappa` so that `E[S] ~= 10`. The current manuscript
+and saved calibration use `kappa=3.78`.
 
 Task 02 must report realized-S mean, standard deviation, minimum, maximum, and
 distribution/histogram.
 
 ## Baselines
 
-SBL uses the same optimized posterior engine as CA-SBL where possible and an
+SBL uses the same optimized posterior engine as CGAP-SBL where possible and an
 independently tuned threshold.
 
 MMV-OMP/SOMP is a joint-row-support oracle sparsity-budget baseline. MMV-CoSaMP is also
 joint-support, uses stable unregularized least squares, and has no hidden ridge
-penalty. For realization `r`, OMP and CoSaMP use the feasible oracle sparsity budget
-`K_r = min(S_r, L, N)`. Record whether capping occurs. CA-SBL and SBL never
-receive `S_r` or `K_r`.
+penalty. For realization `q`, OMP and CoSaMP use the feasible oracle sparsity budget
+`B_q = min(S_q, L, N)`. Record whether capping occurs. CGAP-SBL and SBL never
+receive `S_q` or `B_q`.
 
 ## Activity figures
 
@@ -177,7 +188,7 @@ not save enormous per-iteration histories for every realization.
 
 Important tests include matrix dimensions, system-model identity, complex
 Gaussian generation, optimized posterior vs a full reference, conventional SBL,
-stable CA-SBL root, corrected `phi`, ANC/correlation construction, activity
+stable CGAP-SBL root, nonnegative lagged `lambda`, ANC/correlation construction, activity
 cutoff, multi-event probability, deterministic seeds, simple noiseless baseline
 support recovery, and plotting that does not modify probability values.
 

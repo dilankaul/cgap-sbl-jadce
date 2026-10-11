@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import numpy as np
 from tqdm.auto import tqdm
 
@@ -11,6 +11,15 @@ class ActivitySample:
     event_locations: np.ndarray
     activation_probabilities: np.ndarray
     attempts: int = 1
+
+
+def randomize_activity_sample(sample: ActivitySample, seed: int, q: int) -> ActivitySample:
+    """Uniform fixed-count support on the original geometry (paper VIII-F)."""
+    rng = np.random.default_rng(np.random.SeedSequence([seed, q]))
+    S_q = int(np.sum(sample.a))
+    a = np.zeros_like(sample.a, dtype=bool)
+    a[rng.choice(len(a), size=S_q, replace=False)] = True
+    return replace(sample, a=a, activation_probabilities=np.full(len(a), S_q / len(a)), attempts=1)
 
 
 @dataclass(frozen=True)

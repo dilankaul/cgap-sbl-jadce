@@ -10,7 +10,7 @@ def pairwise_distances(loc: np.ndarray) -> np.ndarray:
     return np.sqrt(np.sum(delta * delta, axis=2))
 
 
-def build_C(loc: np.ndarray, rho: float = 7.0, U: float = 20.0) -> np.ndarray:
+def build_C(loc: np.ndarray, rho: float = 3.78, U: float = 15.0) -> np.ndarray:
     """C_ij = max((exp(-u_ij/rho)-exp(-U/rho))/(1-exp(-U/rho)), 0)."""
     loc = np.asarray(loc, dtype=float)
     N = loc.shape[0]
@@ -23,14 +23,16 @@ def build_C(loc: np.ndarray, rho: float = 7.0, U: float = 20.0) -> np.ndarray:
     return np.maximum(C, 0.0)
 
 
-def build_Omega(C: np.ndarray, alpha: float, beta: float) -> np.ndarray:
+def build_Omega_ANC(C: np.ndarray, alpha: float, beta: float) -> np.ndarray:
     C = np.asarray(C, dtype=float)
     if C.ndim != 2 or C.shape[0] != C.shape[1]:
         raise ValueError("C must be square.")
+    if alpha < 0 or beta < 0:
+        raise ValueError("ANC alpha and beta must be non-negative")
     return float(alpha) * (float(beta) * np.ones_like(C) - C)
 
 
-def interaction_phi(C: np.ndarray, gamma: np.ndarray, alpha: float, beta: float, M: int) -> np.ndarray:
-    """Compute phi=(Omega gamma)/M without materializing beta*1."""
+def anc_penalty(C: np.ndarray, gamma: np.ndarray, alpha: float, beta: float) -> np.ndarray:
+    """Equation (68): lambda = alpha * positive_part(beta * G - C @ gamma)."""
     gamma = np.asarray(gamma, dtype=float)
-    return (float(alpha) / float(M)) * (float(beta) * np.sum(gamma) - C @ gamma)
+    return float(alpha) * np.maximum(float(beta) * np.sum(gamma) - C @ gamma, 0.0)

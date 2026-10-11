@@ -39,19 +39,16 @@
       "kappa_source": "calibration"
     },
     "algorithms": {
+      "K": 500,
       "cosamp_max_iter": 50,
       "cosamp_tol": 1e-06,
-      "gamma_init": 0.1,
-      "sbl_max_iter": 500,
-      "sbl_tol": 0.0001
-    },
-    "correlation": {
-      "U": 20.0,
-      "rho": 7.0
+      "delta": 0.0001,
+      "gamma_init": 0.1
     },
     "evaluation": {
       "convergence_sample_offset": 0,
-      "gamma_distribution_samples": 100
+      "gamma_distribution_samples": 100,
+      "pilot_length": 30
     },
     "figures": {
       "probability_alpha": 1.0,
@@ -72,7 +69,8 @@
       "communication_evaluation": 9517,
       "communication_tuning": 4283,
       "kappa_calibration": 1379,
-      "kappa_validation": 8641
+      "kappa_validation": 8641,
+      "spatial_randomization": 6031
     },
     "system": {
       "M": 4,
@@ -107,26 +105,22 @@
     },
     "tuning": {
       "alpha_values": [
-        0.0,
-        2.0,
-        4.0,
-        6.0,
-        8.0,
-        10.0,
-        12.0,
-        14.0,
-        16.0
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
       ],
       "beta_values": [
-        0.0,
-        0.025,
         0.05,
-        0.075,
         0.1,
-        0.125,
         0.15,
-        0.175,
-        0.2
+        0.2,
+        0.25,
+        0.3,
+        0.35
       ],
       "num_thresholds": 80,
       "reference_pilot_length": 25,

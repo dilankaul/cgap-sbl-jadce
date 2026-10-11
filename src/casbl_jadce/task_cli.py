@@ -34,7 +34,7 @@ TASKS = {
             (plot_activity_realizations, plot_activity_s_distribution), True),
     3: Task("generate communication preview", pipeline.communication_stage, (plot_communication_preview,)),
     4: Task("build spatial correlation", pipeline.correlation_stage, (plot_correlation_preview,)),
-    5: Task("tune CA-SBL alpha and beta", pipeline.tune_stage, (plot_alpha_beta_tuning,), True),
+    5: Task("tune CGAP-SBL alpha and beta", pipeline.tune_stage, (plot_alpha_beta_tuning,), True),
     6: Task("tune activity thresholds", pipeline.threshold_stage, (plot_threshold_tuning,), True),
     7: Task("run estimators", pipeline.evaluate_stage, (plot_gamma_distribution,), True),
     8: Task("analyze convergence", pipeline.convergence_stage, (plot_convergence,)),
@@ -70,7 +70,7 @@ def run_task(task_number: int, argv: list[str] | None = None) -> list:
         paths.extend(render(cfg, **kwargs))
     print(f"Task {task_number:02d} figures:")
     reported_paths = dict.fromkeys(
-        path.parent if task_number == 2 and path.parent.name in {"tuning", "evaluation"} else path
+        path.parent if task_number == 2 and path.parent.name in {"tuning", "evaluation", "randomized_evaluation"} else path
         for path in paths
     )
     for path in reported_paths:

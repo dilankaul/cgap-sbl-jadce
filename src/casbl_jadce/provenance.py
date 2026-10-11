@@ -21,9 +21,19 @@ def save_task_snapshot(cfg, task, **runtime):
             activity = json.loads(activity_path.read_text())
             snapshot['activity']['kappa'] = activity['kappa']
             provenance['activity_summary'] = str(activity_path)
+            if "randomized_evaluation" in activity:
+                seed = activity["randomized_evaluation"]["seed"]
+                snapshot["seeds"]["spatial_randomization"] = seed
+                provenance["activity_randomization_seed"] = seed
+
             provenance['activity_parameters_used'] = {
                 key: activity[key] for key in ('N', 'V', 'R', 'D', 'kappa', 'target_mean_S') if key in activity
             }
+    if task >= 4:
+        from casbl_jadce.config import activity_correlation_parameters
+        snapshot["correlation"] = activity_correlation_parameters(cfg)
+        provenance["method"] = "CGAP-SBL-ANC"
+        provenance["method_revision"] = 1
     snapshot['task_runtime'] = provenance
     folder = task_dir(out, task)
     root_config = Path(out) / "config.yaml"

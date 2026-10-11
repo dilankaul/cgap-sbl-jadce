@@ -1,4 +1,4 @@
-# Locked implementation decisions
+# Implementation decisions (later entries supersede earlier entries)
 
 1. Use paper variables: `a`, `H`, `Z`, `Theta`, `Y`, `gamma`, `mu`, `Sigma_diag`, `C`, `Omega`, `eta`, `phi`.
 2. Use proper complex-MMV SBL scaling with factor `M`, not the old real-Gaussian `1/2`.
@@ -74,3 +74,19 @@
 47. Name the single paper activity PDF event_driven_activation_model_[split]_[index].pdf, using the split name and unpadded zero-based index. Preserve its tuning/evaluation output subfolder.
 
 48. Use four-digit index padding for paper activity PDF filenames, e.g. event_driven_activation_model_evaluation_0005.pdf. This supersedes decision 47's unpadded index.
+
+
+49. Adopt the revised manuscript `Publications___CASBL (7).pdf` at the user's request. Rename the methods CGAP-SBL and CGAP-SBL-ANC, exposing `cgap_sbl` and `cgap_sbl_anc`. Retain the existing `casbl_jadce` Python namespace for import stability and rename the distribution `cgap-sbl-jadce`. This supersedes the former CA-SBL mathematical interpretation in decisions 1–10.
+
+50. General CGAP-SBL uses a finite symmetric interaction Omega, with `lambda = positive_part(Omega @ gamma_previous)`. Lambda is unscaled and frozen during the current penalized M-step. Update `gamma=2*eta/(1+sqrt(1+4*lambda*eta/M))`, recovering SBL exactly for lambda=0. The Gaussian-inspired interaction is not a proper Gaussian hyperprior; no fixed-global MAP/MM monotonicity or convergence claim is made. Keep the final posterior mean unmasked and recompute it from final gamma.
+
+51. ANC uses `Omega_ANC=alpha*(beta*1-C)` without zeroing its diagonal, and computes `lambda=alpha*positive_part(beta*sum(gamma)-C@gamma)` with sparse C rather than constructing dense Omega. Match `rho=kappa`, `U=D` to saved Task-02 parameters, replacing rho=7 and U=20. The current saved experiment has kappa=3.78 and D=15. Automatic calibration and activity probabilities remain unchanged.
+
+52. Adopt the revised setup: K=500 and relative gamma change < delta=1e-4; 100 tuning realizations at L=25, SNR 12 dB; alpha=[2,4,6,8,10,12,14], beta=[.05,.10,.15,.20,.25,.30,.35]. Independently tune both activity thresholds. Evaluate Q=1000 with L=20:5:45 at 12 dB and SNR=4:4:24 at L=30. Convergence uses L=30, 12 dB. Use `sigma2`, `lambda_`, `S_q`, `B_q=min(S_q,L,N)` notation. Preserve zero-based stored indices.
+
+53. Integrate the paper's paired spatial-randomization comparison into Tasks 07 and 09. Uniformly select S_q distinct device identities independently of geometry, retain device/event positions, H, Theta and C, and rescale identical standardized noise to each scenario's prescribed SNR. Keep randomized support fixed across conditions. Compare CGAP-SBL-ANC and SBL using correlated-tuning selections unchanged. Add explicit seed spatial_randomization=6031; preserve all six prior four-digit seeds. Record scenarios and within-scenario paired F1 gain and NMSE reduction. Main correlated comparisons retain all four estimators.
+
+54. Save F1 and NMSE tuning contours and four-curve spatial comparisons. Reject legacy or mismatched tuning definitions rather than reuse them. Preserve existing numerical results, figures and historical manifests; no manuscript performance numbers are fabricated. Existing Tasks 01–02 remain compatible, while Tasks 03–09 should be regenerated for the revised schemas and estimator setup. The only standard formats remain PNG and separate native-font paper PDF, as requested in earlier presentation decisions.
+
+
+55. Move paired support randomization from Task 07 into Task 02 at the user's request. Save randomized evaluation samples and all their spatial PNG maps in separate randomized_evaluation data/figure folders. Preserve the exact SeedSequence([spatial_randomization,q]) choice sequence, counts and geometry; store conditional marginal probabilities S_q/N. Randomized maps omit event markers, event-influence circles and the event probability field. Tuning remains event-driven only. Task 07 loads saved pairs, checks pairing, and generates only communication observations; missing pairs require rerunning Task 02. Summarize randomized figure output by folder, and record the actual saved randomization seed in downstream provenance.

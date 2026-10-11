@@ -10,10 +10,10 @@ class Posterior:
     Sigma_diag: np.ndarray
 
 
-def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, noise_var: float, gamma: np.ndarray) -> Posterior:
+def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, sigma2: float, gamma: np.ndarray) -> Posterior:
     """Posterior for complex MMV SBL using the L x L covariance Pi.
 
-    Pi = Theta diag(gamma) Theta^H + noise_var I.
+    Pi = Theta diag(gamma) Theta^H + sigma2 I.
     Returns mu and diag(Sigma) without explicitly inverting Pi or forming Sigma.
     """
     Theta = np.asarray(Theta, dtype=np.complex128)
@@ -24,12 +24,12 @@ def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, noise_var: float, gamma: np.
         raise ValueError("Y must have shape (L, M).")
     if gamma.shape != (N,):
         raise ValueError("gamma must have shape (N,).")
-    if noise_var <= 0:
-        raise ValueError("noise_var must be positive.")
+    if sigma2 <= 0:
+        raise ValueError("sigma2 must be positive.")
 
     Theta_gamma = Theta * gamma[None, :]
     Pi = Theta_gamma @ Theta.conj().T
-    Pi.flat[:: L + 1] += float(noise_var)
+    Pi.flat[:: L + 1] += float(sigma2)
 
     factor = cho_factor(Pi, lower=True, overwrite_a=False, check_finite=False)
     Pi_inv_Y = cho_solve(factor, Y, check_finite=False)
@@ -48,14 +48,14 @@ def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, noise_var: float, gamma: np.
     return Posterior(mu=mu, Sigma_diag=Sigma_diag)
 
 
-def posterior_mmv_full_reference(Theta: np.ndarray, Y: np.ndarray, noise_var: float, gamma: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def posterior_mmv_full_reference(Theta: np.ndarray, Y: np.ndarray, sigma2: float, gamma: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Slow full-matrix reference implementation used only by tests."""
     Theta = np.asarray(Theta, dtype=np.complex128)
     Y = np.asarray(Y, dtype=np.complex128)
     gamma = np.asarray(gamma, dtype=float)
     L = Theta.shape[0]
     Gamma = np.diag(gamma)
-    Pi = Theta @ Gamma @ Theta.conj().T + noise_var * np.eye(L)
+    Pi = Theta @ Gamma @ Theta.conj().T + sigma2 * np.eye(L)
     Pi_inv = np.linalg.inv(Pi)
     Sigma = Gamma - Gamma @ Theta.conj().T @ Pi_inv @ Theta @ Gamma
     mu = Gamma @ Theta.conj().T @ Pi_inv @ Y

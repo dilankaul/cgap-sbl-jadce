@@ -51,6 +51,7 @@ def plot_activity_sample(
     probability_levels: int = 128,
     style: dict | None = None,
     figsize: tuple[float, float] = (6.8, 6.2),
+    show_events: bool = True,
 ) -> list[Path]:
     """Plot one activity sample without requiring Task 02 output files."""
     loc = sample.device_locations
@@ -113,11 +114,12 @@ def plot_activity_sample(
             marker="o", s=30, alpha=0.75,
             label="Active MTD", zorder=4,
             c="forestgreen")
-    ax.scatter(
-        sample.event_locations[:, 0], sample.event_locations[:, 1],
-        marker="*", s=150, c="firebrick", edgecolors="firebrick",
-        linewidths=0.6, alpha=1.0, label="Event", zorder=5,
-    )
+    if show_events:
+        ax.scatter(
+            sample.event_locations[:, 0], sample.event_locations[:, 1],
+            marker="*", s=150, c="firebrick", edgecolors="firebrick",
+            linewidths=0.6, alpha=1.0, label="Event", zorder=5,
+        )
     ax.scatter(
         [0.0], [0.0],
         marker="x", s=90, c="black", alpha=1.0,
@@ -189,8 +191,8 @@ def plot_activity_realization(
     show_probability_field: bool | None = None,
 ) -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
-    if split not in {"tuning", "evaluation"}:
-        raise ValueError("split must be 'tuning' or 'evaluation'.")
+    if split not in {"tuning", "evaluation", "randomized_evaluation"}:
+        raise ValueError("split must be tuning, evaluation, or randomized_evaluation.")
     samples = load_activity_samples(result_path(out, "activity", f"{split}_activity.npz"))
     if not 0 <= sample_index < len(samples):
         raise IndexError(f"sample_index must be in [0, {len(samples)-1}].")
@@ -206,12 +208,15 @@ def _plot_activity_realization_sample(
     formats: str, options: dict,
 ) -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
+    if split == "randomized_evaluation":
+        options = {**options, "show_probability_field": False, "show_event_radius": False,
+                   "show_events": False}
     suffix = "_probability_field" if options["show_probability_field"] else ""
     return plot_activity_sample(
         sample,
         stem=figure_path(out, f"02_activity_realization_{split}_{sample_index:04d}{suffix}"),
         formats=formats,
-        title=f"{split.capitalize()} activity realization {sample_index}: {int(np.sum(sample.a))} active MTDs",
+        title=f"{split.replace('_', ' ').capitalize()} activity realization {sample_index}: {int(np.sum(sample.a))} active MTDs",
         **options,
     )
 
@@ -220,7 +225,7 @@ def _plot_activity_realization_sample(
 def plot_activity_realizations(
     cfg: dict, formats: str = "png", show_progress: bool = True,
     show_probability_field: bool | None = None,
-    splits: tuple[str, ...] = ("tuning", "evaluation"),
+    splits: tuple[str, ...] = ("tuning", "evaluation", "randomized_evaluation"),
 ) -> list[Path]:
     """Save every tuning and evaluation realization from Task 02 data."""
     if not figure_formats(formats):
@@ -228,8 +233,8 @@ def plot_activity_realizations(
     out = Path(cfg["run"]["output_dir"])
     paths: list[Path] = []
     options = None
-    if any(split not in {"tuning", "evaluation"} for split in splits):
-        raise ValueError("Activity figure splits must be tuning or evaluation")
+    if any(split not in {"tuning", "evaluation", "randomized_evaluation"} for split in splits):
+        raise ValueError("Activity figure splits must be tuning, evaluation, or randomized_evaluation")
     for split in splits:
         data_path = result_path(out, "activity", f"{split}_activity.npz")
         if not data_path.exists():

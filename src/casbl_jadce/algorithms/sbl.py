@@ -2,6 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 from casbl_jadce.algorithms.posterior import posterior_mmv
+from casbl_jadce.algorithms.cgap_sbl import relative_gamma_change
+from casbl_jadce.metrics import nmse
 
 
 @dataclass(frozen=True)
@@ -17,13 +19,15 @@ class SBLResult:
 def sbl(
     Theta: np.ndarray,
     Y: np.ndarray,
-    noise_var: float,
+    sigma2: float,
     gamma_init: float = 0.1,
-    max_iter: int = 500,
-    tol: float = 1e-4,
+    K: int = 500,
+    delta: float = 1e-4,
     keep_history: bool = False,
     Z_true: np.ndarray | None = None,
 ) -> SBLResult:
+    if gamma_init <= 0 or K < 1 or delta <= 0:
+        raise ValueError("gamma_init, K, and delta must be positive")
     N = Theta.shape[1]
     M = Y.shape[1]
     gamma = np.full(N, float(gamma_init), dtype=float)
@@ -31,22 +35,21 @@ def sbl(
     nmse_hist: list[float] = []
     converged = False
 
-    for k in range(1, max_iter + 1):
-        posterior = posterior_mmv(Theta, Y, noise_var, gamma)
+    for k in range(1, K + 1):
+        posterior = posterior_mmv(Theta, Y, sigma2, gamma)
         eta = posterior.Sigma_diag + np.sum(np.abs(posterior.mu) ** 2, axis=1) / float(M)
         gamma_new = np.maximum(eta.real, 0.0)
         if keep_history:
             gamma_hist.append(gamma_new.copy())
             if Z_true is not None:
-                denom = max(float(np.linalg.norm(Z_true) ** 2), np.finfo(float).eps)
-                nmse_hist.append(float(np.linalg.norm(Z_true - posterior.mu) ** 2 / denom))
-        delta = np.linalg.norm(gamma_new - gamma)
+                nmse_hist.append(nmse(Z_true, posterior.mu))
+        change = relative_gamma_change(gamma_new, gamma)
         gamma = gamma_new
-        if delta <= tol:
+        if change < delta:
             converged = True
             break
 
-    posterior = posterior_mmv(Theta, Y, noise_var, gamma)
+    posterior = posterior_mmv(Theta, Y, sigma2, gamma)
     return SBLResult(
         gamma=gamma,
         mu=posterior.mu,

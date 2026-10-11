@@ -6,6 +6,7 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
+  spatial_randomization: 6031
 
 run:
   output_dir: results/experiment
@@ -41,40 +42,21 @@ activity:
   kappa_scan: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
   kappa_refinement_steps: [0.1, 0.02, 0.005]
   calibration_tolerance: 0.1
-correlation:
-  rho: 7.0
-  U: 20.0
+# The paper sets rho=kappa and U=D; these are resolved from saved activity.
 algorithms:
   gamma_init: 0.1
-  sbl_max_iter: 500
-  sbl_tol: 0.0001
+  K: 500
+  delta: 0.0001
   cosamp_max_iter: 50
   cosamp_tol: 1.0e-06
 tuning:
   reference_snr_db: 12
   reference_pilot_length: 25
-  alpha_values:
-  - 0.0
-  - 2.0
-  - 4.0
-  - 6.0
-  - 8.0
-  - 10.0
-  - 12.0
-  - 14.0
-  - 16.0
-  beta_values:
-  - 0.0
-  - 0.025
-  - 0.05
-  - 0.075
-  - 0.1
-  - 0.125
-  - 0.15
-  - 0.175
-  - 0.2
+  alpha_values: [2, 4, 6, 8, 10, 12, 14]
+  beta_values: [0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35]
   num_thresholds: 80
 evaluation:
+  pilot_length: 30
   gamma_distribution_samples: 100
   convergence_sample_offset: 0
 figures:

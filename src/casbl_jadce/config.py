@@ -13,6 +13,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
         names = (
             "kappa_calibration", "kappa_validation", "activity_tuning",
             "activity_evaluation", "communication_tuning", "communication_evaluation",
+            "spatial_randomization",
         )
         seeds = cfg["seeds"]
         if not isinstance(seeds, dict) or set(seeds) != set(names):
@@ -60,3 +61,15 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
     if not math.isfinite(kappa) or kappa <= 0:
         raise ValueError("Selected kappa must be finite and positive")
     return kappa, origin
+
+
+def activity_correlation_parameters(cfg: dict[str, Any]) -> dict[str, float]:
+    """Paper VIII-A: rho=kappa and U=D, using the saved activity model."""
+    import json
+    from casbl_jadce.paths import result_path
+
+    path = result_path(cfg["run"]["output_dir"], "activity", "summary.json")
+    if path.exists():
+        summary = json.loads(path.read_text())
+        return {"rho": float(summary["kappa"]), "U": float(summary["D"])}
+    return {"rho": resolve_activity_kappa(cfg)[0], "U": float(cfg["activity"]["D"])}

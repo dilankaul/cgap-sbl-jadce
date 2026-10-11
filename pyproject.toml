@@ -3,9 +3,9 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "casbl-jadce"
+name = "cgap-sbl-jadce"
 version = "0.1.0"
-description = "Reproducible CA-SBL experiments for JADCE in machine-type communications"
+description = "Reproducible CGAP-SBL-ANC experiments for JADCE in machine-type communications"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

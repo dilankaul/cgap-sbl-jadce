@@ -3,13 +3,13 @@ import numpy as np
 from scipy.linalg import lstsq
 
 
-def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, S: int, max_iter: int = 50, tol: float = 1e-6) -> np.ndarray:
+def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 50, tol: float = 1e-6) -> np.ndarray:
     """MMV CoSaMP with unregularized SVD least-squares support estimation."""
     L, N = Theta.shape
-    if not (0 <= S <= min(L, N)):
-        raise ValueError("S must satisfy 0 <= S <= min(L, N).")
+    if not (0 <= B_q <= min(L, N)):
+        raise ValueError("B_q must satisfy 0 <= B_q <= min(L, N).")
     Z_hat = np.zeros((N, Y.shape[1]), dtype=np.complex128)
-    if S == 0:
+    if B_q == 0:
         return Z_hat
     residual = Y.copy()
     support = np.array([], dtype=int)
@@ -18,13 +18,13 @@ def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, S: int, max_iter: int = 50, tol
     for _ in range(max_iter):
         proxy = Theta.conj().T @ residual
         energy = np.sum(np.abs(proxy) ** 2, axis=1)
-        take = min(2 * S, N)
+        take = min(2 * B_q, N)
         omega = np.argpartition(energy, -take)[-take:]
         merged = np.union1d(support, omega)
 
         B, *_ = lstsq(Theta[:, merged], Y, lapack_driver="gelsd")
         row_energy = np.sum(np.abs(B) ** 2, axis=1)
-        keep = min(S, len(merged))
+        keep = min(B_q, len(merged))
         local = np.argpartition(row_energy, -keep)[-keep:]
         support = np.sort(merged[local])
 

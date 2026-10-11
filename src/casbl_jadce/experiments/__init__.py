@@ -1,1 +1,1 @@
-"""Experiments for reproducible CASBL experiments."""
+"""Experiments for reproducible CGAP-SBL experiments."""

@@ -12,7 +12,7 @@ def plot_gamma_distribution(cfg: dict, formats: str = "png") -> list[Path]:
     data = np.load(result_path(out, "evaluation", "gamma_distribution.npz"))
     a = data["a"].astype(bool)
     paths: list[Path] = []
-    for key, label, stem in [("casbl_gamma", "CA-SBL-ANC", "07_casbl_gamma_distribution"), ("sbl_gamma", "SBL", "07_sbl_gamma_distribution")]:
+    for key, label, stem in [("cgap_gamma", "CGAP-SBL-ANC", "07_cgap_gamma_distribution"), ("sbl_gamma", "SBL", "07_sbl_gamma_distribution")]:
         gamma = data[key]
         figure_style = {"axes.titlesize": 12, "axes.labelsize": 12,
                         "xtick.labelsize": 10, "ytick.labelsize": 10,

@@ -12,18 +12,18 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
-from casbl_jadce.models.activity import generate_activity_dataset
+from casbl_jadce.models.activity import generate_activity_dataset, randomize_activity_sample
 from casbl_jadce.experiments.calibration import calibrate_kappa_adaptive, CalibrationBracketError
-from casbl_jadce.algorithms.casbl import casbl
+from casbl_jadce.algorithms.cgap_sbl import cgap_sbl_anc
 from casbl_jadce.algorithms.cosamp import mmv_cosamp
 from casbl_jadce.algorithms.omp import mmv_omp
 from casbl_jadce.algorithms.sbl import sbl
-from casbl_jadce.config import resolve_activity_kappa
+from casbl_jadce.config import resolve_activity_kappa, activity_correlation_parameters
 from casbl_jadce.models.correlation import build_C
 from casbl_jadce.dataset import load_activity_samples, save_activity_samples
 from casbl_jadce.io import ensure_dir, save_csv, save_json, save_npz
 from casbl_jadce.metrics import nmse, oracle_sparsity_budget, precision_recall_f1, support_from_gamma, support_from_rows
-from casbl_jadce.models.realizations import communication_realization
+from casbl_jadce.models.realizations import communication_realization, paired_activity_realizations
 from casbl_jadce.reporting import print_task_report
 from casbl_jadce.provenance import save_task_snapshot
 from casbl_jadce.experiments.tuning import choose_gamma_threshold, threshold_curve
@@ -31,6 +31,21 @@ from casbl_jadce.experiments.tuning import choose_gamma_threshold, threshold_cur
 
 def output_dir(cfg: dict[str, Any]) -> Path:
     return ensure_dir(cfg["run"]["output_dir"])
+
+
+def tuning_definition(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Identify the mathematics and experiment used to select parameters."""
+    return {"method": "CGAP-SBL-ANC", "revision": 1,
+            "algorithms": cfg["algorithms"], "correlation": activity_correlation_parameters(cfg),
+            "tuning": cfg["tuning"], "system": cfg["system"],
+            "tuning_samples": cfg["run"]["num_tuning_samples"],
+            "activity_seed": cfg["seeds"]["activity_tuning"],
+            "communication_seed": cfg["seeds"]["communication_tuning"]}
+
+
+def validate_selection(selected: dict, cfg: dict) -> None:
+    if selected.get("definition") != tuning_definition(cfg):
+        raise ValueError("Saved tuning belongs to a different method or setup. Rerun Tasks 05 and 06 for CGAP-SBL-ANC.")
 
 
 def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
@@ -154,6 +169,11 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
         )
         for split in ("tuning", "evaluation")
     }
+    datasets["randomized_evaluation"] = [
+        randomize_activity_sample(sample, cfg["seeds"]["spatial_randomization"], q)
+        for q, sample in enumerate(tqdm(datasets["evaluation"], desc="Task 02 randomized activity",
+                                        unit="realization", disable=not show_progress))
+    ]
     tune, evaluation = datasets["tuning"], datasets["evaluation"]
     tune_path = result_path(out, "activity", "tuning_activity.npz")
     eval_path = result_path(out, "activity", "evaluation_activity.npz")
@@ -175,6 +195,9 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
         "kappa": float(act["kappa"]), "kappa_source": kappa_source, "D": float(act["D"]), "exact_sparsity": bool(act["exact_sparsity"]),
         "batch_size": int(act.get("batch_size", 128)),
         "tuning": _activity_stats(tune), "evaluation": _activity_stats(evaluation),
+        "randomized_evaluation": {**_activity_stats(datasets["randomized_evaluation"]),
+            "seed": cfg["seeds"]["spatial_randomization"],
+            "rule": "Uniform S_q distinct devices without replacement, paired by realization index"},
     }
     for split in datasets:
         summary[split]["mean_minus_target"] = summary[split]["mean_active"] - float(sys["S"])
@@ -190,7 +213,7 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
         "mean active (evaluation)": summary["evaluation"]["mean_active"],
         "std active (evaluation)": summary["evaluation"]["std_active"],
         "exact sparsity conditioning": bool(act["exact_sparsity"]),
-    }, [tune_path, eval_path, realized_s_path, summary_path])
+    }, [tune_path, eval_path, result_path(out, "activity", "randomized_evaluation_activity.npz"), realized_s_path, summary_path])
     return summary
 
 
@@ -205,13 +228,13 @@ def communication_stage(cfg: dict[str, Any]) -> dict[str, Any]:
         tune["reference_pilot_length"], tune["reference_snr_db"],
     )
     preview_path = result_path(out, "communication", "preview.npz")
-    save_npz(preview_path, a=sample.a, H=sample.H, Z=sample.Z, Theta=sample.Theta, W=sample.W, Y=sample.Y, noise_var=sample.noise_var)
+    save_npz(preview_path, a=sample.a, H=sample.H, Z=sample.Z, Theta=sample.Theta, W=sample.W, Y=sample.Y, sigma2=sample.sigma2)
     summary = {
         "sample_index": sample_index,
         "M": int(sys["M"]), "N": int(sys["N"]),
         "L": int(tune["reference_pilot_length"]), "snr_db": float(tune["reference_snr_db"]),
         "Theta_shape": list(sample.Theta.shape), "Z_shape": list(sample.Z.shape), "Y_shape": list(sample.Y.shape),
-        "noise_var": float(sample.noise_var),
+        "sigma2": float(sample.sigma2),
         "signal_power": float(np.mean(np.abs(sample.Theta @ sample.Z) ** 2)),
         "received_power": float(np.mean(np.abs(sample.Y) ** 2)),
     }
@@ -226,13 +249,13 @@ def communication_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     save_task_snapshot(cfg, 3, sample_index=sample_index)
     print_task_report("TASK 03 — COMMUNICATION MODEL", {
         "preview sample": sample_index, "Theta": tuple(sample.Theta.shape), "Z": tuple(sample.Z.shape), "Y": tuple(sample.Y.shape),
-        "noise variance": sample.noise_var, "signal power": summary["signal_power"],
+        "noise variance": sample.sigma2, "signal power": summary["signal_power"],
     }, [preview_path, manifest_path, summary_path])
     return summary
 
 
 def correlation_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    out = output_dir(cfg); corr = cfg["correlation"]
+    out = output_dir(cfg); corr = activity_correlation_parameters(cfg)
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     sample_index = int(cfg.get("figures", {}).get("selected_sample", 0))
     sample_index = min(sample_index, len(activities) - 1)
@@ -265,9 +288,9 @@ def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
     for i, activity in enumerate(activities):
         r = communication_realization(activity, master_seed, i, M, L, snr_db)
         C = build_C(activity.device_locations, rho=rho, U=U)
-        result = casbl(
-            r.Theta, r.Y, r.noise_var, C, alpha=alpha, beta=beta,
-            gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"],
+        result = cgap_sbl_anc(
+            r.Theta, r.Y, r.sigma2, C, alpha=alpha, beta=beta,
+            gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"],
         )
         gammas.append(result.gamma); nmse_values.append(nmse(r.Z, result.mu)); iterations.append(result.iterations)
     gammas_arr = np.asarray(gammas)
@@ -276,13 +299,13 @@ def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
     return {
         "alpha": float(alpha), "beta": float(beta), "provisional_tau": threshold.tau,
         "precision": threshold.mean_precision, "recall": threshold.mean_recall, "f1": threshold.mean_f1,
-        "nmse": float(np.mean(nmse_values)), "iterations": float(np.mean(iterations)),
+        "nmse": float(np.nanmean(nmse_values)), "iterations": float(np.mean(iterations)),
     }
 
 
 def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
     """Task 05: select alpha and beta. Thresholds are finalized separately in Task 06."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = cfg["correlation"]; tune = cfg["tuning"]; run = cfg["run"]
+    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]
     algcfg = cfg["algorithms"].copy(); algcfg["num_thresholds"] = tune["num_thresholds"]
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     tasks = [
@@ -300,6 +323,7 @@ def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True
     save_csv(grid_path, rows)
     best = rows[0]
     selected_ab = {
+        "definition": tuning_definition(cfg),
         "alpha": best["alpha"], "beta": best["beta"],
         "provisional_tau_used_for_grid_ranking": best["provisional_tau"],
         "tuning_f1": best["f1"], "tuning_nmse": best["nmse"],
@@ -318,19 +342,20 @@ def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True
 
 
 def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
-    """Task 06: independently tune CA-SBL and SBL detection thresholds."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = cfg["correlation"]; tune = cfg["tuning"]; run = cfg["run"]; alg = cfg["algorithms"]
+    """Task 06: independently tune CGAP-SBL and SBL detection thresholds."""
+    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]; alg = cfg["algorithms"]
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     with (result_path(out, "tuning", "selected_alpha_beta.json")).open("r", encoding="utf-8") as f:
         selected_ab = json.load(f)
+    validate_selection(selected_ab, cfg)
     ca_gammas: list[np.ndarray] = []
     sb_gammas: list[np.ndarray] = []
     iterator = tqdm(enumerate(activities), total=len(activities), desc="Task 06 threshold inputs", unit="sample", disable=not show_progress)
     for i, activity in iterator:
         r = communication_realization(activity, cfg["seeds"]["communication_tuning"], i, sys["M"], tune["reference_pilot_length"], tune["reference_snr_db"])
         C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
-        ca = casbl(r.Theta, r.Y, r.noise_var, C, selected_ab["alpha"], selected_ab["beta"], gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"])
-        sb = sbl(r.Theta, r.Y, r.noise_var, gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"])
+        ca = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected_ab["alpha"], selected_ab["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
+        sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
         ca_gammas.append(ca.gamma); sb_gammas.append(sb.gamma)
     a_true = np.stack([a.a for a in activities])
     ca_arr = np.asarray(ca_gammas); sb_arr = np.asarray(sb_gammas)
@@ -338,12 +363,13 @@ def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str
     sb_curve = threshold_curve(a_true, sb_arr, tune["num_thresholds"])
     ca_choice = choose_gamma_threshold(a_true, ca_arr, tune["num_thresholds"])
     sb_choice = choose_gamma_threshold(a_true, sb_arr, tune["num_thresholds"])
-    ca_path = result_path(out, "tuning", "casbl_thresholds.csv"); sb_path = result_path(out, "tuning", "sbl_thresholds.csv")
+    ca_path = result_path(out, "tuning", "cgap_thresholds.csv"); sb_path = result_path(out, "tuning", "sbl_thresholds.csv")
     save_csv(ca_path, ca_curve); save_csv(sb_path, sb_curve)
     inputs_path = result_path(out, "tuning", "threshold_inputs.npz")
-    save_npz(inputs_path, a=a_true.astype(np.uint8), casbl_gamma=ca_arr, sbl_gamma=sb_arr)
+    save_npz(inputs_path, a=a_true.astype(np.uint8), cgap_gamma=ca_arr, sbl_gamma=sb_arr)
     selected = {
-        "casbl": {
+        "definition": tuning_definition(cfg),
+        "cgap": {
             "alpha": selected_ab["alpha"], "beta": selected_ab["beta"], "tau": ca_choice.tau,
             "tuning_precision": ca_choice.mean_precision, "tuning_recall": ca_choice.mean_recall, "tuning_f1": ca_choice.mean_f1,
         },
@@ -353,7 +379,7 @@ def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str
     selected_path = result_path(out, "tuning", "selected.json"); save_json(selected_path, selected)
     save_task_snapshot(cfg, 6, show_progress=show_progress, selected_parameters=selected)
     print_task_report("TASK 06 — THRESHOLD TUNING", {
-        "CA-SBL tau": ca_choice.tau, "CA-SBL tuning F1": ca_choice.mean_f1,
+        "CGAP-SBL-ANC tau": ca_choice.tau, "CGAP-SBL-ANC tuning F1": ca_choice.mean_f1,
         "SBL tau": sb_choice.tau, "SBL tuning F1": sb_choice.mean_f1,
     }, [ca_path, sb_path, inputs_path, selected_path])
     return selected
@@ -361,7 +387,7 @@ def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str
 
 def evaluation_conditions(cfg: dict[str, Any]) -> list[tuple[int, float, str]]:
     sys = cfg["system"]; tune = cfg["tuning"]
-    L0 = int(tune["reference_pilot_length"]); snr0 = float(tune["reference_snr_db"])
+    L0 = int(cfg["evaluation"]["pilot_length"]); snr0 = float(tune["reference_snr_db"])
     conditions: list[tuple[int, float, str]] = []
     for snr in sys["snr_db"]:
         conditions.append((L0, float(snr), "snr_sweep"))
@@ -371,56 +397,62 @@ def evaluation_conditions(cfg: dict[str, Any]) -> list[tuple[int, float, str]]:
 
 
 def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[str, np.ndarray] | None]:
-    sample_index, activity, master_seed, sys, corr, alg, selected, conditions, save_gamma = args
-    rows: list[dict[str, Any]] = []
-    gamma_save: dict[str, np.ndarray] | None = {} if save_gamma else None
+    q, activity, randomized, master_seed, sys, corr, alg, selected, conditions, save_gamma = args
+    rows = []
+    gamma_save = None
+    C = build_C(activity.device_locations, **corr)
+    options = {key: alg[key] for key in ("gamma_init", "K", "delta")}
     for L, snr_db, sweep in conditions:
-        r = communication_realization(activity, master_seed, sample_index, sys["M"], L, snr_db)
-        C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
-
-        t0 = time.perf_counter()
-        ca = casbl(r.Theta, r.Y, r.noise_var, C, alpha=selected["casbl"]["alpha"], beta=selected["casbl"]["beta"], gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"])
-        ca_runtime = time.perf_counter() - t0
-        p, rec, f = precision_recall_f1(r.a, support_from_gamma(ca.gamma, selected["casbl"]["tau"]))
-        realized_S = int(np.sum(r.a))
-        rows.append({"sample": sample_index, "realized_S": realized_S, "algorithm": "CA-SBL-ANC", "L": L, "snr_db": snr_db, "sweep": sweep, "precision": p, "recall": rec, "f1": f, "nmse": nmse(r.Z, ca.mu), "iterations": ca.iterations, "runtime_s": ca_runtime})
-
-        t0 = time.perf_counter()
-        sb = sbl(r.Theta, r.Y, r.noise_var, gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"])
-        sb_runtime = time.perf_counter() - t0
-        p, rec, f = precision_recall_f1(r.a, support_from_gamma(sb.gamma, selected["sbl"]["tau"]))
-        rows.append({"sample": sample_index, "realized_S": realized_S, "algorithm": "SBL", "L": L, "snr_db": snr_db, "sweep": sweep, "precision": p, "recall": rec, "f1": f, "nmse": nmse(r.Z, sb.mu), "iterations": sb.iterations, "runtime_s": sb_runtime})
-
-        # OMP and CoSaMP are oracle sparsity-budget baselines. The natural
-        # event model can occasionally produce S_r > L. A greedy support budget
-        # larger than the pilot dimension is not identifiable, so use the
-        # feasible oracle budget K_r = min(S_r, L, N).
-        oracle_K = oracle_sparsity_budget(realized_S, L, int(sys["N"]))
-        oracle_capped = bool(oracle_K < realized_S)
-        t0 = time.perf_counter(); omp = mmv_omp(r.Theta, r.Y, oracle_K); omp_runtime = time.perf_counter() - t0
-        p, rec, f = precision_recall_f1(r.a, support_from_rows(omp, oracle_K))
-        rows.append({"sample": sample_index, "realized_S": realized_S, "algorithm": "MMV-OMP", "L": L, "snr_db": snr_db, "sweep": sweep, "precision": p, "recall": rec, "f1": f, "nmse": nmse(r.Z, omp), "iterations": oracle_K, "oracle_K": oracle_K, "oracle_capped": oracle_capped, "runtime_s": omp_runtime})
-
-        t0 = time.perf_counter(); co = mmv_cosamp(r.Theta, r.Y, oracle_K, max_iter=alg["cosamp_max_iter"], tol=alg["cosamp_tol"]); co_runtime = time.perf_counter() - t0
-        p, rec, f = precision_recall_f1(r.a, support_from_rows(co, oracle_K))
-        rows.append({"sample": sample_index, "realized_S": realized_S, "algorithm": "MMV-CoSaMP", "L": L, "snr_db": snr_db, "sweep": sweep, "precision": p, "recall": rec, "f1": f, "nmse": nmse(r.Z, co), "iterations": np.nan, "oracle_K": oracle_K, "oracle_capped": oracle_capped, "runtime_s": co_runtime})
-
-        if save_gamma and L == selected["reference_pilot_length"] and float(snr_db) == float(selected["reference_snr_db"]):
-            gamma_save = {"a": r.a.astype(np.uint8), "casbl_gamma": ca.gamma, "sbl_gamma": sb.gamma}
+        paired = paired_activity_realizations(activity, randomized, master_seed, q, sys["M"], L, snr_db)
+        for scenario, r in paired.items():
+            common = {"q": q, "S_q": int(np.sum(r.a)), "scenario": scenario,
+                      "L": L, "snr_db": snr_db, "sweep": sweep}
+            t0 = time.perf_counter()
+            cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C,
+                selected["cgap"]["alpha"], selected["cgap"]["beta"], **options)
+            cgap_runtime = time.perf_counter() - t0
+            t0 = time.perf_counter()
+            sb = sbl(r.Theta, r.Y, r.sigma2, **options)
+            sbl_runtime = time.perf_counter() - t0
+            for name, result, key, runtime in (("CGAP-SBL-ANC", cgap, "cgap", cgap_runtime), ("SBL", sb, "sbl", sbl_runtime)):
+                precision, recall, f1 = precision_recall_f1(r.a, support_from_gamma(result.gamma, selected[key]["tau"]))
+                rows.append({**common, "algorithm": name, "precision": precision, "recall": recall,
+                             "f1": f1, "nmse": nmse(r.Z, result.mu), "iterations": result.iterations, "runtime_s": runtime})
+            if scenario == "randomized":
+                continue
+            B_q = oracle_sparsity_budget(common["S_q"], L, sys["N"])
+            for name, solver in (("MMV-OMP", mmv_omp), ("MMV-CoSaMP", mmv_cosamp)):
+                greedy_options = {} if name == "MMV-OMP" else {"max_iter": alg["cosamp_max_iter"], "tol": alg["cosamp_tol"]}
+                t0 = time.perf_counter()
+                Z_hat = solver(r.Theta, r.Y, B_q, **greedy_options)
+                runtime = time.perf_counter() - t0
+                precision, recall, f1 = precision_recall_f1(r.a, support_from_rows(Z_hat, B_q))
+                rows.append({**common, "algorithm": name, "precision": precision, "recall": recall, "f1": f1,
+                             "nmse": nmse(r.Z, Z_hat), "iterations": B_q if name == "MMV-OMP" else np.nan,
+                             "B_q": B_q, "oracle_capped": B_q < common["S_q"], "runtime_s": runtime})
+            if save_gamma and L == selected["reference_pilot_length"] and snr_db == selected["reference_snr_db"]:
+                gamma_save = {"a": r.a.astype(np.uint8), "cgap_gamma": cgap.gamma, "sbl_gamma": sb.gamma}
     return rows, gamma_save
 
 
 def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
     """Task 07: run all estimators and save raw per-sample metrics."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = cfg["correlation"]; alg = cfg["algorithms"]; run = cfg["run"]
+    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]
     activities = load_activity_samples(result_path(out, "activity", "evaluation_activity.npz"))
+    randomized_path = result_path(out, "activity", "randomized_evaluation_activity.npz")
+    if not randomized_path.exists():
+        raise FileNotFoundError(f"Run Task 02 to save randomized evaluation activity: {randomized_path}")
+    randomized = load_activity_samples(randomized_path)
+    if len(randomized) != len(activities):
+        raise ValueError("Task-02 paired dataset lengths differ; rerun Task 02.")
     with (result_path(out, "tuning", "selected.json")).open("r", encoding="utf-8") as f:
         selected = json.load(f)
+    validate_selection(selected, cfg)
     selected["reference_snr_db"] = cfg["tuning"]["reference_snr_db"]
-    selected["reference_pilot_length"] = cfg["tuning"]["reference_pilot_length"]
+    selected["reference_pilot_length"] = cfg["evaluation"]["pilot_length"]
     conditions = evaluation_conditions(cfg)
     n_gamma = min(int(cfg["evaluation"].get("gamma_distribution_samples", 0)), len(activities))
-    tasks = [(i, a, cfg["seeds"]["communication_evaluation"], sys, corr, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
+    tasks = [(i, a, randomized[i], cfg["seeds"]["communication_evaluation"], sys, corr, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
     if workers > 1:
         with ProcessPoolExecutor(max_workers=workers) as ex:
             outputs = list(tqdm(ex.map(_evaluate_sample, tasks), total=len(tasks), desc="Task 07 evaluation", unit="sample", disable=not show_progress))
@@ -434,7 +466,7 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
     if gamma_outputs:
         save_npz(gamma_path,
                  a=np.stack([g["a"] for g in gamma_outputs]),
-                 casbl_gamma=np.stack([g["casbl_gamma"] for g in gamma_outputs]),
+                 cgap_gamma=np.stack([g["cgap_gamma"] for g in gamma_outputs]),
                  sbl_gamma=np.stack([g["sbl_gamma"] for g in gamma_outputs]))
     realized_counts = np.asarray([np.sum(a.a) for a in activities], dtype=float)
     capped_by_L = {}
@@ -443,12 +475,12 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
             key = str(int(row["L"]))
             capped_by_L[key] = capped_by_L.get(key, 0) + 1
     summary = {
-        "samples": len(activities), "conditions_per_sample": len(conditions), "metric_rows": len(rows),
+        "Q": len(activities), "conditions_per_realization": len(conditions), "scenarios": ["correlated", "randomized"], "metric_rows": len(rows),
         "gamma_samples": len(gamma_outputs), "workers": int(workers),
         "mean_realized_S": float(np.mean(realized_counts)),
         "std_realized_S": float(np.std(realized_counts, ddof=1)) if len(realized_counts) > 1 else 0.0,
         "min_realized_S": int(np.min(realized_counts)), "max_realized_S": int(np.max(realized_counts)),
-        "oracle_budget_rule": "K_r = min(S_r, L, N)",
+        "oracle_budget_rule": "B_q = min(S_q, L, N)",
         "oracle_capped_conditions": int(sum(capped_by_L.values())),
         "oracle_capped_by_L": capped_by_L,
     }
@@ -461,25 +493,29 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
 
 
 def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    out = output_dir(cfg); sys = cfg["system"]; corr = cfg["correlation"]; alg = cfg["algorithms"]; run = cfg["run"]; tune = cfg["tuning"]
+    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]; tune = cfg["tuning"]
     activities = load_activity_samples(result_path(out, "activity", "evaluation_activity.npz"))
     idx = int(cfg["evaluation"].get("convergence_sample_offset", 0))
     activity = activities[idx]
     with (result_path(out, "tuning", "selected.json")).open("r", encoding="utf-8") as f:
         selected = json.load(f)
-    r = communication_realization(activity, cfg["seeds"]["communication_evaluation"], idx, sys["M"], tune["reference_pilot_length"], tune["reference_snr_db"])
+    validate_selection(selected, cfg)
+    r = communication_realization(activity, cfg["seeds"]["communication_evaluation"], idx, sys["M"], cfg["evaluation"]["pilot_length"], tune["reference_snr_db"])
     C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
-    print("Task 08: running CA-SBL convergence trace...")
-    ca = casbl(r.Theta, r.Y, r.noise_var, C, selected["casbl"]["alpha"], selected["casbl"]["beta"], gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"], keep_history=True, Z_true=r.Z)
+    print("Task 08: running CGAP-SBL-ANC convergence trace...")
+    ca = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected["cgap"]["alpha"], selected["cgap"]["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)
     print("Task 08: running SBL convergence trace...")
-    sb = sbl(r.Theta, r.Y, r.noise_var, gamma_init=alg["gamma_init"], max_iter=alg["sbl_max_iter"], tol=alg["sbl_tol"], keep_history=True, Z_true=r.Z)
+    sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)
     conv_path = result_path(out, "convergence", "convergence.npz")
-    save_npz(conv_path, casbl_gamma_history=ca.gamma_history, casbl_phi_history=ca.phi_history, casbl_nmse_history=ca.nmse_history, sbl_gamma_history=sb.gamma_history, sbl_nmse_history=sb.nmse_history)
+    save_npz(conv_path, cgap_gamma_history=ca.gamma_history, cgap_lambda_history=ca.lambda_history, cgap_nmse_history=ca.nmse_history, sbl_gamma_history=sb.gamma_history, sbl_nmse_history=sb.nmse_history)
     summary = {
-        "sample_index": idx, "CA-SBL_iterations": int(ca.iterations), "CA-SBL_converged": bool(ca.converged),
-        "SBL_iterations": int(sb.iterations), "SBL_converged": bool(sb.converged),
-        "CA-SBL_final_trace_nmse": float(ca.nmse_history[-1]) if ca.nmse_history is not None and len(ca.nmse_history) else None,
-        "SBL_final_trace_nmse": float(sb.nmse_history[-1]) if sb.nmse_history is not None and len(sb.nmse_history) else None,
+        "q": idx, "L": int(cfg["evaluation"]["pilot_length"]),
+        "snr_db": float(tune["reference_snr_db"]), "K": alg["K"], "delta": alg["delta"],
+        "cgap_final_nmse": nmse(r.Z, ca.mu), "sbl_final_nmse": nmse(r.Z, sb.mu),
+        "cgap_iterations": int(ca.iterations), "cgap_converged": bool(ca.converged),
+        "sbl_iterations": int(sb.iterations), "sbl_converged": bool(sb.converged),
+        "cgap_last_e_step_nmse": float(ca.nmse_history[-1]) if ca.nmse_history is not None and len(ca.nmse_history) else None,
+        "sbl_last_e_step_nmse": float(sb.nmse_history[-1]) if sb.nmse_history is not None and len(sb.nmse_history) else None,
     }
     summary_path = result_path(out, "convergence", "summary.json"); save_json(summary_path, summary)
     save_task_snapshot(cfg, 8, sample_index=idx, selected_parameters=selected, communication_master_seed=int(cfg["seeds"]["communication_evaluation"]))
@@ -492,14 +528,24 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     out = output_dir(cfg)
     per_sample_path = result_path(out, "evaluation", "per_sample.csv")
     df = pd.read_csv(per_sample_path)
-    aggregate = df.groupby(["algorithm", "L", "snr_db", "sweep"], as_index=False)[["precision", "recall", "f1", "nmse", "runtime_s"]].mean()
+    if "scenario" not in df or "CGAP-SBL-ANC" not in set(df["algorithm"]):
+        raise ValueError("Legacy estimator results cannot be relabeled. Rerun Task 07 for CGAP-SBL-ANC.")
+    aggregate = df.groupby(["scenario", "algorithm", "L", "snr_db", "sweep"], as_index=False)[["precision", "recall", "f1", "nmse", "runtime_s"]].mean()
     aggregate_path = result_path(out, "evaluation", "aggregate.csv")
     ensure_dir(aggregate_path.parent)
     aggregate.to_csv(aggregate_path, index=False)
-    overall = df.groupby("algorithm")[["precision", "recall", "f1", "nmse", "runtime_s"]].mean().reset_index()
+    paired = df[df["algorithm"].isin(["CGAP-SBL-ANC", "SBL"])].pivot(
+        index=["q", "scenario", "L", "snr_db", "sweep"], columns="algorithm", values=["f1", "nmse"])
+    advantages = pd.DataFrame({
+        "f1_gain": paired["f1"]["CGAP-SBL-ANC"] - paired["f1"]["SBL"],
+        "nmse_reduction": paired["nmse"]["SBL"] - paired["nmse"]["CGAP-SBL-ANC"],
+    }).reset_index().groupby(["scenario", "L", "snr_db", "sweep"], as_index=False)[["f1_gain", "nmse_reduction"]].mean()
+    advantages_path = result_path(out, "evaluation", "spatial_randomization_advantages.csv")
+    advantages.to_csv(advantages_path, index=False)
+    overall = df.groupby(["scenario", "algorithm"])[["precision", "recall", "f1", "nmse", "runtime_s"]].mean().reset_index()
     overall_path = result_path(out, "evaluation", "overall_by_algorithm.csv"); overall.to_csv(overall_path, index=False)
-    ref_L = int(cfg["tuning"]["reference_pilot_length"]); ref_snr = float(cfg["tuning"]["reference_snr_db"])
-    ref = aggregate[(aggregate["L"] == ref_L) & (aggregate["snr_db"] == ref_snr)].drop_duplicates("algorithm")
+    ref_L = int(cfg["evaluation"]["pilot_length"]); ref_snr = float(cfg["tuning"]["reference_snr_db"])
+    ref = aggregate[(aggregate["scenario"] == "correlated") & (aggregate["L"] == ref_L) & (aggregate["snr_db"] == ref_snr)].drop_duplicates("algorithm")
     reference_rows = ref[["algorithm", "precision", "recall", "f1", "nmse", "runtime_s"]].to_dict(orient="records")
     summary = {"aggregate_rows": int(len(aggregate)), "reference_L": ref_L, "reference_snr_db": ref_snr, "reference_results": reference_rows}
     summary_path = result_path(out, "evaluation", "summary.json"); save_json(summary_path, summary)
@@ -507,7 +553,7 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     print_task_report("TASK 09 — AGGREGATION / ANALYSIS", {
         "aggregate rows": len(aggregate), "reference L": ref_L, "reference SNR": ref_snr,
         "algorithms": ", ".join(sorted(df["algorithm"].unique())),
-    }, [aggregate_path, overall_path, summary_path])
+    }, [aggregate_path, advantages_path, overall_path, summary_path])
     print("Reference-condition results:")
     if not ref.empty:
         print(ref[["algorithm", "f1", "nmse", "runtime_s"]].to_string(index=False))

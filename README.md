@@ -1,44 +1,48 @@
-# CA-SBL for JADCE in MTC — Reproducible Implementation
+# CGAP-SBL for JADCE in MTC — Reproducible Implementation
 
-Codespaces-ready implementation for the paper **Correlation-Aware SBL for Device Detection and Channel Estimation in MTC**.
+Codespaces-ready implementation for the paper **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**.
 
 The scientific workflow contains **nine uniquely numbered tasks (01–09)**. Standard figures are saved automatically by the numbered task that produces the corresponding data. Numbered tasks save PNG previews for the repository; the paper activity script saves vector PDF.
 
 `AGENTS.md` contains persistent instructions for Codex, while `DECISIONS.md` records locked scientific and implementation decisions.
 
-## Implemented CA-SBL theory
+## Implemented CGAP-SBL theory
 
-For the proper complex MMV model,
+The lagged nonnegative penalty is `lambda = positive_part(Omega @ gamma)`.
+The complex-MMV second moment is `eta_i = Sigma_ii + ||mu_i||²/M`, and the update is
+`gamma_i = 2*eta_i / (1 + sqrt(1 + 4*lambda_i*eta_i/M))`.
+Zero penalty recovers conventional SBL exactly. Both methods use relative gamma
+change below `delta=1e-4` or at most `K=500` iterations.
 
-\[
-\mathbb E[\log p(\mathbf Z\mid\boldsymbol\gamma)]
-\propto
--M\sum_i\left(\log\gamma_i+\eta_i/\gamma_i\right),
-\qquad
-\eta_i=\Sigma_{ii}+\|\boldsymbol\mu_i\|_2^2/M.
-\]
+The ANC version uses `Omega_ANC = alpha*(beta*1-C)` and computes penalties
+without constructing dense Omega. Its spatial parameters match the saved
+activity model: `rho=kappa=3.78`, `U=D=15 m` for the current experiment.
+The interaction is an adaptive penalization design, not a proper Gaussian
+hyperprior or a guarantee of monotonic global-objective improvement.
+See [docs/theory.md](docs/theory.md) for equations and interpretation.
 
-The ANC construction remains
+## Revised-paper experiment
 
-\[
-\mathbf\Omega=\alpha(\beta\mathbf1-\mathbf C),
-\]
+Tuning uses 100 independent realizations at `L=25`, SNR 12 dB, with
+`alpha=[2,4,6,8,10,12,14]` and `beta=[0.05,0.10,...,0.35]`.
+Evaluation uses 1,000 realizations: pilot lengths 20–45 in steps of 5 at
+12 dB, and SNR 4–24 dB in steps of 4 at `L=30`. Convergence uses `L=30`, 12 dB.
+Task 05 saves both F1 and NMSE contours.
 
-and the corrected interaction is
+Task 02 saves paired spatially randomized evaluation activity; Task 07 loads
+these supports for CGAP-SBL-ANC and SBL,
+retaining each realization's active count, geometry, channels, and pilots.
+Parameters tuned on correlated activity remain fixed. Task 09 saves four-curve
+spatial comparisons and `spatial_randomization_advantages.csv`, reporting the
+within-scenario F1 gain and NMSE reduction relative to SBL.
 
-\[
-\phi_i=(\mathbf\Omega\boldsymbol\gamma)_i/M.
-\]
-
-For \(\phi_i>0\), the implementation uses
-
-\[
-\gamma_i^{\mathrm{new}}
-=
-\frac{2\eta_i}{\sqrt{1+4\phi_i\eta_i}+1}.
-\]
-
-For \(\phi_i\le0\), the current implementation uses the conventional SBL fallback \(\gamma_i=\eta_i\). There is no upper clipping of \(\gamma_i\).
+Existing event-driven Task-01/02 data remain compatible. Rerun Task 02 once
+to create its new paired randomized evaluation dataset and figures. Rerun Tasks 03–09 for the revised
+schema and method; old tuning is explicitly rejected. Historical saved outputs
+are preserved and are not evidence of CGAP-SBL performance. Provisional numerical
+claims in the manuscript are not treated as generated experiment results.
+The Python import namespace `casbl_jadce` remains stable; the implemented methods
+are `cgap_sbl` and `cgap_sbl_anc`, and the distribution is `cgap-sbl-jadce`.
 
 ## Setup
 
@@ -66,11 +70,10 @@ This saves the calibration CSV/JSON and the \(\kappa\)-calibration figure. It do
 
 ```bash
 python scripts/02_generate_activity.py \
-  --config configs/experiment.yaml \
-  --sample 0
+  --config configs/experiment.yaml
 ```
 
-The event process is unconditioned, so the realized activity count \(S_r\) varies. This task saves tuning/evaluation activity datasets, `realized_s.csv`, summary statistics, every tuning/evaluation activity realization with the activation-probability field, and the realized-\(S\) distribution.
+The event process is unconditioned, so the realized activity count \(S_q\) varies. This task saves tuning/evaluation activity datasets, `realized_s.csv`, summary statistics, every event-driven tuning/evaluation activity realization with the activation-probability field, randomized evaluation maps without event overlays, and the realized-\(S\) distribution.
 
 ### Task 03 — Generate the communication-model preview
 
@@ -102,7 +105,7 @@ The correlation summary and \(\mathbf C\) visualization are saved automatically.
 python scripts/05_tune_alpha_beta.py
 ```
 
-Task 05 uses an internally optimized provisional threshold only for ranking the \((\alpha,\beta)\) grid. The selected grid result and tuning figure are saved automatically. Final CA-SBL and SBL activity thresholds are independently selected in Task 06.
+Task 05 uses an internally optimized provisional threshold only for ranking the \((\alpha,\beta)\) grid. The selected grid result and tuning figure are saved automatically. Final CGAP-SBL and SBL activity thresholds are independently selected in Task 06.
 
 ### Task 06 — Tune activity thresholds
 
@@ -110,7 +113,7 @@ Task 05 uses an internally optimized provisional threshold only for ranking the 
 python scripts/06_tune_thresholds.py --config configs/experiment.yaml
 ```
 
-This saves `casbl_thresholds.csv`, `sbl_thresholds.csv`, `selected.json`, and the CA-SBL/SBL threshold-tuning figures.
+This saves `cgap_thresholds.csv`, `sbl_thresholds.csv`, `selected.json`, and the CGAP-SBL/SBL threshold-tuning figures.
 
 ### Task 07 — Run all estimators
 
@@ -118,15 +121,15 @@ This saves `casbl_thresholds.csv`, `sbl_thresholds.csv`, `selected.json`, and th
 python scripts/07_run_estimators.py
 ```
 
-This runs CA-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves the gamma-distribution diagnostics.
+This runs CGAP-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves the gamma-distribution diagnostics.
 
 For each realization, the greedy baselines use
 
 \[
-K_r=\min(S_r,L,N),
+B_q=\min(S_q,L,N),
 \]
 
-where \(S_r=\sum_i a_i\). Thus `K_r == S_r` whenever feasible. If `S_r > L`, the greedy support budget is capped at `L`. Raw baseline rows record `realized_S`, `oracle_K`, and `oracle_capped`; `run_summary.json` reports how often capping occurs. CA-SBL and SBL are **not** given \(S_r\) or \(K_r\).
+where \(S_q=\sum_i a_i\). Thus `B_q == S_q` whenever feasible. If `S_q > L`, the greedy support budget is capped at `L`. Raw baseline rows record `S_q`, `B_q`, and `oracle_capped`; `run_summary.json` reports how often capping occurs. CGAP-SBL and SBL are **not** given \(S_q\) or \(B_q\).
 
 ### Task 08 — Run convergence analysis
 
@@ -167,8 +170,8 @@ The probability data are never thresholded, epsilon-shifted, or modified to make
 ## Baselines
 
 - **SBL:** proper complex-MMV SBL using the optimized posterior engine.
-- **MMV-OMP / SOMP:** joint row-support greedy baseline using oracle budget \(K_r\).
-- **MMV-CoSaMP:** joint row-support CoSaMP using unregularized SVD least squares and the same oracle budget \(K_r\).
+- **MMV-OMP / SOMP:** joint row-support greedy baseline using oracle budget \(B_q\).
+- **MMV-CoSaMP:** joint row-support CoSaMP using unregularized SVD least squares and the same oracle budget \(B_q\).
 
 The greedy methods should be described in the paper as **oracle sparsity-budget baselines**, not as methods always receiving the uncapped realized sparsity.
 
@@ -180,7 +183,7 @@ The greedy methods should be described in the paper as **oracle sparsity-budget 
 - \(\mathbf H\) is fixed across pilot lengths and SNRs for a realization.
 - \(\mathbf\Theta\) is fixed across SNR values for a given realization and pilot length.
 - Thresholds are selected only from tuning data.
-- CA-SBL \(\alpha,\beta\) must be retuned under the corrected \(1/M\) interaction scaling.
+- CGAP-SBL \(\alpha,\beta\) and both thresholds must be retuned for the revised setup.
 - Large communication tensors are deterministically regenerated rather than stored for every Monte-Carlo condition.
 
 ## Validation
@@ -220,7 +223,7 @@ their original paths as historical run provenance.
 
 Task 02 automatically exports every tuning and evaluation activity realization
 in PNG, with the split, zero-based realization number, and realized active
-MTD count in its title. The full configuration produces 100 tuning and 1,000
+MTD count in its title. The full configuration produces 100 tuning, 1,000 event-driven evaluation, and 1,000 randomized
 evaluation spatial PNG figures. Batch export shows progress.
 
 ```bash
@@ -239,10 +242,12 @@ Each task owns its data and figures under `results/experiment/`:
 02_activity_realizations/      # summary and realized_s.csv
   tuning/                     # tuning_activity.npz
   evaluation/                 # evaluation_activity.npz
+  randomized_evaluation/      # randomized_evaluation_activity.npz
   figures/
-    tuning/                   # one PDF per tuning realization
-    evaluation/               # one PDF per evaluation realization
-                              # distribution PDF is directly in figures/
+    tuning/                   # one PNG per tuning realization
+    evaluation/               # one PNG per event-driven evaluation realization
+    randomized_evaluation/    # one PNG per randomized evaluation realization
+                              # distribution PNG is directly in figures/
 03_communication_preview/      # preview and summaries; figures/
 04_spatial_correlation/        # correlation data and summary; figures/
 05_alpha_beta_tuning/          # grid and selection; figures/tuning/
@@ -252,8 +257,8 @@ Each task owns its data and figures under `results/experiment/`:
 09_evaluation/                 # aggregated results and summary; figures/evaluation/
 ```
 
-Run-level `config.yaml` and `manifest.json` remain at the results root. Task status
-and regeneration utilities read this layout. Existing saved outputs have been
+Run-level `config.yaml` remains at the results root. Each task stores its own
+`manifest.json`. Existing saved outputs have been
 moved without changing their numerical data or historical run metadata.
 
 ### Automatic calibrated kappa
@@ -287,7 +292,7 @@ it does not silently redefine the target. Calibration and validation remain
 separate from Task 02 datasets. A missing bracket saves a failed summary and
 stops; Task 02 rejects that summary instead of consuming an old selection.
 
-The experiment requires its own Task-01 results. Preview utilities also use the saved calibrated value unless `--kappa` is supplied.
+The experiment requires its own Task-01 results. Paper exports use the saved Task-02 model parameters.
 
 ### Configuration provenance
 
@@ -310,7 +315,7 @@ script reads saved Task 02 data and exports separate PDFs.
 ```text
 src/casbl_jadce/
 ├── models/          # Activity, communication, realizations, correlation
-├── algorithms/      # SBL, CA-SBL, OMP, CoSaMP, posterior engine
+├── algorithms/      # SBL, CGAP-SBL, OMP, CoSaMP, posterior engine
 ├── experiments/     # Calibration, threshold tuning, nine-stage pipeline
 ├── figures/         # Descriptive task-numbered plots and shared rendering
 ├── task_cli.py      # Registry and common --config / --no-progress arguments
@@ -355,18 +360,19 @@ warnings remain visible.
 
 ### Explicit random seeds
 
-The `seeds` section names six independent streams: `kappa_calibration` selects
+The `seeds` section names seven independent streams: `kappa_calibration` selects
 the decay parameter that gives the target mean active MTD count;
 `kappa_validation` checks that selection on independent samples.
 `activity_tuning` and `activity_evaluation` generate the two activity datasets.
 `communication_tuning` and `communication_evaluation` generate their channels,
-pilots, and noise. All six seeds are explicit and distinct; no seed offsets
-are applied between these streams. Algorithms still share realizations within
+pilots, and noise. All seven seeds are explicit and distinct; no seed offsets
+are applied between these streams. `spatial_randomization=6031` generates paired
+randomized supports independently of the six retained streams. Algorithms still share realizations within
 each condition.
 
-The six streams use distinct four-digit seeds listed in `configs/experiment.yaml`. These replace
-the previous seed values, so regenerate results starting with Task 01.
-Existing saved results retain their original recorded seeds.
+The streams use distinct four-digit seeds listed in `configs/experiment.yaml`.
+The six existing activity and communication streams are preserved; only the
+spatial-randomization stream is new. Existing saved activity remains compatible.
 
 ### Paper activity figures
 
@@ -394,3 +400,16 @@ exact-sparsity experiments can still set it explicitly.
 
 Paper activity PDFs use `event_driven_activation_model_[split]_[index].pdf` with four-digit index padding,
 for example `event_driven_activation_model_evaluation_0005.pdf`.
+
+
+### Saved randomized evaluation activity
+
+Task 02 saves `02_activity_realizations/randomized_evaluation/randomized_evaluation_activity.npz`
+and automatically draws every map under `02_activity_realizations/figures/randomized_evaluation/`.
+Each saved sample retains its paired device/event geometry and active count.
+Randomized support uses the same seed/index sequence as the former Task-07 generator.
+Its stored marginal activation probabilities are S_q/N conditional on count;
+selection is without replacement, not independent Bernoulli activation.
+Randomized maps omit events, event boundaries, and the event probability field.
+Task 07 requires these saved pairs and never generates new activity supports.
+Communication observations are still generated in memory for each condition.

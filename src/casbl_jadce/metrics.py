@@ -6,31 +6,31 @@ def support_from_gamma(gamma: np.ndarray, tau: float) -> np.ndarray:
     return np.asarray(gamma) >= float(tau)
 
 
-def support_from_rows(Z_hat: np.ndarray, S: int) -> np.ndarray:
+def support_from_rows(Z_hat: np.ndarray, B_q: int) -> np.ndarray:
     energy = np.sum(np.abs(Z_hat) ** 2, axis=1)
     support = np.zeros(len(energy), dtype=bool)
-    if S == 0:
+    if B_q == 0:
         return support
-    if not (0 < S <= len(energy)):
-        raise ValueError("S must satisfy 0 <= S <= number of rows.")
-    support[np.argpartition(energy, -S)[-S:]] = True
+    if not (0 < B_q <= len(energy)):
+        raise ValueError("B_q must satisfy 0 <= B_q <= number of rows.")
+    support[np.argpartition(energy, -B_q)[-B_q:]] = True
     return support
 
 
-def oracle_sparsity_budget(realized_S: int, L: int, N: int) -> int:
+def oracle_sparsity_budget(S_q: int, L: int, N: int) -> int:
     """Feasible oracle support budget for OMP/CoSaMP.
 
     The greedy baselines receive the realized activity count whenever it is
     identifiable within the pilot dimension. If the natural event model
     produces more active MTDs than measurements, cap the solver budget at L
-    (and at N defensively): K_r = min(S_r, L, N).
+    (and at N defensively): B_q = min(S_q, L, N).
     """
-    realized_S = int(realized_S); L = int(L); N = int(N)
-    if realized_S < 0:
-        raise ValueError("realized_S must be non-negative.")
+    S_q = int(S_q); L = int(L); N = int(N)
+    if S_q < 0:
+        raise ValueError("S_q must be non-negative.")
     if L <= 0 or N <= 0:
         raise ValueError("L and N must be positive.")
-    return min(realized_S, L, N)
+    return min(S_q, L, N)
 
 
 def detection_counts(a_true: np.ndarray, a_hat: np.ndarray) -> tuple[int, int, int, int]:

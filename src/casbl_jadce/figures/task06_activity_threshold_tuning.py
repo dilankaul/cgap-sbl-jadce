@@ -12,7 +12,7 @@ def plot_threshold_tuning(cfg: dict, formats: str = "png") -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
     paths: list[Path] = []
     for filename, label, stem in [
-        ("casbl_thresholds.csv", "CA-SBL-ANC", "06_casbl_threshold"),
+        ("cgap_thresholds.csv", "CGAP-SBL-ANC", "06_cgap_threshold"),
         ("sbl_thresholds.csv", "SBL", "06_sbl_threshold"),
     ]:
         df = pd.read_csv(result_path(out, "tuning", filename)).sort_values("tau")

@@ -15,7 +15,7 @@ def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
                     "legend.fontsize": 10.5, "colorbar.labelsize": 12,
                     "colorbar.ticksize": 10}
     fig, ax = plt.subplots(figsize=(6.4, 4.2))
-    ax.plot(np.arange(1, len(conv["casbl_nmse_history"]) + 1), conv["casbl_nmse_history"], label="CA-SBL-ANC")
+    ax.plot(np.arange(1, len(conv["cgap_nmse_history"]) + 1), conv["cgap_nmse_history"], label="CGAP-SBL-ANC")
     ax.plot(np.arange(1, len(conv["sbl_nmse_history"]) + 1), conv["sbl_nmse_history"], label="SBL")
     ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$"); ax.set_yscale("log")
     ax.grid(True, alpha=0.2); ax.legend(); ax.set_title("Convergence at reference condition")

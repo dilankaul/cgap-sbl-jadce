@@ -11,7 +11,7 @@ class CommunicationSample:
     Theta: np.ndarray
     W: np.ndarray
     Y: np.ndarray
-    noise_var: float
+    sigma2: float
 
 
 def generate_H(rng: np.random.Generator, M: int, N: int) -> np.ndarray:
@@ -33,11 +33,11 @@ def build_Z(a: np.ndarray, H: np.ndarray) -> np.ndarray:
 def add_noise_for_snr(rng: np.random.Generator, signal: np.ndarray, snr_db: float) -> tuple[np.ndarray, float]:
     signal_power = float(np.mean(np.abs(signal) ** 2))
     snr_linear = 10.0 ** (float(snr_db) / 10.0)
-    noise_var = signal_power / snr_linear if signal_power > 0 else 1.0 / snr_linear
-    W = np.sqrt(noise_var / 2.0) * (
+    sigma2 = signal_power / snr_linear if signal_power > 0 else 1.0 / snr_linear
+    W = np.sqrt(sigma2 / 2.0) * (
         rng.standard_normal(signal.shape) + 1j * rng.standard_normal(signal.shape)
     )
-    return W, noise_var
+    return W, sigma2
 
 
 def simulate_communication(
@@ -54,5 +54,5 @@ def simulate_communication(
     Theta = generate_Theta(rng, L, N) if Theta is None else Theta
     Z = build_Z(a, H)
     signal = Theta @ Z
-    W, noise_var = add_noise_for_snr(rng, signal, snr_db)
-    return CommunicationSample(a=np.asarray(a, dtype=bool), H=H, Z=Z, Theta=Theta, W=W, Y=signal + W, noise_var=noise_var)
+    W, sigma2 = add_noise_for_snr(rng, signal, snr_db)
+    return CommunicationSample(a=np.asarray(a, dtype=bool), H=H, Z=Z, Theta=Theta, W=W, Y=signal + W, sigma2=sigma2)

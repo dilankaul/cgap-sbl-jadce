@@ -1,1 +1,1 @@
-"""Figures for reproducible CASBL experiments."""
+"""Figures for reproducible CGAP-SBL experiments."""

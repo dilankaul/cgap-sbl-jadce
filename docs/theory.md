@@ -1,112 +1,111 @@
-# Theory used by this implementation
+# CGAP-SBL mathematics
 
-The implementation follows the paper notation throughout.
+This implementation follows **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**, manuscript `Publications___CASBL (7).pdf`. Its simulation setup is authoritative; its provisional performance statements are not imported as results.
 
-## System model
+## System and posterior
 
-\[
-\mathbf Y=\mathbf\Theta\mathbf Z+\mathbf W,
-\qquad
-\mathbf Z=\operatorname{diag}(\mathbf a)\mathbf H^T,
-\]
-
-where \(\mathbf\Theta\in\mathbb C^{L\times N}\), \(\mathbf Z\in\mathbb C^{N\times M}\), and \(\mathbf Y\in\mathbb C^{L\times M}\).
-
-For MTD \(i\),
+`N` is the number of MTDs, `M` the BS antenna count, and `L` the pilot length.
+The binary activity vector is `a`, the physical channel is `H` with shape `(M,N)`,
+and the effective channel and received pilots are
 
 \[
-\mathbf z_i\mid\gamma_i\sim\mathcal{CN}(\mathbf0,\gamma_i\mathbf I_M).
+Z=\operatorname{diag}(a)H^T,\qquad Y=\Theta Z+W.
 \]
 
-For a proper complex Gaussian, the expected SBL term is
+The transpose is ordinary, not conjugate. Unit-norm QPSK pilots have shape `(L,N)`.
+Rows satisfy \(z_i\mid\gamma_i\sim\mathcal{CN}(0,\gamma_i I_M)\).
+With \(\Gamma=\operatorname{diag}(\gamma)\), the posterior uses
 
 \[
-\mathbb E[\log p(\mathbf Z\mid\boldsymbol\gamma)]
-\propto
--M\sum_{i=1}^{N}
-\left[
-\log\gamma_i+\frac{\eta_i}{\gamma_i}
-\right],
+\Pi=\Theta\Gamma\Theta^H+\sigma^2I_L,\qquad
+\mu=\Gamma\Theta^H\Pi^{-1}Y,
+\]
+\[
+\Sigma_{ii}=\gamma_i-\gamma_i^2\theta_i^H\Pi^{-1}\theta_i,
+\qquad \eta_i=\Sigma_{ii}+\|\mu_{i,:}\|_2^2/M.
 \]
 
-with
+The implementation uses Cholesky solves and computes only the covariance diagonal.
+The inverse symbols above are mathematical notation, not explicit inverses in the solver.
+
+## Iteration-specific penalization
+
+For a finite symmetric interaction matrix \(\Omega\), equations (29)–(37) define
 
 \[
-\eta_i=\Sigma_{ii}+\frac{\|\boldsymbol\mu_i\|_2^2}{M}.
+\lambda^{[k]}=[\Omega\gamma^{[k-1]}]_+,
+\qquad j_i(\gamma_i)=-M\log\gamma_i-M\eta_i/\gamma_i-\lambda_i\gamma_i.
 \]
 
-The old real-Gaussian \(1/2\) factor is therefore not used.
-
-## Correlation-aware term
-
-The ANC construction is unchanged:
+The penalty is frozen during each M-step. The stable optimizer is
 
 \[
-\mathbf\Omega=\alpha\left(\beta\mathbf1-\mathbf C\right).
+\gamma_i^{[k]}=\frac{2\eta_i^{[k]}}
+ {1+\sqrt{1+4\lambda_i^{[k]}\eta_i^{[k]}/M}}.
 \]
 
-The correlation term is
+`lambda_` stores the unscaled nonnegative penalty. It replaces the former `phi`
+notation; the factor `1/M` appears in the root. Zero penalty gives exactly
+`gamma=eta`, the conventional SBL update. No upper clipping is applied.
+The interaction matrix need not be positive semidefinite. The Gaussian-inspired
+quadratic energy is not treated as a proper Gaussian hyperprior, nor as a fixed
+global objective whose monotonic improvement or convergence is guaranteed.
+
+Both SBL methods stop when
 
 \[
--\frac12\boldsymbol\gamma^T\mathbf\Omega\boldsymbol\gamma.
+\|\gamma^{[k]}-\gamma^{[k-1]}\|_2/\|\gamma^{[k-1]}\|_2<\delta,
 \]
 
-Combining it with the correct complex-MMV SBL term gives
+or after `K` iterations. Defaults are `K=500`, `delta=1e-4`, and the retained
+positive initialization `gamma_init=0.1`. The final channel estimate is the
+unmasked posterior mean recomputed from the final gamma. Detection uses
+`gamma_i >= tau_A`, with independently tuned thresholds for CGAP-SBL and SBL.
+
+## ANC implementation
+
+The spatial dependence matrix uses the paper's finite-distance model,
 
 \[
-\frac1{\gamma_i}
--\frac{\eta_i}{\gamma_i^2}
-+\frac1M(\mathbf\Omega\boldsymbol\gamma)_i=0.
+C_{ij}=\begin{cases}
+\dfrac{e^{-u_{ij}/\rho}-e^{-U/\rho}}{1-e^{-U/\rho}},&u_{ij}\le U,\\
+0,&u_{ij}>U.
+\end{cases}
 \]
 
-The lagged interaction used by CA-SBL is therefore
+Its diagonal remains one. The simulation matches `rho=kappa` and `U=D`, resolved
+from the saved Task-02 activity parameters. This is a spatial dependence model,
+not an empirical activity covariance.
+
+Equations (65)–(69) specify
 
 \[
-\phi_i^{[k]}
-=\frac1M
-(\mathbf\Omega\boldsymbol\gamma^{[k-1]})_i.
+\Omega_{\rm ANC}=\alpha(\beta\mathbf1-C),\qquad
+\lambda_i=\alpha[\beta G-s_i]_+,
+\quad G=\sum_j\gamma_j,\quad s=C\gamma.
 \]
 
-For \(\phi_i>0\), the numerically stable equivalent of the positive quadratic root is used:
+Here `1` is the all-ones matrix, not the identity; the ANC diagonal is retained.
+`alpha,beta >= 0` are fixed tuning parameters. The ANC solver stores `C` sparsely
+and evaluates this expression without forming dense `Omega_ANC`. A separate
+general solver accepts any finite symmetric `Omega`.
 
-\[
-\boxed{
-\gamma_i^{[k]}
-=
-\frac{2\eta_i^{[k]}}
-{\sqrt{1+4\phi_i^{[k]}\eta_i^{[k]}}+1}
-}.
-\]
+## Evaluation
 
-For \(\phi_i\le0\), the implementation uses the conventional SBL fallback
-\(\gamma_i^{[k]}=\eta_i^{[k]}\). No upper clipping at 1 is applied.
+For realization `q`, `S_q=sum(a)` varies naturally. MMV-OMP and MMV-CoSaMP receive
+only the feasible oracle count `B_q=min(S_q,L,N)`, never the true identities.
+Their estimated supports use the top `B_q` recovered row energies. SBL methods
+receive neither `S_q` nor `B_q`. Channel NMSE uses the unmasked final posterior
+means for SBL and sparse least-squares estimates for greedy methods; zero-energy
+realizations have undefined NMSE and are excluded from that average. Detection
+metrics still include them, with empty-denominator scores set to zero.
 
-## Optimized E-step
-
-\[
-\mathbf\Pi
-=\mathbf\Theta\operatorname{diag}(\boldsymbol\gamma)\mathbf\Theta^H
-+\sigma^2\mathbf I_L.
-\]
-
-The code factorizes the \(L\times L\) matrix \(\mathbf\Pi\) with Cholesky instead of calling an explicit inverse. It computes
-
-\[
-\boldsymbol\mu
-=\operatorname{diag}(\boldsymbol\gamma)\mathbf\Theta^H\mathbf\Pi^{-1}\mathbf Y,
-\]
-
-and only the required diagonal
-
-\[
-\Sigma_{ii}
-=\gamma_i-
-\gamma_i^2
-[\mathbf\Theta^H\mathbf\Pi^{-1}\mathbf\Theta]_{ii}.
-\]
-
-This avoids constructing the full \(N\times N\) posterior covariance in normal runs.
-
-## Important interpretation note
-
-Because the implementation does not constrain \(\boldsymbol\gamma\) to \([0,1]^N\), and the ANC construction does not guarantee that \(\mathbf\Omega\) is positive semidefinite, the quadratic expression should not automatically be described as a normalizable Gaussian prior over the whole nonnegative orthant. The code therefore treats it as the correlation-aware quadratic term in the MAP/EM surrogate. If the manuscript later claims a proper probability density \(p(\boldsymbol\gamma\mid\mathbf\Omega)\), its support/normalizability conditions should be stated separately.
+The spatial-randomization experiment uniformly samples `S_q` distinct device
+identities independently of geometry, conditional on count. It retains device
+and event positions, `H`, `Theta`, and `C` in each pair. The same standardized
+noise is separately scaled to each scenario's prescribed SNR. Only CGAP-SBL-ANC
+and SBL are compared in the randomized scenario, with parameters and thresholds
+selected from correlated tuning data and held fixed across scenarios. Support
+randomization uses a separate explicit seed and is fixed across pilot/SNR conditions.
+Stored `q` and figure indices are zero-based; the manuscript indexes realizations
+from one.

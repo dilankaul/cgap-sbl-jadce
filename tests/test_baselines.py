@@ -27,8 +27,8 @@ def test_mmv_baselines_accept_zero_oracle_sparsity():
 
 
 def test_oracle_budget_equals_realized_s_when_feasible():
-    assert oracle_sparsity_budget(realized_S=10, L=20, N=400) == 10
+    assert oracle_sparsity_budget(S_q=10, L=20, N=400) == 10
 
 
 def test_oracle_budget_is_capped_by_pilot_dimension():
-    assert oracle_sparsity_budget(realized_S=22, L=20, N=400) == 20
+    assert oracle_sparsity_budget(S_q=22, L=20, N=400) == 20

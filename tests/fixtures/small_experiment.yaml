@@ -6,6 +6,7 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
+  spatial_randomization: 6031
 
 run:
   output_dir: results/quick
@@ -35,13 +36,10 @@ activity:
   kappa_scan: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 8.0]
   kappa_refinement_steps: [0.1, 0.02, 0.005]
   calibration_tolerance: 0.1
-correlation:
-  rho: 7.0
-  U: 20.0
 algorithms:
   gamma_init: 0.1
-  sbl_max_iter: 75
-  sbl_tol: 0.0001
+  K: 75
+  delta: 0.0001
   cosamp_max_iter: 20
   cosamp_tol: 1.0e-06
 tuning:
@@ -58,6 +56,7 @@ tuning:
   - 0.15
   num_thresholds: 30
 evaluation:
+  pilot_length: 20
   gamma_distribution_samples: 6
   convergence_sample_offset: 0
 figures:

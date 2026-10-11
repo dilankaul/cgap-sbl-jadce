@@ -86,6 +86,7 @@ def test_activity_report_lists_split_folders_instead_of_1100_files(tmp_path, mon
     figures = tmp_path / '02_activity_realizations' / 'figures'
     paths = [figures / 'tuning' / f'{i:04d}.png' for i in range(100)]
     paths += [figures / 'evaluation' / f'{i:04d}.png' for i in range(1000)]
+    paths += [figures / 'randomized_evaluation' / f'{i:04d}.png' for i in range(1000)]
     histogram = figures / '02_activity_realized_s_distribution.png'
     paths.append(histogram)
     monkeypatch.setitem(task_cli.TASKS, 2, replace(task_cli.TASKS[2],
@@ -96,5 +97,6 @@ def test_activity_report_lists_split_folders_instead_of_1100_files(tmp_path, mon
         'Task 02 figures:',
         f'  - {figures / "tuning"}',
         f'  - {figures / "evaluation"}',
+        f'  - {figures / "randomized_evaluation"}',
         f'  - {histogram}',
     ]
