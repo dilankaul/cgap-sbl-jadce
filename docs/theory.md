@@ -1,6 +1,6 @@
 # CGAP-SBL mathematics
 
-This implementation follows **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**, manuscript `Publications___CASBL (7).pdf`. Its simulation setup is authoritative; its provisional performance statements are not imported as results.
+This implementation follows **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**, manuscript `Publications___CGAP_SBL.pdf`. Its simulation setup is authoritative; its provisional performance statements are not imported as results.
 
 ## System and posterior
 

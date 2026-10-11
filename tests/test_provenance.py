@@ -1,9 +1,9 @@
 import copy
 import json
-from casbl_jadce.config import load_config
-from casbl_jadce.io import save_json
-from casbl_jadce.paths import result_path, task_dir
-from casbl_jadce.provenance import save_task_snapshot
+from cgap_sbl_jadce.config import load_config
+from cgap_sbl_jadce.io import save_json
+from cgap_sbl_jadce.paths import result_path, task_dir
+from cgap_sbl_jadce.provenance import save_task_snapshot
 
 
 def test_task_snapshot_uses_activity_data_not_current_calibration(tmp_path):

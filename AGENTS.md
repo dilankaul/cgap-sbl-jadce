@@ -94,7 +94,7 @@ posterior covariance during normal runs. Compute `mu` and `diag(Sigma)` only.
 
 ## Revised CGAP-SBL theory
 
-Follow `Publications___CASBL (7).pdf`, equations (29)–(41) and (65)–(69).
+Follow `Publications___CGAP_SBL.pdf`, equations (29)–(41) and (65)–(69).
 Use `lambda = positive_part(Omega @ gamma_previous)` without dividing lambda by M.
 For each iteration freeze lambda and eta, then use
 `gamma_new = 2*eta/(1 + sqrt(1 + 4*lambda*eta/M))`.
@@ -122,7 +122,7 @@ event markers, cutoff circles, and event probability backgrounds.
 Paired scenarios retain S_q, geometry, H, Theta, and C, with separately scaled
 common standardized noise and fixed correlated-tuning selections. Evaluate only
 CGAP-SBL-ANC and SBL in the randomized scenario. Do not import provisional
-manuscript results as measured data or relabel historical CA-SBL results.
+manuscript results as measured data or relabel historical estimator results.
 
 ## Spatial activity model
 

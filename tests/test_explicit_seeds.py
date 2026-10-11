@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from casbl_jadce.config import load_config
+from cgap_sbl_jadce.config import load_config
 
 
 def test_explicit_seeds_are_simple_and_distinct():

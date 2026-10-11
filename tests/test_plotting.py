@@ -1,5 +1,5 @@
-from casbl_jadce.paths import result_path
-from casbl_jadce.figures.common import figure_formats
+from cgap_sbl_jadce.paths import result_path
+from cgap_sbl_jadce.figures.common import figure_formats
 
 
 def test_figure_format_options():
@@ -11,9 +11,9 @@ def test_figure_format_options():
 
 def test_activity_s_distribution_uses_saved_task_data(tmp_path):
     import numpy as np
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.dataset import save_activity_samples
-    from casbl_jadce.figures.task02_active_mtd_count_distribution import plot_activity_s_distribution
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.dataset import save_activity_samples
+    from cgap_sbl_jadce.figures.task02_active_mtd_count_distribution import plot_activity_s_distribution
 
     def sample(active_count):
         a = np.zeros(6, dtype=bool); a[:active_count] = True
@@ -35,7 +35,7 @@ def test_activity_s_distribution_uses_saved_task_data(tmp_path):
 
 def test_activity_probability_grid_matches_event_model():
     import numpy as np
-    from casbl_jadce.figures.task02_activity_realizations import activity_probability_grid
+    from cgap_sbl_jadce.figures.task02_activity_realizations import activity_probability_grid
 
     X, Y, P = activity_probability_grid(
         np.array([[0.0, 0.0]]), R=20.0, D=10.0, kappa=3.0, resolution=101
@@ -51,8 +51,8 @@ def test_activity_probability_grid_matches_event_model():
 
 def test_activity_probability_figure_can_be_saved(tmp_path):
     import numpy as np
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
 
     sample = ActivitySample(
         a=np.array([True, False]),
@@ -71,8 +71,8 @@ def test_activity_probability_figure_can_be_saved(tmp_path):
 def test_probability_field_uses_vector_contours(tmp_path, monkeypatch):
     import matplotlib.axes
     import numpy as np
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
 
     called = {"contourf": False}
     original_contourf = matplotlib.axes.Axes.contourf
@@ -102,8 +102,8 @@ def test_probability_field_uses_vector_contours(tmp_path, monkeypatch):
 def test_probability_contours_start_at_zero_and_colormap_zero_is_white(monkeypatch, tmp_path):
     import matplotlib.axes
     import numpy as np
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
 
     captured = {}
     original = matplotlib.axes.Axes.contourf
@@ -138,9 +138,9 @@ def test_probability_contours_start_at_zero_and_colormap_zero_is_white(monkeypat
 def test_selected_realization_exports_pdf_with_native_truetype_fonts(tmp_path):
     import numpy as np
     import matplotlib as mpl
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.dataset import save_activity_samples
-    from casbl_jadce.figures.task02_activity_realizations import plot_activity_realization
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.dataset import save_activity_samples
+    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_realization
 
     sample = ActivitySample(
         a=np.array([True, False]),
@@ -166,7 +166,7 @@ def test_selected_realization_exports_pdf_with_native_truetype_fonts(tmp_path):
 
 
 def test_per_figure_font_overrides_are_isolated(tmp_path):
-    from casbl_jadce.figures.common import plt, _save, _apply_figure_style
+    from cgap_sbl_jadce.figures.common import plt, _save, _apply_figure_style
 
     defaults = plt.rcParams.copy()
     cfg = {"figures": {
@@ -201,9 +201,9 @@ def test_per_figure_font_overrides_are_isolated(tmp_path):
 
 def test_batch_activity_figures_include_both_splits_and_titles(tmp_path, monkeypatch):
     import numpy as np
-    from casbl_jadce.models.activity import ActivitySample
-    from casbl_jadce.dataset import save_activity_samples
-    from casbl_jadce.figures import task02_activity_realizations as plotting
+    from cgap_sbl_jadce.models.activity import ActivitySample
+    from cgap_sbl_jadce.dataset import save_activity_samples
+    from cgap_sbl_jadce.figures import task02_activity_realizations as plotting
 
     samples = [ActivitySample(
         a=np.array([True, bool(index)]),
@@ -240,7 +240,7 @@ def test_batch_activity_figures_include_both_splits_and_titles(tmp_path, monkeyp
 
 def test_font_metadata_filter_keeps_other_warnings():
     import logging
-    from casbl_jadce.figures.common import _FontTimestampFilter
+    from cgap_sbl_jadce.figures.common import _FontTimestampFilter
     filt = _FontTimestampFilter()
     for field in ('created', 'modified'):
         record = logging.LogRecord('fontTools', logging.WARNING, '', 0,

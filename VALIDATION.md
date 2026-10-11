@@ -9,7 +9,7 @@ PYTHONPATH=src pytest -q
 Final result: **88 tests passed**.
 
 The revised implementation is checked against the local manuscript
-`Publications___CASBL (7).pdf`. Validation covers:
+`Publications___CGAP_SBL.pdf`. Validation covers:
 
 - complex-MMV dimensions, ordinary channel transpose, Gaussian generation, and unit-norm QPSK pilots;
 - optimized Cholesky posterior mean and covariance diagonal against a full reference;

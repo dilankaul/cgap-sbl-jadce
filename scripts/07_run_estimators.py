@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Command-line wrapper for scientific Task 07."""
-from casbl_jadce.task_cli import run_task
+from cgap_sbl_jadce.task_cli import run_task
 
 
 if __name__ == "__main__":

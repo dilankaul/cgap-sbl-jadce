@@ -2,8 +2,8 @@
 """Export one title-free paper activity PDF from saved Task 02 data."""
 import argparse
 
-from casbl_jadce.config import load_config
-from casbl_jadce.figures.paper_activity_realizations import plot_paper_activity_figure
+from cgap_sbl_jadce.config import load_config
+from cgap_sbl_jadce.figures.paper_activity_realizations import plot_paper_activity_figure
 
 
 def main(argv=None):

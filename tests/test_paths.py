@@ -1,4 +1,4 @@
-from casbl_jadce.paths import result_path, figure_path, task_dir
+from cgap_sbl_jadce.paths import result_path, figure_path, task_dir
 
 
 def test_artifacts_are_assigned_to_their_producing_tasks(tmp_path):

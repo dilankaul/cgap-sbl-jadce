@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce.models.correlation import build_C, build_Omega_ANC, anc_penalty
+from cgap_sbl_jadce.models.correlation import build_C, build_Omega_ANC, anc_penalty
 
 
 def test_omega_and_fast_penalty_match_explicit_expression():

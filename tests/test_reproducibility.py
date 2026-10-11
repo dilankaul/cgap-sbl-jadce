@@ -1,6 +1,6 @@
 import numpy as np
-from casbl_jadce.models.activity import ActivitySample
-from casbl_jadce.models.realizations import communication_realization
+from cgap_sbl_jadce.models.activity import ActivitySample
+from cgap_sbl_jadce.models.realizations import communication_realization
 
 
 def test_condition_generation_is_reproducible_and_snr_independent_theta():

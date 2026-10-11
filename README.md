@@ -41,7 +41,7 @@ to create its new paired randomized evaluation dataset and figures. Rerun Tasks 
 schema and method; old tuning is explicitly rejected. Historical saved outputs
 are preserved and are not evidence of CGAP-SBL performance. Provisional numerical
 claims in the manuscript are not treated as generated experiment results.
-The Python import namespace `casbl_jadce` remains stable; the implemented methods
+The Python import namespace is `cgap_sbl_jadce`; the implemented methods
 are `cgap_sbl` and `cgap_sbl_anc`, and the distribution is `cgap-sbl-jadce`.
 
 ## Setup
@@ -209,7 +209,7 @@ python scripts/paper_figures/activity_realization.py --split tuning --index 0
 
 ### Figure measurements
 
-Each plotting function in `src/casbl_jadce/figures/` defines its own `figsize`
+Each plotting function in `src/cgap_sbl_jadce/figures/` defines its own `figsize`
 and `figure_style` dictionary. Edit those values to change title, axis, tick,
 legend, or colorbar font sizes for that figure. Activity realization labels remain
 15 pt and ticks/legends 13 pt. Experiment YAML does not contain font overrides.
@@ -313,7 +313,7 @@ configuration, executes one stage, and saves PNG figures. The paper activity
 script reads saved Task 02 data and exports separate PDFs.
 
 ```text
-src/casbl_jadce/
+src/cgap_sbl_jadce/
 ├── models/          # Activity, communication, realizations, correlation
 ├── algorithms/      # SBL, CGAP-SBL, OMP, CoSaMP, posterior engine
 ├── experiments/     # Calibration, threshold tuning, nine-stage pipeline
@@ -386,7 +386,7 @@ python scripts/paper_figures/activity_realization.py --split tuning --index 0
 This uses the existing experiment configuration and saved Task 02 data. No
 separate paper YAML is needed. Edit `figure_style` and `figsize` inside
 `plot_paper_activity_figure` in
-`src/casbl_jadce/figures/paper_activity_realizations.py` to adjust font
+`src/cgap_sbl_jadce/figures/paper_activity_realizations.py` to adjust font
 sizes in points and dimensions in inches, just like the task plotting functions.
 Each run exports exactly one saved realization. Choose `--split tuning` or
 `--split evaluation` and a zero-based `--index`. PDFs are written to

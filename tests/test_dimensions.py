@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce.models.communication import generate_H, generate_Theta, build_Z
+from cgap_sbl_jadce.models.communication import generate_H, generate_Theta, build_Z
 
 
 def test_paper_dimensions():

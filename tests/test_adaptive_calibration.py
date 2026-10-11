@@ -1,6 +1,6 @@
 import pytest
-from casbl_jadce.experiments import calibration
-from casbl_jadce.models.activity import ActivityCalibrationRow, calibrate_kappa_grid
+from cgap_sbl_jadce.experiments import calibration
+from cgap_sbl_jadce.models.activity import ActivityCalibrationRow, calibrate_kappa_grid
 
 
 def test_refinement_grid_selection_and_independent_validation(monkeypatch):

@@ -1,12 +1,12 @@
 import numpy as np
 import pytest
 
-from casbl_jadce.config import load_config, activity_correlation_parameters
-from casbl_jadce.experiments.pipeline import evaluation_conditions, validate_selection, _evaluate_sample
-from casbl_jadce.models.activity import ActivitySample, randomize_activity_sample
-from casbl_jadce.models.realizations import paired_activity_realizations
-from casbl_jadce.io import save_json
-from casbl_jadce.paths import result_path
+from cgap_sbl_jadce.config import load_config, activity_correlation_parameters
+from cgap_sbl_jadce.experiments.pipeline import evaluation_conditions, validate_selection, _evaluate_sample
+from cgap_sbl_jadce.models.activity import ActivitySample, randomize_activity_sample
+from cgap_sbl_jadce.models.realizations import paired_activity_realizations
+from cgap_sbl_jadce.io import save_json
+from cgap_sbl_jadce.paths import result_path
 
 
 def sample():
@@ -45,7 +45,7 @@ def test_paper_conditions_and_saved_correlation_parameters(tmp_path):
     cfg['activity']['D'] = 99
     assert activity_correlation_parameters(cfg) == {'rho': 3.78, 'U': 15}
     with pytest.raises(ValueError, match='Rerun Tasks 05 and 06'):
-        validate_selection({'casbl': {'alpha': 1}}, cfg)
+        validate_selection({'definition': {'method': 'legacy'}, 'alpha': 1}, cfg)
 
 
 def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl():
@@ -65,7 +65,7 @@ def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl
 
 def test_aggregation_preserves_scenarios_and_averages_paired_advantages(tmp_path):
     import pandas as pd
-    from casbl_jadce.experiments.pipeline import aggregate_stage
+    from cgap_sbl_jadce.experiments.pipeline import aggregate_stage
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     cfg['run']['output_dir'] = str(tmp_path)
     save_json(result_path(tmp_path, 'activity', 'summary.json'), {'kappa': 3.78, 'D': 15})
@@ -91,8 +91,8 @@ def test_aggregation_preserves_scenarios_and_averages_paired_advantages(tmp_path
 
 
 def test_task02_saves_randomized_pairs_with_original_seed_sequence(tmp_path):
-    from casbl_jadce.dataset import load_activity_samples
-    from casbl_jadce.experiments.pipeline import generate_activity_stage
+    from cgap_sbl_jadce.dataset import load_activity_samples
+    from cgap_sbl_jadce.experiments.pipeline import generate_activity_stage
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     cfg['run'].update(output_dir=str(tmp_path), num_tuning_samples=2, num_evaluation_samples=3)
     cfg['activity'].update(kappa_source='configured', kappa=3.78)
@@ -113,7 +113,7 @@ def test_task02_saves_randomized_pairs_with_original_seed_sequence(tmp_path):
 
 
 def test_randomized_spatial_figures_omit_event_model_overlays(tmp_path, monkeypatch):
-    from casbl_jadce.figures import task02_activity_realizations as plotting
+    from cgap_sbl_jadce.figures import task02_activity_realizations as plotting
     captured = {}
     monkeypatch.setattr(plotting, 'plot_activity_sample', lambda sample, **kwargs: captured.update(kwargs) or [])
     cfg = {'run': {'output_dir': str(tmp_path)}}

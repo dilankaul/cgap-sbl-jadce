@@ -4,9 +4,9 @@ import runpy
 
 import pytest
 
-from casbl_jadce import task_cli
-from casbl_jadce.config import load_config
-from casbl_jadce.io import save_yaml
+from cgap_sbl_jadce import task_cli
+from cgap_sbl_jadce.config import load_config
+from cgap_sbl_jadce.io import save_yaml
 
 
 @pytest.mark.parametrize('task_number', range(1, 10))

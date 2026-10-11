@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce.algorithms.posterior import posterior_mmv, posterior_mmv_full_reference
+from cgap_sbl_jadce.algorithms.posterior import posterior_mmv, posterior_mmv_full_reference
 
 
 def test_optimized_posterior_matches_full_reference():

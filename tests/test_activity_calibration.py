@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce.models.activity import calibrate_kappa_grid, best_kappa_for_target
+from cgap_sbl_jadce.models.activity import calibrate_kappa_grid, best_kappa_for_target
 
 
 def test_kappa_calibration_is_reproducible_and_increases_activity():

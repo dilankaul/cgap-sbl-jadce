@@ -1,9 +1,9 @@
 import numpy as np
 import pytest
-from casbl_jadce.algorithms.cgap_sbl import cgap_sbl, cgap_sbl_anc, stable_gamma_update, relative_gamma_change
-from casbl_jadce.algorithms.sbl import sbl
-from casbl_jadce.models.communication import simulate_communication
-from casbl_jadce.models.correlation import build_Omega_ANC
+from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl, cgap_sbl_anc, stable_gamma_update, relative_gamma_change
+from cgap_sbl_jadce.algorithms.sbl import sbl
+from cgap_sbl_jadce.models.communication import simulate_communication
+from cgap_sbl_jadce.models.correlation import build_Omega_ANC
 
 
 def example():
@@ -58,7 +58,7 @@ def test_relative_stopping_is_scale_invariant():
 
 def test_final_estimate_uses_final_gamma_and_sparse_anc_matches_dense():
     from scipy.sparse import csr_matrix
-    from casbl_jadce.algorithms.posterior import posterior_mmv
+    from cgap_sbl_jadce.algorithms.posterior import posterior_mmv
     r = example()
     C = np.eye(20)
     dense = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, 2., .1, K=5)

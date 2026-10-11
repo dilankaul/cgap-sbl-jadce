@@ -3,9 +3,9 @@ import json
 
 import pytest
 
-from casbl_jadce.config import load_config, resolve_activity_kappa
-from casbl_jadce.paths import result_path
-from casbl_jadce.experiments.pipeline import generate_activity_stage
+from cgap_sbl_jadce.config import load_config, resolve_activity_kappa
+from cgap_sbl_jadce.paths import result_path
+from cgap_sbl_jadce.experiments.pipeline import generate_activity_stage
 
 
 def calibration_config(tmp_path):

@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce.experiments.tuning import threshold_curve, choose_gamma_threshold
+from cgap_sbl_jadce.experiments.tuning import threshold_curve, choose_gamma_threshold
 
 
 def test_threshold_curve_contains_selected_threshold():

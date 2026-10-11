@@ -1,7 +1,7 @@
 import numpy as np
-from casbl_jadce.algorithms.omp import mmv_omp
-from casbl_jadce.algorithms.cosamp import mmv_cosamp
-from casbl_jadce.metrics import oracle_sparsity_budget
+from cgap_sbl_jadce.algorithms.omp import mmv_omp
+from cgap_sbl_jadce.algorithms.cosamp import mmv_cosamp
+from cgap_sbl_jadce.metrics import oracle_sparsity_budget
 
 
 def test_mmv_baselines_recover_identity_support():

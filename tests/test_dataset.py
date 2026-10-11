@@ -1,5 +1,5 @@
 import numpy as np
-from casbl_jadce import dataset
+from cgap_sbl_jadce import dataset
 
 
 def test_loader_reads_each_npz_array_once_and_closes_archive(tmp_path, monkeypatch):
