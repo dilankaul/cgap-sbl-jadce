@@ -1,13 +1,13 @@
 {
   "configuration": {
     "activity": {
-      "D": 15.0,
+      "D": 20.0,
       "V": 2,
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "exact_sparsity": false,
-      "kappa": 3.78,
+      "kappa": 6.995,
       "kappa_refinement_steps": [
         0.1,
         0.02,
@@ -51,13 +51,9 @@
     },
     "figures": {
       "evaluation_indices": [
-        714,
-        495,
-        106,
-        618,
-        442,
-        101,
-        781
+        77,
+        97,
+        84
       ],
       "tuning_indices": [
         77,
@@ -66,7 +62,7 @@
       ]
     },
     "run": {
-      "num_evaluation_samples": 1000,
+      "num_evaluation_samples": 100,
       "num_tuning_samples": 100,
       "output_dir": "results/experiment"
     },
@@ -80,21 +76,22 @@
       "spatial_randomization": 9097
     },
     "spatial_dependence": {
-      "U": 15.0,
-      "rho": 3.78
+      "U": 20.0,
+      "rho": 6.995
     },
     "system": {
       "M": 4,
-      "N": 400,
-      "R": 40.0,
-      "S": 10,
+      "N": 500,
+      "R": 50.0,
+      "S": 20,
       "pilot_lengths": [
+        10,
+        15,
         20,
         25,
         30,
         35,
-        40,
-        45
+        40
       ],
       "snr_db": [
         4,
@@ -107,12 +104,12 @@
     },
     "task_runtime": {
       "activity_parameters_used": {
-        "D": 15.0,
-        "N": 400,
-        "R": 40.0,
+        "D": 20.0,
+        "N": 500,
+        "R": 50.0,
         "V": 2,
-        "kappa": 3.78,
-        "target_mean_S": 10.0
+        "kappa": 6.995,
+        "target_mean_S": 20.0
       },
       "activity_randomization_seed": 9097,
       "activity_summary": "results/experiment/02_activity_realizations/summary.json",
@@ -123,28 +120,28 @@
       "spatial_dependence_datasets": {
         "evaluation": {
           "definition": {
-            "N": 400,
-            "U": 15.0,
-            "activity_sha256": "af6c6189c17229a3f50fb54f0f81b3e5aeb604c6af963f85210572e0e87efd8d",
-            "rho": 3.78,
+            "N": 500,
+            "U": 20.0,
+            "activity_sha256": "bcf851cb0ff4c4d7c25a5f2b0eced7f6290e98ec202c64e30d09f1e771dec5dd",
+            "rho": 6.995,
             "schema": 1
           },
-          "mean_density": 0.12048468749999999,
-          "mean_nonzeros": 19277.55,
-          "samples": 1000
+          "mean_density": 0.13477168,
+          "mean_nonzeros": 33692.92,
+          "samples": 100
         },
         "evaluation_shared_between_scenarios": true,
         "status": "complete",
         "tuning": {
           "definition": {
-            "N": 400,
-            "U": 15.0,
-            "activity_sha256": "9ee02ec25fba0a61735b2317e559476653bb75b47b586e8ac1caf0a8b418186c",
-            "rho": 3.78,
+            "N": 500,
+            "U": 20.0,
+            "activity_sha256": "9cb3c9d8ccbbf0455a2c4777a9d3de30285c81d30fc32fac37db8c0426ebfe00",
+            "rho": 6.995,
             "schema": 1
           },
-          "mean_density": 0.12047675,
-          "mean_nonzeros": 19276.28,
+          "mean_density": 0.13501792,
+          "mean_nonzeros": 33754.48,
           "samples": 100
         }
       },
@@ -154,31 +151,30 @@
     "tuning": {
       "alpha_values": [
         0,
-        2,
-        4,
-        6,
-        8,
+        5,
         10,
-        12,
-        14,
-        16,
-        18,
-        20
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50
       ],
       "beta_values": [
         0.0,
-        0.001,
-        0.002,
-        0.003,
-        0.004,
-        0.005,
-        0.006,
-        0.007,
-        0.008,
-        0.009,
-        0.01
+        0.01,
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
       ],
-      "num_thresholds": 80,
       "reference_pilot_length": 25,
       "reference_snr_db": 12
     }

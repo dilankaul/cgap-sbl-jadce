@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
-from cgap_sbl_jadce.metrics import precision_recall_f1, support_from_gamma
 
 
 @dataclass(frozen=True)
@@ -22,12 +21,18 @@ def threshold_curve(a_true: np.ndarray, gammas: np.ndarray) -> list[dict[str, fl
     gammas = np.asarray(gammas, dtype=float)
     if a_true.shape != gammas.shape:
         raise ValueError("a_true and gammas must have matching (samples, N) shapes.")
-    rows: list[dict[str, float]] = []
-    for tau in threshold_candidates():
-        metrics = [precision_recall_f1(a_true[i], support_from_gamma(gammas[i], float(tau))) for i in range(len(a_true))]
-        p, r, f = np.mean(metrics, axis=0)
-        rows.append({"tau": float(tau), "precision": float(p), "recall": float(r), "f1": float(f)})
-    return rows
+    candidates = threshold_candidates()
+    predicted = gammas[None, :, :] >= candidates[:, None, None]
+    tp = np.sum(predicted & a_true[None, :, :], axis=2)
+    detected = np.sum(predicted, axis=2)
+    actual = np.sum(a_true, axis=1)[None, :]
+    precision = np.divide(tp, detected, out=np.zeros_like(tp, dtype=float), where=detected > 0)
+    recall = np.divide(tp, actual, out=np.zeros_like(tp, dtype=float), where=actual > 0)
+    denominator = precision + recall
+    f1 = np.divide(2 * precision * recall, denominator,
+                   out=np.zeros_like(precision), where=denominator > 0)
+    return [{"tau": float(tau), "precision": float(p), "recall": float(r), "f1": float(f)}
+            for tau, p, r, f in zip(candidates, precision.mean(axis=1), recall.mean(axis=1), f1.mean(axis=1))]
 
 
 def choose_gamma_threshold(a_true: np.ndarray, gammas: np.ndarray) -> ThresholdChoice:

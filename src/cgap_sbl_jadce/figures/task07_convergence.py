@@ -10,6 +10,8 @@ from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
 def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
     conv = np.load(result_path(out, "convergence", "convergence.npz"))
+    if "nmse_scope" not in conv or str(conv["nmse_scope"]) != "true_active_support":
+        raise ValueError("Saved convergence uses the previous NMSE definition. Rerun Task 07.")
     figure_style = {"axes.titlesize": 12, "axes.labelsize": 12,
                     "xtick.labelsize": 10, "ytick.labelsize": 10,
                     "legend.fontsize": 10.5, "colorbar.labelsize": 12,
@@ -17,7 +19,7 @@ def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
     fig, ax = plt.subplots(figsize=(6.4, 4.2))
     ax.plot(np.arange(1, len(conv["cgap_nmse_history"]) + 1), conv["cgap_nmse_history"], label="CGAP-SBL-ANC")
     ax.plot(np.arange(1, len(conv["sbl_nmse_history"]) + 1), conv["sbl_nmse_history"], label="SBL")
-    ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$"); ax.set_yscale("log")
+    ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$ (true active support)"); ax.set_yscale("log")
     ax.grid(True, alpha=0.2); ax.legend(); ax.set_title("Convergence at reference condition")
     _apply_figure_style(fig, figure_style); fig.tight_layout()
     return _save(fig, figure_path(out, "07_convergence_nmse"), formats)

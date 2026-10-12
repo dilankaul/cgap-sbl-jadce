@@ -9,19 +9,20 @@ seeds:
 run:
   output_dir: results/experiment
   num_tuning_samples: 100
-  num_evaluation_samples: 1000
+  num_evaluation_samples: 100
 system:
-  N: 400
+  N: 500
   M: 4
-  S: 10
-  R: 40.0
+  S: 20
+  R: 50.0
   pilot_lengths:
+  - 10
+  - 15
   - 20
   - 25
   - 30
   - 35
   - 40
-  - 45
   snr_db:
   - 4
   - 8
@@ -32,7 +33,7 @@ system:
 activity:
   kappa_source: calibration
   V: 2
-  D: 15.0
+  D: 20.0
   exact_sparsity: false
   batch_size: 256
   calibration_samples: 5000
@@ -62,7 +63,7 @@ activity:
   - 0.02
   - 0.005
   calibration_tolerance: 0.1
-  kappa: 3.78
+  kappa: 6.995
 algorithms:
   gamma_init: 0.1
   K: 500
@@ -73,22 +74,29 @@ tuning:
   reference_snr_db: 12
   reference_pilot_length: 25
   alpha_values:
-  - 2
-  - 4
-  - 6
-  - 8
+  - 0
+  - 5
   - 10
-  - 12
-  - 14
+  - 15
+  - 20
+  - 25
+  - 30
+  - 35
+  - 40
+  - 45
+  - 50
   beta_values:
+  - 0.0
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.04
   - 0.05
+  - 0.06
+  - 0.07
+  - 0.08
+  - 0.09
   - 0.1
-  - 0.15
-  - 0.2
-  - 0.25
-  - 0.3
-  - 0.35
-  num_thresholds: 80
 evaluation:
   pilot_length: 30
   gamma_distribution_samples: 100
@@ -99,13 +107,9 @@ figures:
   - 97
   - 84
   evaluation_indices:
-  - 714
-  - 495
-  - 106
-  - 618
-  - 442
-  - 101
-  - 781
+  - 77
+  - 97
+  - 84
 task_runtime:
   input_config: configs/experiment.yaml
   no_progress: false

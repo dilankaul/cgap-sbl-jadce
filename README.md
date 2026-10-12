@@ -27,7 +27,7 @@ Tuning uses 100 independent realizations at `L=25`, SNR 12 dB, with
 `alpha=[2,4,6,8,10,12,14]` and `beta=[0.05,0.10,...,0.35]`.
 Evaluation uses 1,000 realizations: pilot lengths 20–45 in steps of 5 at
 12 dB, and SNR 4–24 dB in steps of 4 at `L=30`. Convergence uses `L=30`, 12 dB.
-Task 05 saves both F1 and NMSE contours.
+Task 05 saves F1, true-active-support NMSE, and selected-tau grid heatmaps.
 
 Task 02 saves paired spatially randomized evaluation activity; Task 06 loads
 these supports for CGAP-SBL-ANC and SBL,
@@ -113,9 +113,24 @@ The spatial dependence summary and \(\mathbf C\) visualization are saved automat
 python scripts/05_tune_alpha_beta_tau.py
 ```
 
-Task 05 tests every alpha/beta pair using the same fixed threshold grid: tau=0 through 0.2 inclusive in steps of 0.001 (201 candidates). Each pair runs the estimator once per tuning realization; its gamma values are reused for every threshold. The best mean F1 selects tau for each pair. Pairs are ranked by mean F1, then lower NMSE, then higher recall. Alpha=0, beta=0 supplies the conventional SBL baseline and its final threshold.
+Task 05 tunes alpha, beta and tau separately for every configured pilot length × SNR combination, using only the tuning realizations. Every condition uses the same tau grid: 0 through 0.2 inclusive in steps of 0.001 (201 candidates). Gamma values from one estimator run are reused for all thresholds. The best mean F1 selects tau for each alpha/beta pair; pairs are ranked by mean F1, then lower NMSE, then higher recall. Alpha=0, beta=0 supplies the conventional SBL baseline for each condition.
 
-The task saves all threshold scores, the per-pair selection grid, and `selected.json` containing final CGAP-SBL-ANC and SBL parameters. It generates F1, NMSE and selected-tau heatmaps plus separate threshold-score graphs for both algorithms. Task 06 has been absorbed into Task 05; Task 06 reads this combined selection and also aggregates results and generates comparison figures; Task 07 analyzes convergence. Existing results in the former Task 05/06 folders are historical and must be regenerated with the new task before evaluation.
+Task 03 must be rerun after this change: it now saves tuning communication data for the complete Cartesian grid. Existing reference-only tuning archives are rejected. Task 04 spatial matrices remain reusable when the activity data are unchanged.
+
+Task 05 saves combined CSVs with `L` and `snr_db` columns, `selected_conditions.csv`, and `selected.json` containing all condition-specific selections. Each condition also has a data folder such as `05_alpha_beta_tau_tuning/L0010_snr4dB/`. Its five figures (F1, NMSE and tau heatmaps; two threshold-score graphs) are saved under `figures/tuning/L0010_snr4dB/`, with the condition in their titles. CLI output lists the figure folder with a compact count.
+
+To run selected setups from the CLI, use `L:SNR` pairs:
+
+```bash
+python scripts/05_tune_alpha_beta_tau.py --setups 25:8
+python scripts/05_tune_alpha_beta_tau.py --setups 25:8 30:12
+```
+
+Omit `--setups` to tune the full configured grid. Selected runs update only those setup folders and their figures; the combined full-grid files and unselected folders remain unchanged. All requested pairs must be in the configured grid and saved Task 03 tuning dataset. The Python API also accepts `setups=[(25, 8), (30, 12)]`; `condition=(25, 8)` remains supported for one setup.
+
+Channel NMSE in Tasks 05–07 is restricted to the true active support: the squared estimation error on active MTD rows divided by the true channel energy on those rows. Inactive-row leakage is excluded; missed active rows still contribute error. The true mask is used only for scoring, never passed to the SBL estimators. Zero-energy realizations have undefined NMSE and are excluded from its mean. Metric metadata prevents old full-matrix scores from being relabeled as this new definition; rerun affected tuning/evaluation/convergence tasks when new scores are needed.
+
+Task 06 uses the matching condition-specific selection across both activity scenarios. It does not retune on evaluation data or randomized activity. Its raw SBL-family rows record the actual alpha, beta and tau used. Task 07 likewise loads the selection matching its convergence condition. This testing-branch protocol differs from the paper's original use of one fixed reference selection across evaluation sweeps.
 
 ### Task 06 — Run all estimators
 
@@ -124,6 +139,8 @@ python scripts/06_run_estimators.py
 ```
 
 This runs CGAP-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves gamma-distribution diagnostics, aggregates scores and runtimes, and generates F1, NMSE, runtime, and spatial comparison figures.
+
+For a smaller Task 06 test, set `run.num_evaluation_samples` to 100 and run only Task 06. It processes the first 100 saved evaluation pairs without regenerating Tasks 02–04. Restore 1000 for the full experiment. Rerunning Task 06 replaces its results and figures in the existing output folder.
 
 For each realization, the greedy baselines use
 
@@ -144,8 +161,9 @@ The convergence data and convergence figure are saved automatically.
 ## Automatic task figures
 
 Run the numbered tasks normally; each saves its PNG figures automatically.
-All task scripts default to `configs/experiment.yaml`. The only CLI options
-are `--config` and `--no-progress` (plus standard `--help`); the paper export
+All task scripts default to `configs/experiment.yaml`. Shared CLI options
+are `--config` and `--no-progress` (plus standard `--help`). Task 05 also accepts
+`--setups L:SNR [L:SNR ...]`; the paper export
 additionally requires `--split` and `--index`. All scientific
 settings come from the experiment YAML. Run tasks in order for a
 new experiment; Task 02 reads Task 01's calibrated kappa. For title-free paper

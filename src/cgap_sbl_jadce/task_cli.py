@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from dataclasses import dataclass
 from collections.abc import Callable
 
@@ -42,11 +43,26 @@ TASKS = {
 }
 
 
+
+def _setup_argument(value: str) -> tuple[int, float]:
+    try:
+        L, snr = value.split(":")
+        setup = (int(L), float(snr))
+        if setup[0] <= 0 or not math.isfinite(setup[1]):
+            raise ValueError
+        return setup
+    except ValueError:
+        raise argparse.ArgumentTypeError("Use L:SNR, for example 25:8 (positive integer L, finite SNR).") from None
+
+
 def task_parser(task_number: int) -> argparse.ArgumentParser:
     task = TASKS[task_number]
     parser = argparse.ArgumentParser(description=f"Task {task_number:02d}: {task.description}.")
     parser.add_argument("--config", default="configs/experiment.yaml")
     parser.add_argument("--no-progress", action="store_true")
+    if task_number == 5:
+        parser.add_argument("--setups", nargs="+", type=_setup_argument, metavar="L:SNR",
+                            help="Tune selected setups, e.g. 25:8 30:12; default: all configured setups.")
     return parser
 
 
@@ -58,13 +74,18 @@ def run_task(task_number: int, argv: list[str] | None = None) -> list:
     cfg = load_config(args.config)
     cfg["task_runtime"] = {"input_config": str(args.config), "no_progress": args.no_progress}
     kwargs = {"show_progress": not args.no_progress} if task.progress else {}
+    if task_number == 5 and args.setups is not None:
+        kwargs["setups"] = args.setups
+        cfg["task_runtime"]["setups"] = [list(setup) for setup in args.setups]
     try:
         task.stage(cfg, **kwargs)
-    except CalibrationBracketError as error:
+    except (CalibrationBracketError, ValueError) as error:
         parser.exit(1, f"{error}\n")
     paths = []
     for render in task.plots:
         kwargs = {"formats": "png"}
+        if task_number == 5 and args.setups is not None:
+            kwargs["setups"] = args.setups
         if render in (plot_activity_realizations, plot_communication_preview, plot_spatial_dependence, make_performance_figures):
             kwargs["show_progress"] = not args.no_progress
         paths.extend(render(cfg, **kwargs))

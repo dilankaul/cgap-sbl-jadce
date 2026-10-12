@@ -48,14 +48,23 @@ def precision_recall_f1(a_true: np.ndarray, a_hat: np.ndarray) -> tuple[float, f
     return p, r, f1
 
 
-def nmse(Z_true: np.ndarray, Z_hat: np.ndarray) -> float:
-    """Normalized channel-estimation MSE.
+def nmse(Z_true: np.ndarray, Z_hat: np.ndarray, a_true: np.ndarray | None = None) -> float:
+    """Channel NMSE on true active rows, excluding inactive-row estimates.
 
-    NMSE is undefined when a realization contains no active channel energy.
-    Return NaN in that case so aggregation can exclude it instead of being
-    poisoned by an artificial infinity. Detection metrics are still evaluated.
+    The true activity mask is used only for scoring. If omitted (e.g. for
+    convergence histories), support is inferred from nonzero true channel rows.
+    Zero true channel energy returns NaN and is excluded from mean NMSE.
     """
-    denom = float(np.linalg.norm(Z_true) ** 2)
+    Z_true = np.asarray(Z_true)
+    Z_hat = np.asarray(Z_hat)
+    if Z_true.ndim != 2 or Z_true.shape != Z_hat.shape:
+        raise ValueError("True and estimated channels must have matching (N, M) shapes.")
+    active = np.any(Z_true != 0, axis=1) if a_true is None else np.asarray(a_true, dtype=bool)
+    if active.shape != (Z_true.shape[0],):
+        raise ValueError("True activity must have shape (N,).")
+    truth = Z_true[active]
+    estimate = Z_hat[active]
+    denom = float(np.linalg.norm(truth) ** 2)
     if denom == 0.0:
         return float("nan")
-    return float(np.linalg.norm(Z_true - Z_hat) ** 2 / denom)
+    return float(np.linalg.norm(truth - estimate) ** 2 / denom)

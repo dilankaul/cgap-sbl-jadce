@@ -34,14 +34,16 @@ def _line_plot(df: pd.DataFrame, x: str, y: str, title: str, xlabel: str, ylabel
 def make_performance_figures(cfg: dict, formats: str = "png", show_progress: bool = True) -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
     df = pd.read_csv(result_path(out, "evaluation", "aggregate.csv"))
+    if "nmse_scope" not in df or not df["nmse_scope"].eq("true_active_support").all():
+        raise ValueError("Saved performance scores use the previous NMSE definition. Rerun Task 06.")
     correlated = df[df["scenario"] == "correlated"]
     snr = correlated[correlated["sweep"] == "snr_sweep"]
     pilot = correlated[correlated["sweep"] == "pilot_sweep"]
     jobs = [
         (snr, "snr_db", "f1", r"Activity Detection vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", r"$F_1$ score", figure_path(out, "06_f1_vs_snr")),
-        (snr, "snr_db", "nmse", r"Channel Estimation vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", r"$\mathrm{NMSE}$", figure_path(out, "06_nmse_vs_snr")),
+        (snr, "snr_db", "nmse", r"Channel Estimation vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", r"$\mathrm{NMSE}$ (true active support)", figure_path(out, "06_nmse_vs_snr")),
         (pilot, "L", "f1", r"Activity Detection vs Pilot Length $L$", r"Pilot length $L$", r"$F_1$ score", figure_path(out, "06_f1_vs_pilot_length")),
-        (pilot, "L", "nmse", r"Channel Estimation vs Pilot Length $L$", r"Pilot length $L$", r"$\mathrm{NMSE}$", figure_path(out, "06_nmse_vs_pilot_length")),
+        (pilot, "L", "nmse", r"Channel Estimation vs Pilot Length $L$", r"Pilot length $L$", r"$\mathrm{NMSE}$ (true active support)", figure_path(out, "06_nmse_vs_pilot_length")),
         (snr, "snr_db", "runtime_s", r"Runtime vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", "Mean runtime (s)", figure_path(out, "06_runtime_vs_snr")),
         (pilot, "L", "runtime_s", r"Runtime vs Pilot Length $L$", r"Pilot length $L$", "Mean runtime (s)", figure_path(out, "06_runtime_vs_pilot_length")),
     ]
@@ -49,7 +51,7 @@ def make_performance_figures(cfg: dict, formats: str = "png", show_progress: boo
     comparison["algorithm"] = comparison["algorithm"] + " (" + comparison["scenario"] + ")"
     for sweep, x, xlabel in [("snr_sweep", "snr_db", r"$\mathrm{SNR}$ (dB)"),
                              ("pilot_sweep", "L", r"Pilot length $L$")]:
-        for metric, ylabel in [("f1", r"$F_1$ score"), ("nmse", r"$\mathrm{NMSE}$")]:
+        for metric, ylabel in [("f1", r"$F_1$ score"), ("nmse", r"$\mathrm{NMSE}$ (true active support)")]:
             jobs.append((comparison[comparison["sweep"] == sweep], x, metric,
                          "Effect of spatial activity dependence", xlabel, ylabel,
                          figure_path(out, f"06_spatial_dependence_{metric}_{sweep}")))

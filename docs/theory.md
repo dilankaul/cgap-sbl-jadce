@@ -95,8 +95,18 @@ general solver accepts any finite symmetric `Omega`.
 For realization `q`, `S_q=sum(a)` varies naturally. MMV-OMP and MMV-CoSaMP receive
 only the feasible oracle count `B_q=min(S_q,L,N)`, never the true identities.
 Their estimated supports use the top `B_q` recovered row energies. SBL methods
-receive neither `S_q` nor `B_q`. Channel NMSE uses the unmasked final posterior
-means for SBL and sparse least-squares estimates for greedy methods; zero-energy
+receive neither `S_q` nor `B_q`. Channel NMSE uses the final posterior
+mean for CGAP-SBL/SBL, scored only on the true active rows. On the testing branch,
+with true support \(\mathcal S_q=\{i:a_i=1\}\),
+
+\[
+\mathrm{NMSE}_{\mathcal S_q}=
+\frac{\sum_{i\in\mathcal S_q}\|\mathbf z_i-\widehat{\mathbf z}_i\|_2^2}
+     {\sum_{i\in\mathcal S_q}\|\mathbf z_i\|_2^2}.
+\]
+
+Inactive-row leakage is excluded from this channel score; missed active rows
+remain in its error. The true support affects scoring only. Zero-channel
 realizations have undefined NMSE and are excluded from that average. Detection
 metrics still include them, with empty-denominator scores set to zero.
 

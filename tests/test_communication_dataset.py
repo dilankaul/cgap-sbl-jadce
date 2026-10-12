@@ -167,15 +167,68 @@ def test_combined_tuning_saves_final_thresholds_and_five_figures(saved_data):
     selected = pipeline.tune_stage(saved_data, show_progress=False)
     out = saved_data['run']['output_dir']
     scores = pd.read_csv(result_path(out, 'tuning', 'alpha_beta_tau_scores.csv'))
-    assert len(scores) == 4 * 201
-    assert scores.groupby(['alpha', 'beta']).size().eq(201).all()
-    for method in ['cgap', 'sbl']:
-        curve = pd.read_csv(result_path(out, 'tuning', f'{method}_thresholds.csv'))
-        winner = curve.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
-        assert selected[method]['tau'] == pytest.approx(winner.tau)
-        assert selected[method]['tuning_f1'] == pytest.approx(winner.f1)
+    assert len(scores) == 4 * 4 * 201
+    assert scores.groupby(['L', 'snr_db', 'alpha', 'beta']).size().eq(201).all()
+    assert len(selected['conditions']) == 4
+    for condition in selected['conditions'].values():
+        for method in ['cgap', 'sbl']:
+            curves = pd.read_csv(result_path(out, 'tuning', f'{method}_thresholds.csv'))
+            curve = curves[curves.L.eq(condition['L']) & curves.snr_db.eq(condition['snr_db'])]
+            winner = curve.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
+            assert condition[method]['tau'] == pytest.approx(winner.tau)
+            assert condition[method]['tuning_f1'] == pytest.approx(winner.f1)
     zero_alpha = scores[scores.alpha.eq(0)]
     np.testing.assert_allclose(zero_alpha[zero_alpha.beta.eq(0)].f1,
                                zero_alpha[zero_alpha.beta.eq(.1)].f1)
     paths = plot_alpha_beta_tau_tuning(saved_data) + plot_threshold_tuning(saved_data)
-    assert len(paths) == 5 and all(path.exists() for path in paths)
+    assert len(paths) == 20 and all(path.exists() for path in paths)
+    from collections import Counter
+    assert set(Counter(path.parent.name for path in paths).values()) == {5}
+    assert len(Counter(path.parent.name for path in paths)) == 4
+
+
+def test_estimator_evaluation_can_use_a_saved_subset(saved_data):
+    import pandas as pd
+    pipeline.tune_stage(saved_data, show_progress=False)
+    saved_data['run']['num_evaluation_samples'] = 1
+    result = pipeline.evaluate_stage(saved_data, show_progress=False)
+    assert result['Q'] == 1 and result['available_evaluation_samples'] == 2
+    rows = pd.read_csv(result_path(saved_data['run']['output_dir'], 'evaluation', 'per_sample.csv'))
+    assert len(rows) == 24
+    assert rows['q'].unique().tolist() == [0]
+    saved_data['run']['num_evaluation_samples'] = 3
+    with pytest.raises(ValueError, match='between 1 and 2'):
+        pipeline.evaluate_stage(saved_data, show_progress=False)
+
+
+def test_single_condition_tuning_preserves_other_results(saved_data):
+    from cgap_sbl_jadce.figures.task05_alpha_beta_tau_tuning import plot_alpha_beta_tau_tuning
+    from cgap_sbl_jadce.figures.task05_threshold_scores import plot_threshold_tuning
+    pipeline.tune_stage(saved_data, show_progress=False)
+    folder = task_dir(saved_data['run']['output_dir'], 5)
+    preserved = {path: path.read_bytes() for path in folder.rglob('*')
+                 if path.is_file() and 'L0007_snr8dB' not in path.parts}
+    selected = pipeline.tune_stage(saved_data, show_progress=False, condition=(7, 8))
+    assert list(selected['conditions']) == ['L0007_snr8dB']
+    assert selected['reference_pilot_length'] == 7 and selected['reference_snr_db'] == 8
+    assert all(path.read_bytes() == data for path, data in preserved.items())
+    paths = plot_alpha_beta_tau_tuning(saved_data, condition=(7, 8)) + plot_threshold_tuning(saved_data, condition=(7, 8))
+    assert len(paths) == 5 and all(path.exists() and path.parent.name == 'L0007_snr8dB' for path in paths)
+    with pytest.raises(ValueError, match='outside the configured tuning grid'):
+        pipeline.tune_stage(saved_data, show_progress=False, condition=(99, 8))
+
+
+def test_multiple_requested_setups_preserve_combined_results(saved_data):
+    from cgap_sbl_jadce.figures.task05_alpha_beta_tau_tuning import plot_alpha_beta_tau_tuning
+    from cgap_sbl_jadce.figures.task05_threshold_scores import plot_threshold_tuning
+    pipeline.tune_stage(saved_data, show_progress=False)
+    folder = task_dir(saved_data['run']['output_dir'], 5)
+    names = {'L0005_snr8dB', 'L0007_snr12dB'}
+    preserved = {p: p.read_bytes() for p in folder.rglob('*')
+                 if p.is_file() and not names.intersection(p.parts)}
+    setups = [(5, 8), (7, 12), (5, 8)]
+    selected = pipeline.tune_stage(saved_data, show_progress=False, setups=setups)
+    assert set(selected['conditions']) == names
+    assert all(p.read_bytes() == data for p, data in preserved.items())
+    paths = plot_alpha_beta_tau_tuning(saved_data, setups=setups) + plot_threshold_tuning(saved_data, setups=setups)
+    assert len(paths) == 10 and all(p.exists() and p.parent.name in names for p in paths)

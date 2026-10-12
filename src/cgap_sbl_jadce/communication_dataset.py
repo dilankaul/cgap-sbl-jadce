@@ -20,13 +20,15 @@ def communication_definition(cfg, split):
         with path.open('rb') as stream:
             hashes[name] = hashlib.file_digest(stream, 'sha256').hexdigest()
     tune = cfg['tuning']
-    conditions = [(int(tune['reference_pilot_length']), float(tune['reference_snr_db']))]
+    conditions = sorted(set(
+        [(int(L), float(snr)) for L in cfg['system']['pilot_lengths'] for snr in cfg['system']['snr_db']]
+        + [(int(tune['reference_pilot_length']), float(tune['reference_snr_db']))]))
     if split == 'evaluation':
         conditions = sorted(set(
             [(int(cfg['evaluation']['pilot_length']), float(snr)) for snr in cfg['system']['snr_db']]
             + [(int(L), float(tune['reference_snr_db'])) for L in cfg['system']['pilot_lengths']]
             + [(int(cfg['evaluation']['pilot_length']), float(tune['reference_snr_db']))]))
-    return {'schema': 1, 'M': int(cfg['system']['M']), 'N': int(cfg['system']['N']),
+    return {'schema': 2 if split == 'tuning' else 1, 'M': int(cfg['system']['M']), 'N': int(cfg['system']['N']),
             'seed': cfg['seeds'][f'communication_{split}'], 'activity_sha256': hashes,
             'conditions': [list(condition) for condition in conditions]}
 
@@ -61,7 +63,7 @@ def save_communication_sample(folder, q, realizations):
         save_npz(folder / f'{scenario}.npz', **data)
 
 
-def load_communication_sample(folder, q):
+def load_communication_sample(folder, q, only_condition=None):
     folder = Path(folder) / f'{q:04d}'
     if not (folder / 'channels.npz').exists():
         raise FileNotFoundError(f'Communication realization missing; rerun Task 03: {folder}')
@@ -79,6 +81,8 @@ def load_communication_sample(folder, q):
                     continue
                 condition = key.removesuffix('_Y')
                 L, snr = condition[1:].split('_snr')
+                if only_condition is not None and (int(L), float(snr)) != only_condition:
+                    continue
                 result[(scenario, int(L), float(snr))] = Realization(
                     a=channels[f'a_{scenario}'], H=channels['H'], Z=channels[f'Z_{scenario}'],
                     Theta=pilots[f'L{L}'], Y=archive[key], W=archive[f'{condition}_W'],
@@ -86,8 +90,7 @@ def load_communication_sample(folder, q):
     return result
 
 
-def load_tuning_communication(cfg, count):
+def load_tuning_communication(cfg, count, condition=None):
     folder = validate_communication_dataset(cfg, 'tuning')
-    L = int(cfg['tuning']['reference_pilot_length'])
-    snr = float(cfg['tuning']['reference_snr_db'])
-    return [load_communication_sample(folder, q)[('correlated', L, snr)] for q in range(count)]
+    L, snr = condition or (int(cfg['tuning']['reference_pilot_length']), float(cfg['tuning']['reference_snr_db']))
+    return [load_communication_sample(folder, q, only_condition=(L, snr))[('correlated', L, snr)] for q in range(count)]

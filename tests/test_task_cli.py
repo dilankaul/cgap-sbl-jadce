@@ -32,10 +32,13 @@ def test_tasks_run_stage_then_save_png(tmp_path, monkeypatch, task_number):
 
 
 @pytest.mark.parametrize('task_number', sorted(task_cli.TASKS))
-def test_tasks_accept_only_config_and_progress_options(task_number):
+def test_tasks_accept_expected_options(task_number):
     parser = task_cli.task_parser(task_number)
     options = {option for action in parser._actions for option in action.option_strings}
-    assert options == {'-h', '--help', '--config', '--no-progress'}
+    expected = {'-h', '--help', '--config', '--no-progress'}
+    if task_number == 5:
+        expected.add('--setups')
+    assert options == expected
 
 
 def test_calibration_uses_yaml_without_overrides(tmp_path, monkeypatch):
@@ -98,3 +101,28 @@ def test_figure_report_lists_one_folder_with_compact_counts(tmp_path, monkeypatc
         f'Task {task_number:02d} figures: 2100 files (100 tuning realizations, 1000 evaluation realizations)',
         f'  - {figures}',
     ]
+
+
+@pytest.mark.parametrize('setups', [[(25, 8)], [(25, 8), (30, 12)]])
+def test_task05_forwards_requested_setups_to_stage_and_figures(tmp_path, monkeypatch, setups):
+    cfg = load_config('tests/fixtures/small_experiment.yaml')
+    path = tmp_path / 'input.yaml'
+    save_yaml(path, cfg)
+    calls = []
+    def stage(cfg, **kwargs):
+        calls.append(('stage', kwargs))
+    def render(cfg, **kwargs):
+        calls.append(('figure', kwargs))
+        return []
+    monkeypatch.setitem(task_cli.TASKS, 5, replace(task_cli.TASKS[5], stage=stage, plots=(render, render)))
+    task_cli.run_task(5, ['--config', str(path), '--no-progress', '--setups',
+                         *[f'{L}:{snr}' for L, snr in setups]])
+    assert calls == [('stage', {'show_progress': False, 'setups': setups}),
+                     ('figure', {'formats': 'png', 'setups': setups}),
+                     ('figure', {'formats': 'png', 'setups': setups})]
+
+
+@pytest.mark.parametrize('value', ['25', '25:8:12', '0:8', '25.5:8', '25:nan'])
+def test_task05_rejects_invalid_setup_syntax(value):
+    with pytest.raises(SystemExit):
+        task_cli.task_parser(5).parse_args(['--setups', value])

@@ -52,6 +52,8 @@ def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     selected = {'cgap': {'alpha': 2, 'beta': .1, 'tau': .05}, 'sbl': {'tau': .05},
                 'reference_pilot_length': 10, 'reference_snr_db': 12}
+    selected['conditions'] = {'L0010_snr12dB': {'cgap': dict(selected['cgap']), 'sbl': {'alpha': 0, 'beta': 0, **selected['sbl']}}}
+    selected['cgap']['alpha'] = 999  # reference selection must not replace this condition's alpha
     alg = {**cfg['algorithms'], 'K': 3}
     from cgap_sbl_jadce.communication_dataset import save_communication_sample
     paired = paired_activity_realizations(sample(), randomize_activity_sample(sample(), 6031, 0), 4283, 0, 3, 10, 12)
@@ -79,6 +81,8 @@ def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl
     rows, gamma = _evaluate_sample((0, sample(), tmp_path, {'N': 20, 'M': 3},
                                    tmp_path, alg, selected, [(10, 12, 'pilot_sweep')], True))
     assert len(rows) == 6
+    assert all(row['alpha'] == 2 and row['beta'] == .1 and row['tau'] == .05
+               for row in rows if row['algorithm'] == 'CGAP-SBL-ANC')
     np.testing.assert_allclose([row["runtime_s"] for row in rows], .01)
     assert {row['S_q'] for row in rows} == {3}
     assert len([row for row in rows if row['scenario'] == 'randomized']) == 2
@@ -98,7 +102,7 @@ def test_aggregation_preserves_scenarios_and_averages_paired_advantages(tmp_path
         for q in range(2):
             for method in ['CGAP-SBL-ANC', 'SBL']:
                 rows.append(dict(q=q, scenario=scenario, algorithm=method, L=20, snr_db=12,
-                                 sweep='snr_sweep', precision=.5, recall=.5, runtime_s=.1,
+                                 sweep='snr_sweep', precision=.5, recall=.5, runtime_s=.1, nmse_scope='true_active_support',
                                  f1=.5 + (gain if method == 'CGAP-SBL-ANC' else 0),
                                  nmse=(np.nan if q == 0 else (.2 if method == 'CGAP-SBL-ANC' else .3))))
     path = result_path(tmp_path, 'evaluation', 'per_sample.csv')

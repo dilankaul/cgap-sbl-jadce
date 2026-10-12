@@ -35,7 +35,8 @@ unnumbered because they do not represent extra experimental stages.
 
 Numbered tasks automatically save PNG figures. The paper activity script
 `scripts/paper_figures/activity_realization.py` exports one title-free vector PDF
-from saved data. Numbered CLI options are only --config and --no-progress.
+from saved data. Shared numbered CLI options are --config and --no-progress. Task 05 also accepts
+--setups L:SNR [L:SNR ...] for one or multiple saved tuning conditions.
 Plotting functions remain callable on saved data for regeneration.
 
 After each task inspect saved outputs before continuing. Long-running tasks must
@@ -193,3 +194,12 @@ cutoff, multi-event probability, deterministic seeds, simple noiseless baseline
 support recovery, and plotting that does not modify probability values.
 
 Do not weaken tests merely to make an implementation pass.
+
+## Testing branch: condition-specific tuning
+
+Task 03 saves tuning communication data for every configured pilot-length/SNR combination.
+Task 05 uses only the tuning split and selects alpha, beta and tau separately for each
+condition, using tau=0:0.001:0.2. Task 06 and Task 07 load matching condition-specific
+selections. Randomized evaluation uses the same condition selection as correlated
+activity. This testing protocol differs from the fixed-reference manuscript protocol.
+Do not run experiments or commit testing changes unless explicitly requested.

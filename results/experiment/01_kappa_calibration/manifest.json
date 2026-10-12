@@ -1,14 +1,14 @@
 {
   "configuration": {
     "activity": {
-      "D": 15.0,
+      "D": 20.0,
       "V": 2,
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "calibration_validation_samples": 5000,
       "exact_sparsity": false,
-      "kappa": 3.78,
+      "kappa": 6.995,
       "kappa_refinement_steps": [
         0.1,
         0.02,
@@ -52,13 +52,9 @@
     },
     "figures": {
       "evaluation_indices": [
-        714,
-        495,
-        106,
-        618,
-        442,
-        101,
-        781
+        77,
+        97,
+        84
       ],
       "tuning_indices": [
         77,
@@ -67,7 +63,7 @@
       ]
     },
     "run": {
-      "num_evaluation_samples": 1000,
+      "num_evaluation_samples": 100,
       "num_tuning_samples": 100,
       "output_dir": "results/experiment"
     },
@@ -82,16 +78,17 @@
     },
     "system": {
       "M": 4,
-      "N": 400,
-      "R": 40.0,
-      "S": 10.0,
+      "N": 500,
+      "R": 50.0,
+      "S": 20.0,
       "pilot_lengths": [
+        10,
+        15,
         20,
         25,
         30,
         35,
-        40,
-        45
+        40
       ],
       "snr_db": [
         4,
@@ -106,31 +103,38 @@
       "calibration_seed": 1379,
       "input_config": "configs/experiment.yaml",
       "no_progress": false,
-      "selected_kappa": 3.78,
+      "selected_kappa": 6.995,
       "status": "success",
       "task": 1,
       "validation_seed": 8641
     },
     "tuning": {
       "alpha_values": [
-        2,
-        4,
-        6,
-        8,
+        0,
+        5,
         10,
-        12,
-        14
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50
       ],
       "beta_values": [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
         0.05,
-        0.1,
-        0.15,
-        0.2,
-        0.25,
-        0.3,
-        0.35
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
       ],
-      "num_thresholds": 80,
       "reference_pilot_length": 25,
       "reference_snr_db": 12
     }

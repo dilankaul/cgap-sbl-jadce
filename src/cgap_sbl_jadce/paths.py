@@ -44,3 +44,8 @@ def figure_path(out: str | Path, stem: str) -> Path:
     elif task in {6, 7}:
         folder /= "evaluation"
     return folder / stem
+
+
+def tuning_condition_name(L: int, snr_db: float) -> str:
+    """Shared data/figure folder name for one communication condition."""
+    return f"L{int(L):04d}_snr{float(snr_db):g}dB"

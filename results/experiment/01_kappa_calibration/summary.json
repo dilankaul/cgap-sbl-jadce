@@ -1,13 +1,13 @@
 {
-  "D": 15.0,
-  "N": 400,
-  "R": 40.0,
+  "D": 20.0,
+  "N": 500,
+  "R": 50.0,
   "V": 2,
-  "absolute_expected_gap": 0.0018215404250909728,
+  "absolute_expected_gap": 0.004631494432366878,
   "calibration_samples": 5000,
-  "closest_grid_kappa": 3.78,
-  "closest_grid_mean_expected_active": 9.998178459574909,
-  "closest_grid_mean_realized_active": 9.9982,
+  "closest_grid_kappa": 6.995,
+  "closest_grid_mean_expected_active": 19.995368505567633,
+  "closest_grid_mean_realized_active": 19.9794,
   "final_step": 0.005,
   "method": "coarse_to_fine",
   "seed": 1379,
@@ -15,55 +15,55 @@
   "stages": [
     {
       "bracket": [
-        3.5,
-        4.0
+        6.5,
+        7.0
       ],
       "stage": "coarse"
     },
     {
       "bracket": [
-        3.7,
-        3.8
+        6.9,
+        7.0
       ],
       "stage": "refine_1",
       "step": 0.1
     },
     {
       "bracket": [
-        3.78,
-        3.8
+        6.98,
+        7.0
       ],
       "stage": "refine_2",
       "step": 0.02
     },
     {
       "bracket": [
-        3.78,
-        3.785
+        6.995,
+        7.0
       ],
       "stage": "refine_3",
       "step": 0.005
     }
   ],
   "status": "success",
-  "target_mean_active": 10.0,
+  "target_mean_active": 20.0,
   "tolerance": 0.1,
   "validation": {
-    "expected_gap": 0.009255186355227707,
+    "expected_gap": 0.021870406253146513,
     "expected_mean_ci95": [
-      9.953952261813617,
-      10.064558110896838
+      19.925707212782925,
+      20.11803359972337
     ],
-    "kappa": 3.78,
-    "max_realized_active": 24,
-    "mean_expected_active": 10.009255186355228,
-    "mean_realized_active": 9.996,
-    "min_realized_active": 1,
+    "kappa": 6.995,
+    "max_realized_active": 40,
+    "mean_expected_active": 20.021870406253147,
+    "mean_realized_active": 20.058,
+    "min_realized_active": 4,
     "samples": 5000,
-    "se_expected_active": 0.028215777827352434,
+    "se_expected_active": 0.04906285381133739,
     "seed": 8641,
-    "std_expected_active": 1.9951567838173938,
-    "std_realized_active": 3.2514763446293036,
+    "std_expected_active": 3.4692676634360917,
+    "std_realized_active": 4.9794773861327855,
     "within_tolerance": true
   }
 }
