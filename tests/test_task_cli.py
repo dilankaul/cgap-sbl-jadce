@@ -9,7 +9,7 @@ from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.io import save_yaml
 
 
-@pytest.mark.parametrize('task_number', range(1, 10))
+@pytest.mark.parametrize('task_number', sorted(task_cli.TASKS))
 def test_tasks_run_stage_then_save_png(tmp_path, monkeypatch, task_number):
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     path = tmp_path / 'input.yaml'
@@ -31,7 +31,7 @@ def test_tasks_run_stage_then_save_png(tmp_path, monkeypatch, task_number):
     assert path.read_bytes() == original
 
 
-@pytest.mark.parametrize('task_number', range(1, 10))
+@pytest.mark.parametrize('task_number', sorted(task_cli.TASKS))
 def test_tasks_accept_only_config_and_progress_options(task_number):
     parser = task_cli.task_parser(task_number)
     options = {option for action in parser._actions for option in action.option_strings}

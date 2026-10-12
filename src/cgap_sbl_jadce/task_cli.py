@@ -1,4 +1,4 @@
-"""Common command-line orchestration for the nine scientific task wrappers."""
+"""Common command-line orchestration for the scientific task wrappers."""
 from __future__ import annotations
 
 import argparse
@@ -11,11 +11,11 @@ from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_re
 from cgap_sbl_jadce.figures.task02_active_mtd_count_distribution import plot_activity_s_distribution
 from cgap_sbl_jadce.figures.task03_communication_preview import plot_communication_preview
 from cgap_sbl_jadce.figures.task04_spatial_dependence import plot_spatial_dependence
-from cgap_sbl_jadce.figures.task05_alpha_beta_tuning import plot_alpha_beta_tuning
-from cgap_sbl_jadce.figures.task06_activity_threshold_tuning import plot_threshold_tuning
-from cgap_sbl_jadce.figures.task07_gamma_distribution import plot_gamma_distribution
-from cgap_sbl_jadce.figures.task08_convergence import plot_convergence
-from cgap_sbl_jadce.figures.task09_performance import make_performance_figures
+from cgap_sbl_jadce.figures.task05_alpha_beta_tau_tuning import plot_alpha_beta_tau_tuning
+from cgap_sbl_jadce.figures.task05_threshold_scores import plot_threshold_tuning
+from cgap_sbl_jadce.figures.task06_gamma_distribution import plot_gamma_distribution
+from cgap_sbl_jadce.figures.task07_convergence import plot_convergence
+from cgap_sbl_jadce.figures.task06_performance import make_performance_figures
 from cgap_sbl_jadce.experiments.calibration import CalibrationBracketError
 from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.paths import task_dir
@@ -35,11 +35,10 @@ TASKS = {
             (plot_activity_realizations, plot_activity_s_distribution), True),
     3: Task("generate full communication datasets", pipeline.communication_stage, (plot_communication_preview,), True),
     4: Task("build spatial dependence", pipeline.spatial_dependence_stage, (plot_spatial_dependence,), True),
-    5: Task("tune CGAP-SBL alpha and beta", pipeline.tune_stage, (plot_alpha_beta_tuning,), True),
-    6: Task("tune activity thresholds", pipeline.threshold_stage, (plot_threshold_tuning,), True),
-    7: Task("run estimators", pipeline.evaluate_stage, (plot_gamma_distribution,), True),
-    8: Task("analyze convergence", pipeline.convergence_stage, (plot_convergence,)),
-    9: Task("aggregate and evaluate", pipeline.aggregate_stage, (make_performance_figures,)),
+    5: Task("tune alpha, beta and tau", pipeline.tune_stage, (plot_alpha_beta_tau_tuning, plot_threshold_tuning), True),
+    6: Task("run estimators and generate performance figures", pipeline.evaluate_stage,
+            (plot_gamma_distribution, make_performance_figures), True),
+    7: Task("analyze convergence", pipeline.convergence_stage, (plot_convergence,)),
 }
 
 

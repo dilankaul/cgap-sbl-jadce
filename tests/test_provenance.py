@@ -12,14 +12,14 @@ def test_task_snapshot_uses_activity_data_not_current_calibration(tmp_path):
     original = copy.deepcopy(cfg)
     save_json(result_path(tmp_path, 'activity', 'summary.json'), {'kappa': 2.75, 'D': 15., 'N': 200})
     save_json(result_path(tmp_path, 'activity_calibration', 'summary.json'), {'closest_grid_kappa': 3.5})
-    save_task_snapshot(cfg, 7, workers=2, selected_parameters={'sbl': {'tau': 0.02}})
-    saved = json.loads((task_dir(tmp_path, 7) / 'manifest.json').read_text())['configuration']
+    save_task_snapshot(cfg, 6, workers=2, selected_parameters={'sbl': {'tau': 0.02}})
+    saved = json.loads((task_dir(tmp_path, 6) / 'manifest.json').read_text())['configuration']
     assert saved['activity']['kappa'] == 2.75
     assert saved['task_runtime']['selected_parameters']['sbl']['tau'] == 0.02
     assert saved['task_runtime']['workers'] == 2
-    assert json.loads((task_dir(tmp_path, 7) / 'manifest.json').read_text())['task'] == 7
+    assert json.loads((task_dir(tmp_path, 6) / 'manifest.json').read_text())['task'] == 6
     assert (tmp_path / 'config.yaml').exists()
-    assert not (task_dir(tmp_path, 7) / 'config.yaml').exists()
+    assert not (task_dir(tmp_path, 6) / 'config.yaml').exists()
     assert cfg == original
 
 

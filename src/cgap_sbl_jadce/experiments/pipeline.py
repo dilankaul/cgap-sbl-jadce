@@ -31,7 +31,7 @@ from cgap_sbl_jadce.communication_dataset import (communication_definition, vali
     save_communication_sample, load_communication_sample, load_tuning_communication)
 from cgap_sbl_jadce.reporting import print_task_report
 from cgap_sbl_jadce.provenance import save_task_snapshot
-from cgap_sbl_jadce.experiments.tuning import choose_gamma_threshold, threshold_curve
+from cgap_sbl_jadce.experiments.tuning import threshold_curve
 
 
 def output_dir(cfg: dict[str, Any]) -> Path:
@@ -40,7 +40,7 @@ def output_dir(cfg: dict[str, Any]) -> Path:
 
 def tuning_definition(cfg: dict[str, Any]) -> dict[str, Any]:
     """Identify the mathematics and experiment used to select parameters."""
-    return {"method": "CGAP-SBL-ANC", "revision": 1,
+    return {"method": "CGAP-SBL-ANC", "revision": 2, "tau_grid": {"start": 0.0, "stop": 0.2, "step": 0.001},
             "algorithms": cfg["algorithms"], "spatial_dependence": activity_spatial_dependence_parameters(cfg),
             "tuning": cfg["tuning"], "system": cfg["system"],
             "tuning_samples": cfg["run"]["num_tuning_samples"],
@@ -50,7 +50,7 @@ def tuning_definition(cfg: dict[str, Any]) -> dict[str, Any]:
 
 def validate_selection(selected: dict, cfg: dict) -> None:
     if selected.get("definition") != tuning_definition(cfg):
-        raise ValueError("Saved tuning belongs to a different method or setup. Rerun Tasks 05 and 06 for CGAP-SBL-ANC.")
+        raise ValueError("Saved tuning belongs to a different method or setup. Rerun Task 05 for CGAP-SBL-ANC.")
 
 
 def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
@@ -313,96 +313,64 @@ def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
         gammas.append(result.gamma); nmse_values.append(nmse(r.Z, result.mu)); iterations.append(result.iterations)
     gammas_arr = np.asarray(gammas)
     a_true = np.stack([a.a for a in activities])
-    threshold = choose_gamma_threshold(a_true, gammas_arr, num_thresholds=alg["num_thresholds"])
+    curve = threshold_curve(a_true, gammas_arr)
+    threshold = max(curve, key=lambda x: (x["f1"], x["recall"], x["precision"]))
     return {
-        "alpha": float(alpha), "beta": float(beta), "provisional_tau": threshold.tau,
-        "precision": threshold.mean_precision, "recall": threshold.mean_recall, "f1": threshold.mean_f1,
+        "alpha": float(alpha), "beta": float(beta), "tau": threshold["tau"], "threshold_curve": curve,
+        "precision": threshold["precision"], "recall": threshold["recall"], "f1": threshold["f1"],
         "nmse": float(np.nanmean(nmse_values)), "iterations": float(np.mean(iterations)),
     }
 
 
 def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
-    """Task 05: select alpha and beta. Thresholds are finalized separately in Task 06."""
-    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]
-    algcfg = cfg["algorithms"].copy(); algcfg["num_thresholds"] = tune["num_thresholds"]
+    """Task 05: jointly select alpha, beta and final detection thresholds."""
+    out = output_dir(cfg)
+    tune = cfg["tuning"]
+    if 0 not in tune["alpha_values"] or 0 not in tune["beta_values"]:
+        raise ValueError("The tuning grid must include alpha=0 and beta=0 for the SBL baseline.")
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     communication = load_tuning_communication(cfg, len(activities))
     matrices = load_tuning_spatial_dependence(cfg, len(activities))
-    tasks = [
-        (activities, communication, matrices, alpha, beta, algcfg)
-        for alpha in tune["alpha_values"] for beta in tune["beta_values"]
-    ]
+    tasks = [(activities, communication, matrices, alpha, beta, cfg["algorithms"])
+             for alpha in tune["alpha_values"] for beta in tune["beta_values"]]
     if workers > 1:
         with ProcessPoolExecutor(max_workers=workers) as ex:
-            rows = list(tqdm(ex.map(_tune_pair, tasks), total=len(tasks), desc="Task 05 alpha-beta grid", unit="pair", disable=not show_progress))
+            rows = list(tqdm(ex.map(_tune_pair, tasks), total=len(tasks), desc="Task 05 alpha-beta-tau grid", unit="pair", disable=not show_progress))
     else:
-        rows = [_tune_pair(t) for t in tqdm(tasks, desc="Task 05 alpha-beta grid", unit="pair", disable=not show_progress)]
+        rows = [_tune_pair(t) for t in tqdm(tasks, desc="Task 05 alpha-beta-tau grid", unit="pair", disable=not show_progress)]
     rows.sort(key=lambda x: (x["f1"], -x["nmse"], x["recall"]), reverse=True)
+    best = rows[0]
+    baseline = next(row for row in rows if row["alpha"] == 0 and row["beta"] == 0)
+    curves = [dict(alpha=row["alpha"], beta=row["beta"], **point)
+              for row in rows for point in row["threshold_curve"]]
+    artifacts = []
+    for filename, data in [("alpha_beta_tau_scores.csv", curves),
+                           ("cgap_thresholds.csv", best["threshold_curve"]),
+                           ("sbl_thresholds.csv", baseline["threshold_curve"])]:
+        path = result_path(out, "tuning", filename)
+        save_csv(path, data)
+        artifacts.append(path)
+    for row in rows:
+        row.pop("threshold_curve")
     grid_path = result_path(out, "tuning", "alpha_beta.csv")
     save_csv(grid_path, rows)
-    best = rows[0]
-    selected_ab = {
-        "definition": tuning_definition(cfg),
-        "alpha": best["alpha"], "beta": best["beta"],
-        "provisional_tau_used_for_grid_ranking": best["provisional_tau"],
-        "tuning_f1": best["f1"], "tuning_nmse": best["nmse"],
-        "reference_snr_db": tune["reference_snr_db"], "reference_pilot_length": tune["reference_pilot_length"],
-    }
-    selected_path = result_path(out, "tuning", "selected_alpha_beta.json")
-    save_json(selected_path, selected_ab)
-    summary_path = result_path(out, "tuning", "alpha_beta_summary.json")
-    save_json(summary_path, {"best": selected_ab, "grid_pairs": len(rows), "top5": rows[:5]})
-    save_task_snapshot(cfg, 5, workers=workers, show_progress=show_progress, selected_parameters=selected_ab)
-    print_task_report("TASK 05 — ALPHA/BETA TUNING", {
-        "grid pairs": len(rows), "selected alpha": best["alpha"], "selected beta": best["beta"],
-        "grid-ranking F1": best["f1"], "mean NMSE": best["nmse"], "mean iterations": best["iterations"],
-    }, [grid_path, selected_path, summary_path])
-    return selected_ab
-
-
-def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
-    """Task 06: independently tune CGAP-SBL and SBL detection thresholds."""
-    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]; alg = cfg["algorithms"]
-    activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
-    with (result_path(out, "tuning", "selected_alpha_beta.json")).open("r", encoding="utf-8") as f:
-        selected_ab = json.load(f)
-    validate_selection(selected_ab, cfg)
-    communication = load_tuning_communication(cfg, len(activities))
-    matrices = load_tuning_spatial_dependence(cfg, len(activities))
-    cgap_gammas: list[np.ndarray] = []
-    sb_gammas: list[np.ndarray] = []
-    iterator = tqdm(enumerate(activities), total=len(activities), desc="Task 06 threshold inputs", unit="sample", disable=not show_progress)
-    for i, activity in iterator:
-        r = communication[i]
-        C = matrices[i]
-        cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected_ab["alpha"], selected_ab["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
-        sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
-        cgap_gammas.append(cgap.gamma); sb_gammas.append(sb.gamma)
-    a_true = np.stack([a.a for a in activities])
-    cgap_arr = np.asarray(cgap_gammas); sb_arr = np.asarray(sb_gammas)
-    cgap_curve = threshold_curve(a_true, cgap_arr, tune["num_thresholds"])
-    sb_curve = threshold_curve(a_true, sb_arr, tune["num_thresholds"])
-    cgap_choice = choose_gamma_threshold(a_true, cgap_arr, tune["num_thresholds"])
-    sb_choice = choose_gamma_threshold(a_true, sb_arr, tune["num_thresholds"])
-    cgap_path = result_path(out, "tuning", "cgap_thresholds.csv"); sb_path = result_path(out, "tuning", "sbl_thresholds.csv")
-    save_csv(cgap_path, cgap_curve); save_csv(sb_path, sb_curve)
-    inputs_path = result_path(out, "tuning", "threshold_inputs.npz")
-    save_npz(inputs_path, a=a_true.astype(np.uint8), cgap_gamma=cgap_arr, sbl_gamma=sb_arr)
-    selected = {
-        "definition": tuning_definition(cfg),
-        "cgap": {
-            "alpha": selected_ab["alpha"], "beta": selected_ab["beta"], "tau": cgap_choice.tau,
-            "tuning_precision": cgap_choice.mean_precision, "tuning_recall": cgap_choice.mean_recall, "tuning_f1": cgap_choice.mean_f1,
-        },
-        "sbl": {"tau": sb_choice.tau, "tuning_precision": sb_choice.mean_precision, "tuning_recall": sb_choice.mean_recall, "tuning_f1": sb_choice.mean_f1},
-        "reference_snr_db": tune["reference_snr_db"], "reference_pilot_length": tune["reference_pilot_length"],
-    }
-    selected_path = result_path(out, "tuning", "selected.json"); save_json(selected_path, selected)
-    save_task_snapshot(cfg, 6, show_progress=show_progress, selected_parameters=selected)
-    print_task_report("TASK 06 — THRESHOLD TUNING", {
-        "CGAP-SBL-ANC tau": cgap_choice.tau, "CGAP-SBL-ANC tuning F1": cgap_choice.mean_f1,
-        "SBL tau": sb_choice.tau, "SBL tuning F1": sb_choice.mean_f1,
-    }, [cgap_path, sb_path, inputs_path, selected_path])
+    def selection(row):
+        return {key: row[key] for key in ("alpha", "beta", "tau")} | {
+            "tuning_precision": row["precision"], "tuning_recall": row["recall"],
+            "tuning_f1": row["f1"], "tuning_nmse": row["nmse"]}
+    selected = {"definition": tuning_definition(cfg), "cgap": selection(best),
+                "sbl": selection(baseline), "reference_snr_db": tune["reference_snr_db"],
+                "reference_pilot_length": tune["reference_pilot_length"]}
+    selected_path = result_path(out, "tuning", "selected.json")
+    save_json(selected_path, selected)
+    summary_path = result_path(out, "tuning", "alpha_beta_tau_summary.json")
+    save_json(summary_path, {"best": selected, "grid_pairs": len(rows), "tau_candidates": 201, "top5": rows[:5]})
+    save_task_snapshot(cfg, 5, workers=workers, show_progress=show_progress, selected_parameters=selected)
+    print_task_report("TASK 05 — ALPHA/BETA/TAU TUNING", {
+        "grid pairs": len(rows), "tau candidates": 201, "selected alpha": best["alpha"],
+        "selected beta": best["beta"], "CGAP-SBL-ANC tau": best["tau"],
+        "SBL tau": baseline["tau"], "tuning F1": best["f1"], "mean NMSE": best["nmse"],
+    }, [grid_path, selected_path, summary_path, *artifacts])
     return selected
 
 
@@ -458,7 +426,7 @@ def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[
 
 
 def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
-    """Task 07: run all estimators and save raw per-sample metrics."""
+    """Task 06: run all estimators and save raw per-sample metrics."""
     out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]
     activities = load_activity_samples(result_path(out, "activity", "evaluation_activity.npz"))
     randomized_path = result_path(out, "activity", "randomized_evaluation_activity.npz")
@@ -479,9 +447,9 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
     tasks = [(i, a, communication_folder, sys, spatial_dependence_folder, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
     if workers > 1:
         with ProcessPoolExecutor(max_workers=workers) as ex:
-            outputs = list(tqdm(ex.map(_evaluate_sample, tasks), total=len(tasks), desc="Task 07 evaluation", unit="sample", disable=not show_progress))
+            outputs = list(tqdm(ex.map(_evaluate_sample, tasks), total=len(tasks), desc="Task 06 evaluation", unit="sample", disable=not show_progress))
     else:
-        outputs = [_evaluate_sample(t) for t in tqdm(tasks, desc="Task 07 evaluation", unit="sample", disable=not show_progress)]
+        outputs = [_evaluate_sample(t) for t in tqdm(tasks, desc="Task 06 evaluation", unit="sample", disable=not show_progress)]
     rows = [row for sample_rows, _ in outputs for row in sample_rows]
     per_sample_path = result_path(out, "evaluation", "per_sample.csv")
     save_csv(per_sample_path, rows)
@@ -517,8 +485,9 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
     summary_path = result_path(out, "evaluation", "run_summary.json"); save_json(summary_path, summary)
     files: list[Path] = [per_sample_path, summary_path]
     if gamma_outputs: files.append(gamma_path)
-    save_task_snapshot(cfg, 7, workers=workers, show_progress=show_progress, selected_parameters=selected, communication_master_seed=int(cfg["seeds"]["communication_evaluation"]))
-    print_task_report("TASK 07 — ESTIMATOR RUNS", summary, files)
+    save_task_snapshot(cfg, 6, workers=workers, show_progress=show_progress, selected_parameters=selected, communication_master_seed=int(cfg["seeds"]["communication_evaluation"]))
+    print_task_report("TASK 06 — ESTIMATOR RUNS", summary, files)
+    aggregate_stage(cfg)
     return summary
 
 
@@ -533,9 +502,9 @@ def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     folder = validate_communication_dataset(cfg, "evaluation")
     r = load_communication_sample(folder, idx)[("correlated", int(cfg["evaluation"]["pilot_length"]), float(tune["reference_snr_db"]))]
     C = load_spatial_dependence_matrix(validate_spatial_dependence_dataset(cfg, "evaluation"), idx)
-    print("Task 08: running CGAP-SBL-ANC convergence trace...")
+    print("Task 07: running CGAP-SBL-ANC convergence trace...")
     cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected["cgap"]["alpha"], selected["cgap"]["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)
-    print("Task 08: running SBL convergence trace...")
+    print("Task 07: running SBL convergence trace...")
     sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)
     conv_path = result_path(out, "convergence", "convergence.npz")
     save_npz(conv_path, cgap_gamma_history=cgap.gamma_history, cgap_lambda_history=cgap.lambda_history, cgap_nmse_history=cgap.nmse_history, sbl_gamma_history=sb.gamma_history, sbl_nmse_history=sb.nmse_history)
@@ -549,18 +518,18 @@ def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
         "sbl_last_e_step_nmse": float(sb.nmse_history[-1]) if sb.nmse_history is not None and len(sb.nmse_history) else None,
     }
     summary_path = result_path(out, "convergence", "summary.json"); save_json(summary_path, summary)
-    save_task_snapshot(cfg, 8, sample_index=idx, selected_parameters=selected, communication_master_seed=int(cfg["seeds"]["communication_evaluation"]))
-    print_task_report("TASK 08 — CONVERGENCE", summary, [conv_path, summary_path])
+    save_task_snapshot(cfg, 7, sample_index=idx, selected_parameters=selected, communication_master_seed=int(cfg["seeds"]["communication_evaluation"]))
+    print_task_report("TASK 07 — CONVERGENCE", summary, [conv_path, summary_path])
     return summary
 
 
 def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Task 09: aggregate raw Task-07 metrics; no estimators are rerun."""
+    """Task 06: aggregate raw estimator metrics; no estimators are rerun."""
     out = output_dir(cfg)
     per_sample_path = result_path(out, "evaluation", "per_sample.csv")
     df = pd.read_csv(per_sample_path)
     if "scenario" not in df or "CGAP-SBL-ANC" not in set(df["algorithm"]):
-        raise ValueError("Legacy estimator results cannot be relabeled. Rerun Task 07 for CGAP-SBL-ANC.")
+        raise ValueError("Legacy estimator results cannot be relabeled. Rerun Task 06 for CGAP-SBL-ANC.")
     aggregate = df.groupby(["scenario", "algorithm", "L", "snr_db", "sweep"], as_index=False)[["precision", "recall", "f1", "nmse", "runtime_s"]].mean()
     aggregate_path = result_path(out, "evaluation", "aggregate.csv")
     ensure_dir(aggregate_path.parent)
@@ -586,8 +555,7 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     reference_rows = ref[["algorithm", "precision", "recall", "f1", "nmse", "runtime_s"]].to_dict(orient="records")
     summary = {"aggregate_rows": int(len(aggregate)), "reference_L": ref_L, "reference_snr_db": ref_snr, "reference_results": reference_rows}
     summary_path = result_path(out, "evaluation", "summary.json"); save_json(summary_path, summary)
-    save_task_snapshot(cfg, 9, source_metrics=str(per_sample_path))
-    print_task_report("TASK 09 — AGGREGATION / ANALYSIS", {
+    print_task_report("TASK 06 — AGGREGATION / ANALYSIS", {
         "aggregate rows": len(aggregate), "reference L": ref_L, "reference SNR": ref_snr,
         "algorithms": ", ".join(sorted(df["algorithm"].unique())),
     }, [aggregate_path, advantages_path, overall_path, runtime_path, summary_path])

@@ -71,7 +71,7 @@ These bounds do not imply a performance ranking or replace measured runtimes.
 
 ## Recorded execution time
 
-Task 07 measures each CGAP-SBL-ANC, SBL, MMV-OMP and MMV-CoSaMP call separately
+Task 06 measures each CGAP-SBL-ANC, SBL, MMV-OMP and MMV-CoSaMP call separately
 using `time.perf_counter()`. Each raw metric row records `runtime_s`, grouped
 by realization, scenario, L, SNR and sweep. CGAP-SBL-ANC and SBL are also timed
 in the randomized scenario. General dense CGAP-SBL is implemented as a library
@@ -81,10 +81,10 @@ The timer includes solver initialization, input validation, all numerical
 iterations and the final channel estimate. Data generation, C construction,
 archive loading, support selection from final estimates, metric computation,
 plotting and saving are outside the timer. Execution is serial by default.
-The Task-07 manifest records the platform, Python/NumPy/SciPy versions, CPU
+The Task-06 manifest records the platform, Python/NumPy/SciPy versions, CPU
 information and explicit numerical thread settings.
 
-Task 09 preserves mean runtime in aggregate.csv and produces runtime_summary.csv
+Task 06 preserves mean runtime in aggregate.csv and produces runtime_summary.csv
 with sample count, mean, standard deviation, median, 95th percentile, minimum,
 maximum and total seconds for each scenario/method/condition/sweep. Standard
 runtime figures show correlated-scenario algorithms versus SNR and pilot length.

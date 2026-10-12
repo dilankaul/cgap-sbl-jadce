@@ -44,7 +44,7 @@ def test_paper_conditions_and_saved_correlation_parameters(tmp_path):
     save_json(result_path(tmp_path, 'activity', 'summary.json'), {'kappa': 3.78, 'D': 15})
     cfg['activity']['D'] = 99
     assert activity_spatial_dependence_parameters(cfg) == {'rho': 3.78, 'U': 15}
-    with pytest.raises(ValueError, match='Rerun Tasks 05 and 06'):
+    with pytest.raises(ValueError, match='Rerun Task 05'):
         validate_selection({'definition': {'method': 'legacy'}, 'alpha': 1}, cfg)
 
 
@@ -154,7 +154,7 @@ def test_randomized_spatial_figures_omit_event_model_overlays(tmp_path, monkeypa
     assert captured['show_event_radius'] is False
     assert captured['show_events'] is False
     assert captured['stem'].parent.name == 'evaluation_0007'
-    assert '3 active MTDs' in captured['title']
+    assert '3 Active MTDs' in captured['title']
     assert '7' in captured['title']
 
 

@@ -2,7 +2,7 @@
 
 Codespaces-ready implementation for the paper **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**.
 
-The scientific workflow contains **nine uniquely numbered tasks (01–09)**. Standard figures are saved automatically by the numbered task that produces the corresponding data. Numbered tasks save PNG previews for the repository; the paper activity script saves vector PDF.
+The scientific workflow contains **seven tasks (01–07)**. Standard figures are saved automatically by the numbered task that produces the corresponding data. Numbered tasks save PNG previews for the repository; the paper activity script saves vector PDF.
 
 `AGENTS.md` contains persistent instructions for Codex, while `DECISIONS.md` records locked scientific and implementation decisions.
 
@@ -29,10 +29,10 @@ Evaluation uses 1,000 realizations: pilot lengths 20–45 in steps of 5 at
 12 dB, and SNR 4–24 dB in steps of 4 at `L=30`. Convergence uses `L=30`, 12 dB.
 Task 05 saves both F1 and NMSE contours.
 
-Task 02 saves paired spatially randomized evaluation activity; Task 07 loads
+Task 02 saves paired spatially randomized evaluation activity; Task 06 loads
 these supports for CGAP-SBL-ANC and SBL,
 retaining each realization's active count, geometry, channels, and pilots.
-Parameters tuned on correlated activity remain fixed. Task 09 saves four-curve
+Parameters tuned on correlated activity remain fixed. Task 06 saves four-curve
 spatial comparisons and `spatial_randomization_advantages.csv`, reporting the
 within-scenario F1 gain and NMSE reduction relative to SBL.
 
@@ -107,29 +107,23 @@ python scripts/04_build_spatial_dependence.py --config configs/experiment.yaml
 
 The spatial dependence summary and \(\mathbf C\) visualization are saved automatically.
 
-### Task 05 — Tune \(\alpha,\beta\)
+### Task 05 — Tune \(\alpha,\beta,\tau\)
 
 ```bash
-python scripts/05_tune_alpha_beta.py
+python scripts/05_tune_alpha_beta_tau.py
 ```
 
-Task 05 uses an internally optimized provisional threshold only for ranking the \((\alpha,\beta)\) grid. The selected grid result and tuning figure are saved automatically. Final CGAP-SBL and SBL activity thresholds are independently selected in Task 06.
+Task 05 tests every alpha/beta pair using the same fixed threshold grid: tau=0 through 0.2 inclusive in steps of 0.001 (201 candidates). Each pair runs the estimator once per tuning realization; its gamma values are reused for every threshold. The best mean F1 selects tau for each pair. Pairs are ranked by mean F1, then lower NMSE, then higher recall. Alpha=0, beta=0 supplies the conventional SBL baseline and its final threshold.
 
-### Task 06 — Tune activity thresholds
+The task saves all threshold scores, the per-pair selection grid, and `selected.json` containing final CGAP-SBL-ANC and SBL parameters. It generates F1, NMSE and selected-tau heatmaps plus separate threshold-score graphs for both algorithms. Task 06 has been absorbed into Task 05; Task 06 reads this combined selection and also aggregates results and generates comparison figures; Task 07 analyzes convergence. Existing results in the former Task 05/06 folders are historical and must be regenerated with the new task before evaluation.
+
+### Task 06 — Run all estimators
 
 ```bash
-python scripts/06_tune_thresholds.py --config configs/experiment.yaml
+python scripts/06_run_estimators.py
 ```
 
-This saves `cgap_thresholds.csv`, `sbl_thresholds.csv`, `selected.json`, and the CGAP-SBL/SBL threshold-tuning figures.
-
-### Task 07 — Run all estimators
-
-```bash
-python scripts/07_run_estimators.py
-```
-
-This runs CGAP-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves the gamma-distribution diagnostics.
+This runs CGAP-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves gamma-distribution diagnostics, aggregates scores and runtimes, and generates F1, NMSE, runtime, and spatial comparison figures.
 
 For each realization, the greedy baselines use
 
@@ -139,21 +133,13 @@ B_q=\min(S_q,L,N),
 
 where \(S_q=\sum_i a_i\). Thus `B_q == S_q` whenever feasible. If `S_q > L`, the greedy support budget is capped at `L`. Raw baseline rows record `S_q`, `B_q`, and `oracle_capped`; `run_summary.json` reports how often capping occurs. CGAP-SBL and SBL are **not** given \(S_q\) or \(B_q\).
 
-### Task 08 — Run convergence analysis
+### Task 07 — Run convergence analysis
 
 ```bash
-python scripts/08_run_convergence.py --config configs/experiment.yaml
+python scripts/07_run_convergence.py --config configs/experiment.yaml
 ```
 
 The convergence data and convergence figure are saved automatically.
-
-### Task 09 — Aggregate, evaluate, and generate performance figures
-
-```bash
-python scripts/09_evaluate.py --config configs/experiment.yaml
-```
-
-This task does not rerun estimators. It aggregates the raw Task-07 results and automatically saves the standard F1, NMSE, and runtime performance figures.
 
 ## Automatic task figures
 
@@ -260,11 +246,9 @@ Each task owns its data and figures under `results/experiment/`:
   tuning/0000/                # channels.npz, pilots.npz, correlated.npz
   evaluation/0000/            # channels.npz, pilots.npz, correlated.npz, randomized.npz
 04_spatial_dependence/        # spatial dependence data and summary; figures/
-05_alpha_beta_tuning/          # grid and selection; figures/tuning/
-06_threshold_tuning/           # thresholds and selection; figures/tuning/
-07_estimators/                 # per-sample results and gamma; figures/evaluation/
-08_convergence/                # traces and summary; figures/evaluation/
-09_evaluation/                 # aggregated results and summary; figures/evaluation/
+05_alpha_beta_tau_tuning/      # joint grid, thresholds and selection; figures/tuning/
+06_estimators/                 # raw results, summaries and comparison figures/evaluation/
+07_convergence/                # traces and summary; figures/evaluation/
 ```
 
 Run-level `config.yaml` remains at the results root. Each task stores its own
@@ -317,7 +301,7 @@ Source configuration is never rewritten.
 
 ### Code organization
 
-The nine numbered scripts are thin, import-safe wrappers around
+The numbered scripts are thin, import-safe wrappers around
 `task_cli.run_task(task_number)`. Shared CLI handling loads the experiment
 configuration, executes one stage, and saves PNG figures. The paper activity
 script reads saved Task 02 data and exports separate PDFs.
@@ -326,7 +310,7 @@ script reads saved Task 02 data and exports separate PDFs.
 src/cgap_sbl_jadce/
 ├── models/          # Activity, communication, realizations, spatial dependence
 ├── algorithms/      # SBL, CGAP-SBL, OMP, CoSaMP, posterior engine
-├── experiments/     # Calibration, threshold tuning, nine-stage pipeline
+├── experiments/     # Calibration, threshold tuning, scientific pipeline
 ├── figures/         # Descriptive task-numbered plots and shared rendering
 ├── task_cli.py      # Registry and common --config / --no-progress arguments
 ├── config.py
@@ -348,18 +332,18 @@ figures/
 ├── task02_active_mtd_count_distribution.py
 ├── task03_communication_preview.py
 ├── task04_spatial_dependence.py
-├── task05_alpha_beta_tuning.py
-├── task06_activity_threshold_tuning.py
-├── task07_gamma_distribution.py
-├── task08_convergence.py
-├── task09_performance.py
+├── task05_alpha_beta_tau_tuning.py
+├── task05_threshold_scores.py
+├── task06_gamma_distribution.py
+├── task07_convergence.py
+├── task06_performance.py
 └── paper_activity_realizations.py
 ```
 
 Shared typography and saving live in `figures/common.py`. Figure dimensions and
 font sizes stay local to their plotting functions. Paper styling lives in
 `paper_activity_realizations.py` and reuses Task 02's drawing function.
-`experiments/pipeline.py` coordinates all nine scientific stages.
+`experiments/pipeline.py` coordinates the scientific stages.
 
 ### Activity figure splits
 
@@ -421,7 +405,7 @@ Randomized support uses the same seed/index sequence as the former Task-07 gener
 Its stored marginal activation probabilities are S_q/N conditional on count;
 selection is without replacement, not independent Bernoulli activation.
 Randomized maps omit events, event boundaries, and the event probability field.
-Task 07 requires these saved pairs and never generates new activity supports.
+Task 06 requires these saved pairs and never generates new activity supports.
 Task 03 generates and saves communication observations for each condition;
 Tasks 05–08 load them.
 
@@ -523,8 +507,8 @@ show split progress bars; the CLI retains one compact figures/ folder summary.
 ### Computational cost and execution time
 
 See docs/computational_complexity.md for the audit against paper equations
-(75)–(79). Task 07 records each solver's wall time as runtime_s in per_sample.csv,
-excluding generation, matrix construction, file loading and metrics. Task 09 saves
+(75)–(79). Task 06 records each solver's wall time as runtime_s in per_sample.csv,
+excluding generation, matrix construction, file loading and metrics. Task 06 saves
 runtime_summary.csv with per-condition timing statistics and plots mean runtime
-against SNR and pilot length. Task-07 provenance records timing scope and numerical
+against SNR and pilot length. Task-06 provenance records timing scope and numerical
 thread settings. These are actual measured times, not provisional manuscript values.

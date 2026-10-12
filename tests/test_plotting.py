@@ -232,9 +232,9 @@ def test_batch_activity_figures_include_both_splits_and_titles(tmp_path, monkeyp
     assert all(path.exists() for path in paths)
     assert len(set(paths)) == 3
     assert titles == [
-        ("Tuning activity realization 0: 1 active MTDs", 15),
-        ("Tuning activity realization 1: 2 active MTDs", 15),
-        ("Evaluation activity realization 0: 1 active MTDs", 15),
+        ("Event-Driven Activation\nTuning Realization 0: 1 Active MTDs", 15),
+        ("Event-Driven Activation\nTuning Realization 1: 2 Active MTDs", 15),
+        ("Event-Driven Activation\nEvaluation Realization 0: 1 Active MTDs", 15),
     ]
 
 

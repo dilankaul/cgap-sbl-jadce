@@ -46,7 +46,7 @@ def plot_activity_calibration(cfg: dict, formats: str = "png") -> list[Path]:
     ax.axvline(best["kappa"], linestyle=":", linewidth=1.0, label=fr"Closest grid $\kappa={best['kappa']:.4g}$")
     ax.set_xlabel(r"Decay parameter $\kappa$")
     ax.set_ylabel(r"Average active MTD count $S$")
-    ax.set_title(fr"Activity calibration for $D={D:g}$ m")
+    ax.set_title(r"Mean Active MTD Count vs Decay Parameter $\kappa$" + "\n" + fr"Event influence radius $D={D:g}$ m")
     ax.grid(True, alpha=0.2); ax.legend()
     _apply_figure_style(fig, figure_style); fig.tight_layout()
     return _save(fig, figure_path(out, "01_activity_kappa_calibration"), formats)

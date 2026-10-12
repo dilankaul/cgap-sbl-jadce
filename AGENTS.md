@@ -22,18 +22,16 @@ Read `DECISIONS.md` before making algorithmic or experimental changes.
 
 ## Numbered task workflow
 
-The scientific workflow has nine uniquely numbered tasks. Utilities are intentionally
+The scientific workflow has seven tasks (01–07). Utilities are intentionally
 unnumbered because they do not represent extra experimental stages.
 
 - Task 01: calibrate the activity model
 - Task 02: generate activity realizations
 - Task 03: generate and save full communication datasets
 - Task 04: construct spatial dependence
-- Task 05: tune CGAP-SBL alpha and beta
-- Task 06: tune activity thresholds
-- Task 07: run estimators
-- Task 08: convergence analysis
-- Task 09: evaluation / aggregation
+- Task 05: tune CGAP-SBL alpha, beta and tau
+- Task 06: run estimators, aggregate results and generate performance figures
+- Task 07: convergence analysis
 
 Numbered tasks automatically save PNG figures. The paper activity script
 `scripts/paper_figures/activity_realization.py` exports one title-free vector PDF
@@ -119,7 +117,7 @@ explicit spatial_randomization seed for uniformly randomized paired supports.
 Task 02 generates and saves paired randomized evaluation supports and spatial maps.
 Task 03 saves full communication inputs with shared channels/pilots and
 scenario-specific observations. Tasks 05–08 load these inputs and never regenerate
-communication data. Task 07 loads saved supports and does not randomize activity. Randomized maps omit
+communication data. Task 06 loads saved supports and does not randomize activity. Randomized maps omit
 event markers, cutoff circles, and event probability backgrounds.
 Paired scenarios retain S_q, geometry, H, Theta, and C, with separately scaled
 common standardized noise and fixed correlated-tuning selections. Evaluate only

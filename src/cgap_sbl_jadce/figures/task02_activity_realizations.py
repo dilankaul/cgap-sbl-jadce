@@ -216,7 +216,8 @@ def _plot_activity_realization_sample(
         sample,
         stem=figure_path(out, f"02_activity_realization_{split}_{sample_index:04d}{suffix}"),
         formats=formats,
-        title=f"{split.replace('_', ' ').capitalize()} activity realization {sample_index}: {int(np.sum(sample.a))} active MTDs",
+        title=("Randomized Activation" if split == "randomized_evaluation" else "Event-Driven Activation")
+              + "\n" + f"{split.removeprefix('randomized_').capitalize()} Realization {sample_index}: {int(np.sum(sample.a))} Active MTDs",
         **options,
     )
 

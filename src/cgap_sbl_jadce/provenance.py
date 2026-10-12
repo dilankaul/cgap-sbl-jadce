@@ -52,6 +52,6 @@ def save_task_snapshot(cfg, task, **runtime):
             'logical_cpus': os.cpu_count(),
             'thread_settings': {name: os.environ.get(name) for name in (
                 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'OMP_NUM_THREADS', 'NUMEXPR_NUM_THREADS')},
-        }} if task == 7 else {}),
+        }} if task == 6 else {}),
     })
     return snapshot

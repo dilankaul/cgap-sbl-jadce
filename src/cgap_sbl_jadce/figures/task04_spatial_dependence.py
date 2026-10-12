@@ -24,9 +24,9 @@ def plot_spatial_dependence(cfg: dict, formats: str = 'png', show_progress: bool
             C = load_spatial_dependence_matrix(task_dir(out, 4) / split, q).toarray()
             fig, ax = plt.subplots(figsize=(6.4, 5.2))
             image = ax.imshow(C, interpolation='nearest', vmin=0, vmax=1)
-            fig.colorbar(image, ax=ax, label=r'$(\mathbf{C})_{ij}$')
+            fig.colorbar(image, ax=ax, label=r'$C_{i,j}$')
             ax.set_xlabel(r'MTD index $j$'); ax.set_ylabel(r'MTD index $i$')
-            ax.set_title(r'Spatial dependence matrix $\mathbf{C}$' + '\n' +
+            ax.set_title(r'Spatial Dependence Matrix $\mathbf{C}$' + '\n' +
                          fr"{split.capitalize()} realization {q}: $\rho={definition['rho']:g}$ m, $U={definition['U']:g}$ m")
             _apply_figure_style(fig, figure_style); fig.tight_layout()
             paths.extend(_save(fig, figure_path(out, f'04_{split}_spatial_dependence_matrix_{q:04d}'), formats))

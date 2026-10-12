@@ -1,0 +1,260 @@
+{
+  "configuration": {
+    "activity": {
+      "D": 15.0,
+      "V": 2,
+      "batch_size": 256,
+      "calibration_samples": 5000,
+      "calibration_tolerance": 0.1,
+      "exact_sparsity": false,
+      "kappa": 3.78,
+      "kappa_refinement_steps": [
+        0.1,
+        0.02,
+        0.005
+      ],
+      "kappa_scan": [
+        0.5,
+        1.0,
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0,
+        4.5,
+        5.0,
+        5.5,
+        6.0,
+        6.5,
+        7.0,
+        7.5,
+        8.0,
+        8.5,
+        9.0,
+        9.5,
+        10.0
+      ],
+      "kappa_source": "calibration"
+    },
+    "algorithms": {
+      "K": 500,
+      "cosamp_max_iter": 50,
+      "cosamp_tol": 1e-06,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    },
+    "evaluation": {
+      "convergence_sample_offset": 0,
+      "gamma_distribution_samples": 100,
+      "pilot_length": 30
+    },
+    "figures": {
+      "evaluation_indices": [
+        714,
+        495,
+        106,
+        618,
+        442,
+        101,
+        781
+      ],
+      "tuning_indices": [
+        77,
+        97,
+        84
+      ]
+    },
+    "run": {
+      "num_evaluation_samples": 1000,
+      "num_tuning_samples": 100,
+      "output_dir": "results/experiment"
+    },
+    "seeds": {
+      "activity_evaluation": 7069,
+      "activity_tuning": 2953,
+      "communication_evaluation": 9517,
+      "communication_tuning": 4283,
+      "kappa_calibration": 1379,
+      "kappa_validation": 8641,
+      "spatial_randomization": 9097
+    },
+    "spatial_dependence": {
+      "U": 15.0,
+      "rho": 3.78
+    },
+    "system": {
+      "M": 4,
+      "N": 400,
+      "R": 40.0,
+      "S": 10,
+      "pilot_lengths": [
+        20,
+        25,
+        30,
+        35,
+        40,
+        45
+      ],
+      "snr_db": [
+        4,
+        8,
+        12,
+        16,
+        20,
+        24
+      ]
+    },
+    "task_runtime": {
+      "activity_parameters_used": {
+        "D": 15.0,
+        "N": 400,
+        "R": 40.0,
+        "V": 2,
+        "kappa": 3.78,
+        "target_mean_S": 10.0
+      },
+      "activity_randomization_seed": 9097,
+      "activity_summary": "results/experiment/02_activity_realizations/summary.json",
+      "input_config": "configs/experiment.yaml",
+      "method": "CGAP-SBL-ANC",
+      "method_revision": 1,
+      "no_progress": false,
+      "selected_parameters": {
+        "cgap": {
+          "alpha": 30.0,
+          "beta": 0.03,
+          "tau": 0.085,
+          "tuning_f1": 0.9927208623496574,
+          "tuning_nmse": 0.05502044539482667,
+          "tuning_precision": 0.994202509951349,
+          "tuning_recall": 0.9917730880230881
+        },
+        "definition": {
+          "activity_seed": 2953,
+          "algorithms": {
+            "K": 500,
+            "cosamp_max_iter": 50,
+            "cosamp_tol": 1e-06,
+            "delta": 0.0001,
+            "gamma_init": 0.1
+          },
+          "communication_seed": 4283,
+          "method": "CGAP-SBL-ANC",
+          "revision": 2,
+          "spatial_dependence": {
+            "U": 15.0,
+            "rho": 3.78
+          },
+          "system": {
+            "M": 4,
+            "N": 400,
+            "R": 40.0,
+            "S": 10,
+            "pilot_lengths": [
+              20,
+              25,
+              30,
+              35,
+              40,
+              45
+            ],
+            "snr_db": [
+              4,
+              8,
+              12,
+              16,
+              20,
+              24
+            ]
+          },
+          "tau_grid": {
+            "start": 0.0,
+            "step": 0.001,
+            "stop": 0.2
+          },
+          "tuning": {
+            "alpha_values": [
+              0,
+              5,
+              10,
+              15,
+              20,
+              25,
+              30,
+              35,
+              40,
+              45,
+              50
+            ],
+            "beta_values": [
+              0.0,
+              0.01,
+              0.02,
+              0.03,
+              0.04,
+              0.05,
+              0.06,
+              0.07,
+              0.08,
+              0.09,
+              0.1
+            ],
+            "reference_pilot_length": 25,
+            "reference_snr_db": 12
+          },
+          "tuning_samples": 100
+        },
+        "reference_pilot_length": 25,
+        "reference_snr_db": 12,
+        "sbl": {
+          "alpha": 0.0,
+          "beta": 0.0,
+          "tau": 0.181,
+          "tuning_f1": 0.9758697518523608,
+          "tuning_nmse": 0.07353626578369793,
+          "tuning_precision": 0.9898603479853478,
+          "tuning_recall": 0.9640013597513598
+        }
+      },
+      "show_progress": true,
+      "task": 5,
+      "workers": 1
+    },
+    "tuning": {
+      "alpha_values": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35,
+        40,
+        45,
+        50
+      ],
+      "beta_values": [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
+      ],
+      "reference_pilot_length": 25,
+      "reference_snr_db": 12
+    }
+  },
+  "numpy": "2.4.6",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.36",
+  "python": "3.11.13",
+  "scipy": "1.17.1",
+  "task": 5
+}

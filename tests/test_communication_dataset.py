@@ -19,7 +19,7 @@ def saved_data(tmp_path):
     cfg['run'].update(output_dir=str(tmp_path), num_tuning_samples=2, num_evaluation_samples=2)
     cfg['system'].update(N=20, M=3, pilot_lengths=[5, 7], snr_db=[8, 12])
     cfg['algorithms']['K'] = 3
-    cfg['tuning'].update(reference_pilot_length=5, alpha_values=[2], beta_values=[.1])
+    cfg['tuning'].update(reference_pilot_length=5, alpha_values=[0, 2], beta_values=[0, .1])
     cfg['evaluation'].update(pilot_length=7, gamma_distribution_samples=2)
     a = np.zeros(20, dtype=bool); a[[1, 7, 13]] = True
     sample = ActivitySample(a, np.arange(40).reshape(20, 2), np.zeros((2, 2)), np.full(20, .15))
@@ -80,9 +80,14 @@ def test_downstream_tasks_do_not_regenerate_communication(saved_data, monkeypatc
     monkeypatch.setattr(pipeline, 'paired_activity_realizations', forbidden)
     monkeypatch.setattr(pipeline, 'build_C', forbidden)
     pipeline.tune_stage(saved_data, show_progress=False)
-    pipeline.threshold_stage(saved_data, show_progress=False)
     result = pipeline.evaluate_stage(saved_data, show_progress=False)
     assert result['metric_rows'] == 48
+    assert result_path(saved_data['run']['output_dir'], 'evaluation', 'aggregate.csv').exists()
+    assert result_path(saved_data['run']['output_dir'], 'evaluation', 'runtime_summary.csv').exists()
+    from cgap_sbl_jadce.figures.task06_performance import make_performance_figures
+    figures = make_performance_figures(saved_data, show_progress=False)
+    assert len(figures) == 10 and all(path.exists() for path in figures)
+    assert all('06_estimators' in str(path) for path in figures)
     pipeline.convergence_stage(saved_data)
 
 
@@ -153,3 +158,24 @@ def test_randomized_figures_share_evaluation_selection():
     assert selected_realizations(cfg, 'tuning', 5) == [1]
     assert selected_realizations(cfg, 'evaluation', 5) == [4, 2]
     assert selected_realizations(cfg, 'randomized_evaluation', 5) == [4, 2]
+
+
+def test_combined_tuning_saves_final_thresholds_and_five_figures(saved_data):
+    import pandas as pd
+    from cgap_sbl_jadce.figures.task05_alpha_beta_tau_tuning import plot_alpha_beta_tau_tuning
+    from cgap_sbl_jadce.figures.task05_threshold_scores import plot_threshold_tuning
+    selected = pipeline.tune_stage(saved_data, show_progress=False)
+    out = saved_data['run']['output_dir']
+    scores = pd.read_csv(result_path(out, 'tuning', 'alpha_beta_tau_scores.csv'))
+    assert len(scores) == 4 * 201
+    assert scores.groupby(['alpha', 'beta']).size().eq(201).all()
+    for method in ['cgap', 'sbl']:
+        curve = pd.read_csv(result_path(out, 'tuning', f'{method}_thresholds.csv'))
+        winner = curve.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
+        assert selected[method]['tau'] == pytest.approx(winner.tau)
+        assert selected[method]['tuning_f1'] == pytest.approx(winner.f1)
+    zero_alpha = scores[scores.alpha.eq(0)]
+    np.testing.assert_allclose(zero_alpha[zero_alpha.beta.eq(0)].f1,
+                               zero_alpha[zero_alpha.beta.eq(.1)].f1)
+    paths = plot_alpha_beta_tau_tuning(saved_data) + plot_threshold_tuning(saved_data)
+    assert len(paths) == 5 and all(path.exists() for path in paths)

@@ -34,7 +34,7 @@ def plot_activity_s_distribution(cfg: dict, formats: str = "png") -> list[Path]:
     ax.axvline(target, linestyle="--", linewidth=1.0, label=fr"Target mean $S={target:g}$")
     ax.set_xlabel(r"Realized active MTD count $S$")
     ax.set_ylabel("Relative frequency")
-    ax.set_title("Distribution of realized event-driven activity")
+    ax.set_title(r"Distribution of Active MTD Count $S$")
     ax.grid(True, alpha=0.2)
     ax.legend()
     _apply_figure_style(fig, figure_style); fig.tight_layout()

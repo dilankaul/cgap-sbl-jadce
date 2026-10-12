@@ -1,4 +1,4 @@
-"""Task08 convergence figures."""
+"""Task07 convergence figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -20,4 +20,4 @@ def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
     ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$"); ax.set_yscale("log")
     ax.grid(True, alpha=0.2); ax.legend(); ax.set_title("Convergence at reference condition")
     _apply_figure_style(fig, figure_style); fig.tight_layout()
-    return _save(fig, figure_path(out, "08_convergence_nmse"), formats)
+    return _save(fig, figure_path(out, "07_convergence_nmse"), formats)

@@ -51,10 +51,10 @@ tuning:
   - 8.0
   - 12.0
   beta_values:
+  - 0.0
   - 0.05
   - 0.1
   - 0.15
-  num_thresholds: 30
 evaluation:
   pilot_length: 20
   gamma_distribution_samples: 6
