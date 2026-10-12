@@ -216,7 +216,7 @@ def test_batch_activity_figures_include_both_splits_and_titles(tmp_path, monkeyp
     cfg = {
         "run": {"output_dir": str(tmp_path)}, "system": {"R": 20.0},
         "activity": {"D": 10.0, "kappa": 3.0},
-        "figures": {},
+        "figures": {"tuning_indices": [0, 1], "evaluation_indices": [0]},
     }
     titles = []
     original_save = plotting._save
@@ -248,3 +248,18 @@ def test_font_metadata_filter_keeps_other_warnings():
         assert not filt.filter(record)
     record = logging.LogRecord('fontTools', logging.WARNING, '', 0, 'Missing glyph', (), None)
     assert filt.filter(record)
+
+
+
+def test_activity_presentation_defaults_live_in_code(tmp_path):
+    from cgap_sbl_jadce.figures.task02_activity_realizations import _activity_plot_options
+    from cgap_sbl_jadce.config import load_config
+    cfg = {'run': {'output_dir': str(tmp_path)}, 'system': {'R': 40},
+           'activity': {'D': 15, 'kappa': 3.78}, 'figures': {}}
+    options = _activity_plot_options(cfg)
+    assert options['show_event_radius'] and options['show_probability_field']
+    assert options['probability_resolution'] == 301
+    assert options['probability_alpha'] == 1.0
+    assert options['probability_levels'] == 128
+    assert not _activity_plot_options(cfg, False, False)['show_probability_field']
+    assert set(load_config('configs/experiment.yaml')['figures']) == {'tuning_indices', 'evaluation_indices'}

@@ -50,12 +50,20 @@
       "pilot_length": 30
     },
     "figures": {
-      "probability_alpha": 1.0,
-      "probability_levels": 128,
-      "probability_resolution": 301,
-      "selected_sample": 0,
-      "show_event_radius": true,
-      "show_probability_field": true
+      "evaluation_indices": [
+        714,
+        495,
+        106,
+        618,
+        442,
+        101,
+        781
+      ],
+      "tuning_indices": [
+        77,
+        97,
+        84
+      ]
     },
     "run": {
       "num_evaluation_samples": 1000,
@@ -69,7 +77,7 @@
       "communication_tuning": 4283,
       "kappa_calibration": 1379,
       "kappa_validation": 8641,
-      "spatial_randomization": 6031
+      "spatial_randomization": 9097
     },
     "system": {
       "M": 4,

@@ -109,3 +109,10 @@ selected from correlated tuning data and held fixed across scenarios. Support
 randomization uses a separate explicit seed and is fixed across pilot/SNR conditions.
 Stored `q` and figure indices are zero-based; the manuscript indexes realizations
 from one.
+
+
+Task 03 generates and stores these communication inputs for all configured
+realizations and conditions. Shared H, scenario-specific Z and activity, and
+per-L Theta are saved once per realization. Y, W and sigma2 are saved per scenario
+and unique condition. Tasks 05–08 read the saved archives; this changes data
+ownership and storage, not the distribution, system model, or random streams.

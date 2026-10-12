@@ -18,6 +18,7 @@ from cgap_sbl_jadce.figures.task08_convergence import plot_convergence
 from cgap_sbl_jadce.figures.task09_performance import make_performance_figures
 from cgap_sbl_jadce.experiments.calibration import CalibrationBracketError
 from cgap_sbl_jadce.config import load_config
+from cgap_sbl_jadce.paths import task_dir
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ TASKS = {
     1: Task("calibrate kappa", pipeline.calibrate_kappa_stage, (plot_activity_calibration,), True),
     2: Task("generate activity realizations", pipeline.generate_activity_stage,
             (plot_activity_realizations, plot_activity_s_distribution), True),
-    3: Task("generate communication preview", pipeline.communication_stage, (plot_communication_preview,)),
+    3: Task("generate full communication datasets", pipeline.communication_stage, (plot_communication_preview,), True),
     4: Task("build spatial correlation", pipeline.correlation_stage, (plot_correlation_preview,)),
     5: Task("tune CGAP-SBL alpha and beta", pipeline.tune_stage, (plot_alpha_beta_tuning,), True),
     6: Task("tune activity thresholds", pipeline.threshold_stage, (plot_threshold_tuning,), True),
@@ -65,14 +66,18 @@ def run_task(task_number: int, argv: list[str] | None = None) -> list:
     paths = []
     for render in task.plots:
         kwargs = {"formats": "png"}
-        if render in (plot_activity_realizations, make_performance_figures):
+        if render in (plot_activity_realizations, plot_communication_preview, make_performance_figures):
             kwargs["show_progress"] = not args.no_progress
         paths.extend(render(cfg, **kwargs))
-    print(f"Task {task_number:02d} figures:")
-    reported_paths = dict.fromkeys(
-        path.parent if task_number == 2 and path.parent.name in {"tuning", "evaluation", "randomized_evaluation"} else path
-        for path in paths
-    )
-    for path in reported_paths:
-        print(f"  - {path}")
+    counts = []
+    for split in ("tuning", "evaluation"):
+        folders = {path.parent for path in paths
+                   if path.parent.name.startswith(f"{split}_")
+                   and path.parent.name.removeprefix(f"{split}_").isdigit()}
+        if folders:
+            counts.append(f"{len(folders)} {split} realizations")
+    detail = f" ({', '.join(counts)})" if counts else ""
+    print(f"Task {task_number:02d} figures: {len(set(paths))} files{detail}")
+    if paths:
+        print(f"  - {task_dir(cfg['run']['output_dir'], task_number) / 'figures'}")
     return paths

@@ -10,7 +10,7 @@ from cgap_sbl_jadce.models.activity import ActivitySample, event_activation_prob
 from cgap_sbl_jadce.config import resolve_activity_kappa
 from cgap_sbl_jadce.dataset import load_activity_samples
 from cgap_sbl_jadce.paths import result_path, figure_path
-from cgap_sbl_jadce.figures.common import figure_formats, _apply_figure_style, _save
+from cgap_sbl_jadce.figures.common import figure_formats, _apply_figure_style, _save, selected_realizations
 
 
 def activity_probability_grid(
@@ -170,14 +170,14 @@ def _activity_plot_options(
 ) -> dict:
     """Resolve shared model/field settings once per activity export."""
     R, D, kappa = _saved_activity_parameters(cfg)
-    settings = cfg.get("figures", {})
+    # Edit activity-figure presentation here; YAML selects realizations only.
     return {
         "R": R, "D": D, "kappa": kappa,
-        "show_event_radius": settings.get("show_event_radius", True) if show_event_radius is None else show_event_radius,
-        "show_probability_field": bool(settings.get("show_probability_field", False)) if show_probability_field is None else show_probability_field,
-        "probability_resolution": int(settings.get("probability_resolution", 301)),
-        "probability_alpha": float(settings.get("probability_alpha", 0.35)),
-        "probability_levels": int(settings.get("probability_levels", 128)),
+        "show_event_radius": True if show_event_radius is None else show_event_radius,
+        "show_probability_field": True if show_probability_field is None else show_probability_field,
+        "probability_resolution": 301,
+        "probability_alpha": 1.0,
+        "probability_levels": 128,
     }
 
 
@@ -227,7 +227,7 @@ def plot_activity_realizations(
     show_probability_field: bool | None = None,
     splits: tuple[str, ...] = ("tuning", "evaluation", "randomized_evaluation"),
 ) -> list[Path]:
-    """Save every tuning and evaluation realization from Task 02 data."""
+    """Save configured tuning and paired evaluation figures from Task 02 data."""
     if not figure_formats(formats):
         return []
     out = Path(cfg["run"]["output_dir"])
@@ -242,14 +242,15 @@ def plot_activity_realizations(
         if options is None:
             options = _activity_plot_options(cfg, show_probability_field=show_probability_field)
         samples = load_activity_samples(data_path)
-        for index, sample in enumerate(tqdm(
-            samples, desc=f"Activity figures ({split})", unit="realization",
+        indices = selected_realizations(cfg, split, len(samples))
+        for index in tqdm(
+            indices, desc=f"Activity figures ({split})", unit="realization",
             dynamic_ncols=True,
             bar_format="{desc}: {percentage:3.0f}%|{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}]",
             disable=not show_progress,
-        )):
+        ):
             paths.extend(_plot_activity_realization_sample(
-                cfg, sample, split, index, formats,
+                cfg, samples[index], split, index, formats,
                 options,
             ))
     return paths

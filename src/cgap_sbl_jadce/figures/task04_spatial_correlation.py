@@ -16,7 +16,7 @@ def plot_correlation_preview(cfg: dict, formats: str = "png") -> list[Path]:
                     "colorbar.ticksize": 10}
     fig, ax = plt.subplots(figsize=(6.4, 5.2))
     image = ax.imshow(C, aspect="auto", interpolation="nearest")
-    fig.colorbar(image, ax=ax, label=r"$C_{ij}$")
-    ax.set_xlabel(r"MTD $j$"); ax.set_ylabel(r"MTD $i$"); ax.set_title(r"Spatial correlation matrix $C$")
+    fig.colorbar(image, ax=ax, label=r"$(\mathbf{C})_{ij}$")
+    ax.set_xlabel(r"MTD $j$"); ax.set_ylabel(r"MTD $i$"); ax.set_title(r"Spatial correlation matrix $\mathbf{C}$")
     _apply_figure_style(fig, figure_style); fig.tight_layout()
     return _save(fig, figure_path(out, "04_correlation_matrix"), formats)

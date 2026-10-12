@@ -48,12 +48,15 @@ def test_paper_conditions_and_saved_correlation_parameters(tmp_path):
         validate_selection({'definition': {'method': 'legacy'}, 'alpha': 1}, cfg)
 
 
-def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl():
+def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl(tmp_path):
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     selected = {'cgap': {'alpha': 2, 'beta': .1, 'tau': .05}, 'sbl': {'tau': .05},
                 'reference_pilot_length': 10, 'reference_snr_db': 12}
     alg = {**cfg['algorithms'], 'K': 3}
-    rows, gamma = _evaluate_sample((0, sample(), randomize_activity_sample(sample(), 6031, 0), 4283, {'N': 20, 'M': 3},
+    from cgap_sbl_jadce.communication_dataset import save_communication_sample
+    paired = paired_activity_realizations(sample(), randomize_activity_sample(sample(), 6031, 0), 4283, 0, 3, 10, 12)
+    save_communication_sample(tmp_path, 0, {(scenario, 10, 12): r for scenario, r in paired.items()})
+    rows, gamma = _evaluate_sample((0, sample(), tmp_path, {'N': 20, 'M': 3},
                                    {'rho': 3.78, 'U': 15}, alg, selected, [(10, 12, 'pilot_sweep')], True))
     assert len(rows) == 6
     assert {row['S_q'] for row in rows} == {3}
@@ -122,7 +125,7 @@ def test_randomized_spatial_figures_omit_event_model_overlays(tmp_path, monkeypa
     assert captured['show_probability_field'] is False
     assert captured['show_event_radius'] is False
     assert captured['show_events'] is False
-    assert captured['stem'].parent.name == 'randomized_evaluation'
+    assert captured['stem'].parent.name == 'evaluation_0007'
     assert '3 active MTDs' in captured['title']
     assert '7' in captured['title']
 

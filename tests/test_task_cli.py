@@ -79,24 +79,22 @@ def test_activity_task_exports_both_splits_automatically(tmp_path, monkeypatch):
     assert calls[1]['formats'] == 'png'
 
 
-def test_activity_report_lists_split_folders_instead_of_1100_files(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize('task_number', [2, 3])
+def test_figure_report_lists_one_folder_with_compact_counts(tmp_path, monkeypatch, capsys, task_number):
+    from cgap_sbl_jadce.paths import task_dir
     cfg = load_config('tests/fixtures/small_experiment.yaml')
+    cfg['run']['output_dir'] = str(tmp_path)
     config = tmp_path / 'input.yaml'
     save_yaml(config, cfg)
-    figures = tmp_path / '02_activity_realizations' / 'figures'
-    paths = [figures / 'tuning' / f'{i:04d}.png' for i in range(100)]
-    paths += [figures / 'evaluation' / f'{i:04d}.png' for i in range(1000)]
-    paths += [figures / 'randomized_evaluation' / f'{i:04d}.png' for i in range(1000)]
-    histogram = figures / '02_activity_realized_s_distribution.png'
-    paths.append(histogram)
-    monkeypatch.setitem(task_cli.TASKS, 2, replace(task_cli.TASKS[2],
+    figures = task_dir(tmp_path, task_number) / 'figures'
+    paths = [figures / f'tuning_{i:04d}' / 'figure.png' for i in range(100)]
+    paths += [figures / f'evaluation_{i:04d}' / 'correlated.png' for i in range(1000)]
+    paths += [figures / f'evaluation_{i:04d}' / 'randomized.png' for i in range(1000)]
+    monkeypatch.setitem(task_cli.TASKS, task_number, replace(task_cli.TASKS[task_number],
         stage=lambda *args, **kwargs: None,
         plots=(lambda *args, **kwargs: paths,)))
-    assert task_cli.run_task(2, ['--config', str(config)]) == paths
+    assert task_cli.run_task(task_number, ['--config', str(config)]) == paths
     assert capsys.readouterr().out.splitlines() == [
-        'Task 02 figures:',
-        f'  - {figures / "tuning"}',
-        f'  - {figures / "evaluation"}',
-        f'  - {figures / "randomized_evaluation"}',
-        f'  - {histogram}',
+        f'Task {task_number:02d} figures: 2100 files (100 tuning realizations, 1000 evaluation realizations)',
+        f'  - {figures}',
     ]

@@ -6,7 +6,7 @@ Run the complete test suite with:
 PYTHONPATH=src pytest -q
 ```
 
-Final result: **88 tests passed**.
+Final result: **102 tests passed**.
 
 The revised implementation is checked against the local manuscript
 `Publications___CGAP_SBL.pdf`. Validation covers:
@@ -37,3 +37,23 @@ remain unchanged, and no provisional manuscript performance values are copied
 into generated results.
 
 Task-02 randomization ownership was additionally verified by rerunning Tasks 02, 07 and 09 on the small temporary dataset. All six randomized maps and saved paired counts were inspected; tests verify the unchanged seed/index sequence and omission of event-model overlays.
+
+Full Task-03 dataset ownership is verified by exact comparisons with the previous
+generator, shared paired H/Theta identity and standardized noise, zero-activity
+samples, source/seed mismatch rejection, selected diagnostics, and downstream
+Tasks 05–08 with generation functions deliberately disabled.
+
+The full configured Task-03 dataset was generated and inspected: 100 tuning
+realizations, 1,000 paired evaluation realizations, 11 unique evaluation conditions,
+4,300 compressed archives (171.3 MiB), and six diagnostic PNGs. Sampled pairs
+including the two high-activity realizations satisfy the system identity,
+prescribed noise variance/SNR, and shared paired H/Theta/standardized noise.
+Tasks 03 and 05–09 were also smoke-tested together on the small temporary dataset.
+This generates full communication inputs, not new publication performance results.
+
+Current figure validation additionally covers independent tuning/evaluation
+selections, four-digit realization folders, compact CLI summaries, separate
+scenario exports, native HSV phase/magnitude mapping, and code-local activity
+presentation settings. Task-03 pilot heatmaps use automatic cell sizing; bold
+Greek labels use native STIX MathText. The current selected diagnostic set
+contains 91 figures.

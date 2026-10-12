@@ -15,7 +15,7 @@ def test_explicit_seeds_are_simple_and_distinct():
         "activity_evaluation": 7069,
         "communication_tuning": 4283,
         "communication_evaluation": 9517,
-        "spatial_randomization": 6031,
+        "spatial_randomization": 9097,
     }
     assert "activity_seed" not in cfg["run"]
     assert not any("seed_offset" in name for name in cfg["activity"])

@@ -27,7 +27,7 @@ unnumbered because they do not represent extra experimental stages.
 
 - Task 01: calibrate the activity model
 - Task 02: generate activity realizations
-- Task 03: generate the communication-model preview
+- Task 03: generate and save full communication datasets
 - Task 04: construct spatial correlation
 - Task 05: tune CGAP-SBL alpha and beta
 - Task 06: tune activity thresholds
@@ -117,7 +117,9 @@ Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
 Convergence: L=30, 12 dB. Preserve the six existing seeds and use the seventh
 explicit spatial_randomization seed for uniformly randomized paired supports.
 Task 02 generates and saves paired randomized evaluation supports and spatial maps.
-Task 07 loads saved supports and does not randomize activity. Randomized maps omit
+Task 03 saves full communication inputs with shared channels/pilots and
+scenario-specific observations. Tasks 05–08 load these inputs and never regenerate
+communication data. Task 07 loads saved supports and does not randomize activity. Randomized maps omit
 event markers, cutoff circles, and event probability backgrounds.
 Paired scenarios retain S_q, geometry, H, Theta, and C, with separately scaled
 common standardized noise and fixed correlated-tuning selections. Evaluate only

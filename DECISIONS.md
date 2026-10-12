@@ -93,3 +93,28 @@
 
 
 56. At the user's explicit request, replace the remaining active legacy package names: rename src/casbl_jadce to src/cgap_sbl_jadce, migrate imports in source, scripts and tests, and rename local ca/ca_* variables to cgap/cgap_*. Rename the manuscript file to Publications___CGAP_SBL.pdf and update current documentation references. This supersedes decision 49's namespace-retention choice. Preserve recorded historical decisions, results, manifests, equations, seeds, and experiment folder names. The workspace checkout path and remote repository identity are external to this Python package rename.
+
+
+57. At the user's request, Task 03 now owns full communication-data generation and saving. Store shared H and scenario-specific a/Z once per realization, Theta once per L, and Y/W/sigma2 once per unique condition and scenario in compressed NPZ archives under 03_communication_data/{tuning,evaluation}/{q:04d}/. Preserve existing deterministic streams and paired standardized noise exactly. Tasks 05–08 load saved inputs and do not generate communication observations. Source activity hashes, communication seeds, dimensions and conditions identify the dataset; incompatible or missing archives require rerunning Task 03. Keep historical preview outputs untouched. This supersedes decision 17 and the communication-generation ownership in decision 55.
+
+58. Task 03 automatically saves only selected-realization diagnostics: pilot cross-correlation with diagonal removed for display, effective-channel row energy, and received-signal magnitude. Save each diagnostic for tuning and evaluation; evaluation channel/signal diagnostics show correlated and randomized panels with the same condition, and received magnitudes use a shared color scale. Include q, S_q, L and SNR in titles. Keep code-local typography, PNG defaults, existing --config/--no-progress arguments, and progress during generation. No per-realization diagnostic flood or additional configuration files.
+
+
+59. At the user's request, use figures.tuning_indices and figures.evaluation_indices as independent zero-based lists selecting Task-02 spatial maps and Task-03 communication diagnostics. Each evaluation selection includes both correlated and randomized scenarios. Empty lists skip realization figures; indices are validated and duplicates are omitted. Remove selected_sample from supplied configs. Preserve all numerical data, seeds, and full-sample active-count histogram; do not remove previously saved images. This supersedes automatic all-realization spatial figure generation in earlier decisions.
+
+
+60. Group Task-02 and Task-03 realization figures into tuning_{index:04d}/ and evaluation_{index:04d}/ folders under each task's figures/. Pair correlated and randomized Task-02 maps in the same evaluation folder; preserve distinct filenames and Task-03 paired panels. All task CLIs report one figures/ folder and a compact file/realization count summary instead of per-image paths. Keep numerical archive paths, selections, equations and existing saved figures unchanged.
+
+
+61. Change the main experiment spatial_randomization seed from 6031 to 9097. Preserve the other six seeds, active counts and paired geometry. Regenerate Tasks 02 and 03 and dependent estimator/evaluation outputs; historical manifests remain unchanged. The small test fixture retains its independent 6031 reference stream.
+
+62. At the user's request, replace paired multi-panel Task-03 diagnostics with separate evaluation and randomized_evaluation figures for all six diagnostics. Preserve shared scales for Z magnitude, row energy and received magnitude, and group filenames by evaluation index. Add figure-saving progress controlled by --no-progress. Numerical datasets and algorithms are unchanged.
+
+
+63. Save shared H, Theta and pilot cross-correlation diagnostics only once per selected evaluation pair. Keep separate correlated/randomized Z, row-energy and received-magnitude figures with shared scales. This yields six figures per tuning index and nine per evaluation index, or 81 figures for the current 3/7 selections; supersedes duplicate common exports in decision 62.
+
+
+64. Add Task-03 noise-magnitude heatmaps per scenario with common paired magnitude scales and noise variance/SNR labels. Save a standardized-noise magnitude diagnostic once per pair, since W/sqrt(sigma2) is shared. Preserve all noise arrays and seeds. Counts become eight per tuning index and twelve per evaluation pair (108 for current selections).
+
+
+65. Simplify Task-03 diagnostics to HSV H, Theta, Z, Y and shared standardized W/sqrt(sigma2), plus channel row energy and pilot cross-correlation. H, Theta, standardized noise and pilot cross-correlation are shared per evaluation pair; Z, Y and row energy are separate per scenario. Remove magnitude-only noise/received exports. Raw noise variances remain scenario-specific and unchanged. Theta HSV uses equal aspect for square cells. Counts become seven per tuning index and ten per evaluation pair (91 for current selections).

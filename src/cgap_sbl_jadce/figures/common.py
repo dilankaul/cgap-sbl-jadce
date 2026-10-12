@@ -109,3 +109,15 @@ def _save(fig: plt.Figure, stem: Path, formats: str | Iterable[str] = "pdf") -> 
         paths.append(path)
     plt.close(fig)
     return paths
+
+
+
+def selected_realizations(cfg: dict, split: str, count: int) -> list[int]:
+    """Resolve zero-based figure selections without changing numerical datasets."""
+    split = 'evaluation' if split == 'randomized_evaluation' else split
+    indices = cfg.get('figures', {}).get(f'{split}_indices', [0])
+    if not isinstance(indices, list) or any(type(index) is not int for index in indices):
+        raise ValueError(f'figures.{split}_indices must be a list of integer realization indices.')
+    if any(index < 0 or index >= count for index in indices):
+        raise ValueError(f'figures.{split}_indices must be within 0..{count - 1}.')
+    return list(dict.fromkeys(indices))

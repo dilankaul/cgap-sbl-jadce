@@ -1,9 +1,10 @@
 """Shared output layout for the nine scientific tasks."""
 from pathlib import Path
+import re
 
 TASK_FOLDERS = {
     1: "01_kappa_calibration", 2: "02_activity_realizations",
-    3: "03_communication_preview", 4: "04_spatial_correlation",
+    3: "03_communication_data", 4: "04_spatial_correlation",
     5: "05_alpha_beta_tuning", 6: "06_threshold_tuning",
     7: "07_estimators", 8: "08_convergence", 9: "09_evaluation",
 }
@@ -32,8 +33,12 @@ def result_path(out: str | Path, group: str, filename: str) -> Path:
 def figure_path(out: str | Path, stem: str) -> Path:
     task = int(stem[:2])
     folder = task_dir(out, task) / "figures"
-    if stem.startswith("02_activity_realization_"):
-        folder /= "randomized_evaluation" if stem.startswith("02_activity_realization_randomized_evaluation_") else stem.split("_")[3]
+    realization = (re.match(r"02_activity_realization_(tuning|evaluation|randomized_evaluation)_(\d+)", stem)
+                   if task == 2 else re.match(r"03_(tuning|evaluation|randomized_evaluation)_.+_(\d+)$", stem) if task == 3 else None)
+    if realization:
+        split, index = realization.groups()
+        split = "evaluation" if split == "randomized_evaluation" else split
+        folder /= f"{split}_{int(index):04d}"
     elif task in {5, 6}:
         folder /= "tuning"
     elif task in {7, 8, 9}:

@@ -8,3 +8,10 @@ compatible. Regenerate Tasks 03–09 with `configs/experiment.yaml` for the revi
 noise/penalty notation, matched ANC parameters, relative stopping criterion,
 and paired spatial-randomization comparison. Task-local manifests record the
 actual effective configuration; the root YAML remains the activity snapshot.
+
+
+Task 03 now saves full communication data under 03_communication_data/, with
+per-realization shared channels/pilots and scenario observation archives. The
+older 03_communication_preview/ folder is historical. Tasks 05–08 require the
+full dataset. Task 03 saves six selected-sample diagnostic PNGs, not figures for
+every communication realization.

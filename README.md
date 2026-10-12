@@ -75,7 +75,7 @@ python scripts/02_generate_activity.py \
 
 The event process is unconditioned, so the realized activity count \(S_q\) varies. This task saves tuning/evaluation activity datasets, `realized_s.csv`, summary statistics, every event-driven tuning/evaluation activity realization with the activation-probability field, randomized evaluation maps without event overlays, and the realized-\(S\) distribution.
 
-### Task 03 — Generate the communication-model preview
+### Task 03 — Generate the full communication dataset
 
 ```bash
 python scripts/03_generate_communication.py --config configs/experiment.yaml
@@ -89,7 +89,15 @@ The model uses
 \mathbf Y=\mathbf\Theta\mathbf Z+\mathbf W,
 \]
 
-with unit-norm QPSK pilots and deterministic condition-specific random streams. The pilot cross-correlation figure is saved automatically.
+with unit-norm QPSK pilots and deterministic condition-specific random streams. Task 03 saves all tuning observations at the tuning condition and both evaluation
+scenarios across the pilot/SNR sweeps. Shared channels and pilots are stored once
+per realization; each scenario archive contains its condition-specific Y, W,
+and sigma2. Tasks 05–08 load these exact inputs rather than regenerate them.
+
+For the selected realization, Task 03 automatically saves pilot cross-correlation,
+effective-channel row energy, and received-signal magnitude figures for tuning
+and evaluation. Evaluation channel/signal figures compare the paired scenarios
+side by side. Titles include realization index, active count, L, and SNR.
 
 ### Task 04 — Build the spatial correlation matrix
 
@@ -184,7 +192,7 @@ The greedy methods should be described in the paper as **oracle sparsity-budget 
 - \(\mathbf\Theta\) is fixed across SNR values for a given realization and pilot length.
 - Thresholds are selected only from tuning data.
 - CGAP-SBL \(\alpha,\beta\) and both thresholds must be retuned for the revised setup.
-- Large communication tensors are deterministically regenerated rather than stored for every Monte-Carlo condition.
+- Task 03 saves communication inputs in compressed per-realization archives; later tasks load them.
 
 ## Validation
 
@@ -221,10 +229,10 @@ legend, or colorbar font sizes for that figure. Activity realization labels rema
 are eligible for version control. Previously saved config/manifest files retain
 their original paths as historical run provenance.
 
-Task 02 automatically exports every tuning and evaluation activity realization
+Task 02 exports selected tuning and evaluation activity realizations
 in PNG, with the split, zero-based realization number, and realized active
-MTD count in its title. The full configuration produces 100 tuning, 1,000 event-driven evaluation, and 1,000 randomized
-evaluation spatial PNG figures. Batch export shows progress.
+MTD count in its title. The numerical datasets still contain 100 tuning and 1,000 paired evaluation
+realizations; figure counts depend on tuning_indices and evaluation_indices. Batch export shows progress.
 
 ```bash
 PYTHONPATH=src python scripts/02_generate_activity.py --config configs/experiment.yaml
@@ -248,7 +256,9 @@ Each task owns its data and figures under `results/experiment/`:
     evaluation/               # one PNG per event-driven evaluation realization
     randomized_evaluation/    # one PNG per randomized evaluation realization
                               # distribution PNG is directly in figures/
-03_communication_preview/      # preview and summaries; figures/
+03_communication_data/         # complete communication data and summary; figures/
+  tuning/0000/                # channels.npz, pilots.npz, correlated.npz
+  evaluation/0000/            # channels.npz, pilots.npz, correlated.npz, randomized.npz
 04_spatial_correlation/        # correlation data and summary; figures/
 05_alpha_beta_tuning/          # grid and selection; figures/tuning/
 06_threshold_tuning/           # thresholds and selection; figures/tuning/
@@ -366,7 +376,7 @@ the decay parameter that gives the target mean active MTD count;
 `activity_tuning` and `activity_evaluation` generate the two activity datasets.
 `communication_tuning` and `communication_evaluation` generate their channels,
 pilots, and noise. All seven seeds are explicit and distinct; no seed offsets
-are applied between these streams. `spatial_randomization=6031` generates paired
+are applied between these streams. `spatial_randomization=9097` generates paired
 randomized supports independently of the six retained streams. Algorithms still share realizations within
 each condition.
 
@@ -412,4 +422,85 @@ Its stored marginal activation probabilities are S_q/N conditional on count;
 selection is without replacement, not independent Bernoulli activation.
 Randomized maps omit events, event boundaries, and the event probability field.
 Task 07 requires these saved pairs and never generates new activity supports.
-Communication observations are still generated in memory for each condition.
+Task 03 generates and saves communication observations for each condition;
+Tasks 05–08 load them.
+
+
+Task-03 archives preserve the original deterministic generation exactly. H and
+scenario-specific a/Z are stored in channels.npz; pilots.npz contains one Theta
+per L; correlated.npz and randomized.npz contain Y, W, and sigma2 per unique
+condition. Overlapping sweep conditions share saved inputs. Evaluation loads one
+realization at a time; tuning loads its much smaller reference-condition dataset.
+The summary records source activity SHA-256 hashes, communication seeds,
+dimensions and conditions. Missing or incompatible data require rerunning Task 03.
+Old 03_communication_preview outputs remain historical and cannot satisfy this
+new dataset requirement. Standard CLI options and experiment settings are unchanged.
+
+
+### Selecting task figures
+
+Configure independent zero-based index lists in configs/experiment.yaml:
+
+```yaml
+figures:
+  tuning_indices: [0, 5]
+  evaluation_indices: [0, 714]
+```
+
+Tasks 02 and 03 save figures only for these selected realizations. Each evaluation
+index includes its correlated/randomized pair. Use [] to skip a split's realization
+figures. All numerical datasets and the full-sample active-count histogram remain
+complete. Selections can be changed before calling the plotting functions on saved
+data; no communication regeneration is needed. Existing saved images are retained.
+This replaces the old selected_sample setting and default all-realization spatial exports.
+
+
+### Figure folders and CLI summaries
+
+Tasks 02 and 03 group selected realization figures under their own figures/
+folder, using tuning_0077/ and evaluation_0714/ names (four-digit indices).
+Task-02 correlated and randomized maps for one evaluation index share its
+folder, with distinct filenames; Task-03 paired diagnostic panels use that same
+per-task grouping. The full-sample histogram stays directly in Task-02 figures/.
+Numerical dataset paths do not change. Previously saved figure files are retained.
+
+The CLI prints one task figure-folder path and a compact count summary, for example:
+
+```text
+Task 03 figures: 60 files (3 tuning realizations, 7 evaluation realizations)
+  - results/experiment/03_communication_data/figures
+```
+
+All numbered tasks use this concise report rather than listing every image.
+
+
+Task 03 exports separate evaluation and randomized_evaluation figures for every
+selected evaluation index, with six diagnostics per scenario. Filenames identify
+the scenario; both sets are grouped in the evaluation_{index:04d}/ folder.
+Z magnitude, row-energy axes and received-magnitude scales are shared across
+each pair for comparison. Figure saving displays progress and respects --no-progress.
+
+
+Within each selected evaluation pair, Task 03 saves shared H, Theta and pilot
+cross-correlation figures once. Z, channel row energy and received magnitude
+remain separate for the two scenarios. Each tuning index produces six figures,
+and each evaluation index produces nine (81 for the current selections).
+
+
+Task 03 includes a noise-magnitude figure per scenario, with shared paired color
+limits and sigma2/SNR in its title. The standardized-noise magnitude W/sqrt(sigma2)
+is shown once per evaluation pair (and once per tuning realization). This yields
+eight figures per tuning index and twelve per evaluation pair.
+
+
+The current Task-03 figure set contains HSV H, Theta, standardized W/sqrt(sigma2)
+(shared per pair), scenario-specific HSV Z and Y, row energy, and shared pilot
+cross-correlation. No magnitude-only heatmaps are exported. Theta cells are square.
+Current counts: seven per tuning index and ten per evaluation pair.
+
+
+Activity presentation controls are defined in _activity_plot_options() in
+figures/task02_activity_realizations.py: event circles, probability-field visibility,
+resolution 301, opacity 1.0, and 128 contour levels. Experiment YAML retains only
+tuning_indices and evaluation_indices for figure selection. Paper exports reuse
+these defaults; their typography and dimensions remain local to the paper function.

@@ -9,6 +9,15 @@ def test_artifacts_are_assigned_to_their_producing_tasks(tmp_path):
     for split in ("tuning", "evaluation"):
         assert result_path(tmp_path, "activity", f"{split}_activity.npz") == task_dir(tmp_path, 2) / split / f"{split}_activity.npz"
         stem = f"02_activity_realization_{split}_0000_probability_field"
-        assert figure_path(tmp_path, stem) == task_dir(tmp_path, 2) / "figures" / split / stem
+        assert figure_path(tmp_path, stem) == task_dir(tmp_path, 2) / "figures" / f"{split}_0000" / stem
     assert figure_path(tmp_path, "06_cgap_threshold").parent == task_dir(tmp_path, 6) / "figures" / "tuning"
     assert figure_path(tmp_path, "09_f1_vs_snr").parent == task_dir(tmp_path, 9) / "figures" / "evaluation"
+
+
+
+def test_realization_figures_share_padded_folders(tmp_path):
+    for stem in ['02_activity_realization_evaluation_0714_probability_field',
+                 '02_activity_realization_randomized_evaluation_0714']:
+        assert figure_path(tmp_path, stem).parent == task_dir(tmp_path, 2) / 'figures' / 'evaluation_0714'
+    assert figure_path(tmp_path, '03_tuning_channel_hsv_heatmap_0077').parent.name == 'tuning_0077'
+    assert figure_path(tmp_path, '03_evaluation_effective_channel_matrix_hsv_heatmap_0714').parent.name == 'evaluation_0714'

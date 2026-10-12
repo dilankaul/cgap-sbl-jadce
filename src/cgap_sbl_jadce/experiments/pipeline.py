@@ -24,6 +24,8 @@ from cgap_sbl_jadce.dataset import load_activity_samples, save_activity_samples
 from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, save_npz
 from cgap_sbl_jadce.metrics import nmse, oracle_sparsity_budget, precision_recall_f1, support_from_gamma, support_from_rows
 from cgap_sbl_jadce.models.realizations import communication_realization, paired_activity_realizations
+from cgap_sbl_jadce.communication_dataset import (communication_definition, validate_communication_dataset,
+    save_communication_sample, load_communication_sample, load_tuning_communication)
 from cgap_sbl_jadce.reporting import print_task_report
 from cgap_sbl_jadce.provenance import save_task_snapshot
 from cgap_sbl_jadce.experiments.tuning import choose_gamma_threshold, threshold_curve
@@ -217,47 +219,53 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
     return summary
 
 
-def communication_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Save one complete numerical preview and a deterministic seed manifest."""
-    out = output_dir(cfg); sys = cfg["system"]; run = cfg["run"]; tune = cfg["tuning"]
-    activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
-    sample_index = int(cfg.get("figures", {}).get("selected_sample", 0))
-    sample_index = min(sample_index, len(activities) - 1)
-    sample = communication_realization(
-        activities[sample_index], cfg["seeds"]["communication_tuning"], sample_index, sys["M"],
-        tune["reference_pilot_length"], tune["reference_snr_db"],
-    )
-    preview_path = result_path(out, "communication", "preview.npz")
-    save_npz(preview_path, a=sample.a, H=sample.H, Z=sample.Z, Theta=sample.Theta, W=sample.W, Y=sample.Y, sigma2=sample.sigma2)
-    summary = {
-        "sample_index": sample_index,
-        "M": int(sys["M"]), "N": int(sys["N"]),
-        "L": int(tune["reference_pilot_length"]), "snr_db": float(tune["reference_snr_db"]),
-        "Theta_shape": list(sample.Theta.shape), "Z_shape": list(sample.Z.shape), "Y_shape": list(sample.Y.shape),
-        "sigma2": float(sample.sigma2),
-        "signal_power": float(np.mean(np.abs(sample.Theta @ sample.Z) ** 2)),
-        "received_power": float(np.mean(np.abs(sample.Y) ** 2)),
-    }
-    manifest_path = result_path(out, "communication", "manifest.json")
+def communication_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
+    """Task 03 owns the full tuning and paired evaluation communication data."""
+    out = output_dir(cfg)
+    summary = {"status": "started"}
     summary_path = result_path(out, "communication", "summary.json")
-    save_json(manifest_path, {
-        "communication_seed": cfg["seeds"]["communication_tuning"], "M": sys["M"],
-        "pilot_lengths": sys["pilot_lengths"], "snr_db": sys["snr_db"],
-        "rule": "H keyed by sample; Theta keyed by sample and L; W keyed by sample, L and SNR",
-    })
     save_json(summary_path, summary)
-    save_task_snapshot(cfg, 3, sample_index=sample_index)
-    print_task_report("TASK 03 — COMMUNICATION MODEL", {
-        "preview sample": sample_index, "Theta": tuple(sample.Theta.shape), "Z": tuple(sample.Z.shape), "Y": tuple(sample.Y.shape),
-        "noise variance": sample.sigma2, "signal power": summary["signal_power"],
-    }, [preview_path, manifest_path, summary_path])
+    save_task_snapshot(cfg, 3, status="started")
+    for split in ("tuning", "evaluation"):
+        definition = communication_definition(cfg, split)
+        activities = load_activity_samples(result_path(out, "activity", f"{split}_activity.npz"))
+        randomized = None
+        if split == "evaluation":
+            randomized = load_activity_samples(result_path(out, "activity", "randomized_evaluation_activity.npz"))
+            if len(randomized) != len(activities):
+                raise ValueError("Paired activity lengths differ; rerun Task 02.")
+        folder = task_dir(out, 3) / split
+        for q, activity in enumerate(tqdm(activities, desc=f"Task 03 {split} communication",
+                                        unit="realization", disable=not show_progress)):
+            if len(activity.a) != definition["N"]:
+                raise ValueError("Saved activity dimensions differ from configuration; rerun Task 02.")
+            realizations = {}
+            for L, snr in definition["conditions"]:
+                paired = ({"correlated": communication_realization(activity, definition["seed"], q, definition["M"], L, snr)}
+                          if randomized is None else paired_activity_realizations(
+                              activity, randomized[q], definition["seed"], q, definition["M"], L, snr))
+                realizations.update({(scenario, L, snr): r for scenario, r in paired.items()})
+            save_communication_sample(folder, q, realizations)
+        summary[split] = {"samples": len(activities), "definition": definition,
+                          "preview_condition": [int(cfg["tuning"]["reference_pilot_length"] if split == "tuning" else cfg["evaluation"]["pilot_length"]), float(cfg["tuning"]["reference_snr_db"])],
+                          "scenarios": ["correlated"] if randomized is None else ["correlated", "randomized"]}
+    summary["status"] = "complete"
+    save_json(summary_path, summary)
+    save_task_snapshot(cfg, 3, status="complete", communication_datasets=summary)
+    print_task_report("TASK 03 — COMMUNICATION DATASETS", {
+        "tuning realizations": summary["tuning"]["samples"],
+        "evaluation pairs": summary["evaluation"]["samples"],
+        "unique evaluation conditions": len(summary["evaluation"]["definition"]["conditions"]),
+    }, [task_dir(out, 3) / "tuning", task_dir(out, 3) / "evaluation", summary_path])
     return summary
+
 
 
 def correlation_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     out = output_dir(cfg); corr = activity_correlation_parameters(cfg)
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
-    sample_index = int(cfg.get("figures", {}).get("selected_sample", 0))
+    indices = cfg.get("figures", {}).get("tuning_indices", [0])
+    sample_index = indices[0] if indices else 0
     sample_index = min(sample_index, len(activities) - 1)
     C = build_C(activities[sample_index].device_locations, rho=corr["rho"], U=corr["U"])
     c_path = result_path(out, "correlation", "preview_C.npz")
@@ -281,12 +289,12 @@ def correlation_stage(cfg: dict[str, Any]) -> dict[str, Any]:
 
 
 def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
-    activities, master_seed, M, L, snr_db, rho, U, alpha, beta, alg = args
+    activities, communication, rho, U, alpha, beta, alg = args
     gammas: list[np.ndarray] = []
     nmse_values: list[float] = []
     iterations: list[int] = []
     for i, activity in enumerate(activities):
-        r = communication_realization(activity, master_seed, i, M, L, snr_db)
+        r = communication[i]
         C = build_C(activity.device_locations, rho=rho, U=U)
         result = cgap_sbl_anc(
             r.Theta, r.Y, r.sigma2, C, alpha=alpha, beta=beta,
@@ -308,9 +316,9 @@ def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True
     out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]
     algcfg = cfg["algorithms"].copy(); algcfg["num_thresholds"] = tune["num_thresholds"]
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
+    communication = load_tuning_communication(cfg, len(activities))
     tasks = [
-        (activities, cfg["seeds"]["communication_tuning"], sys["M"], tune["reference_pilot_length"], tune["reference_snr_db"],
-         corr["rho"], corr["U"], alpha, beta, algcfg)
+        (activities, communication, corr["rho"], corr["U"], alpha, beta, algcfg)
         for alpha in tune["alpha_values"] for beta in tune["beta_values"]
     ]
     if workers > 1:
@@ -348,11 +356,12 @@ def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str
     with (result_path(out, "tuning", "selected_alpha_beta.json")).open("r", encoding="utf-8") as f:
         selected_ab = json.load(f)
     validate_selection(selected_ab, cfg)
+    communication = load_tuning_communication(cfg, len(activities))
     cgap_gammas: list[np.ndarray] = []
     sb_gammas: list[np.ndarray] = []
     iterator = tqdm(enumerate(activities), total=len(activities), desc="Task 06 threshold inputs", unit="sample", disable=not show_progress)
     for i, activity in iterator:
-        r = communication_realization(activity, cfg["seeds"]["communication_tuning"], i, sys["M"], tune["reference_pilot_length"], tune["reference_snr_db"])
+        r = communication[i]
         C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
         cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected_ab["alpha"], selected_ab["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
         sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
@@ -397,13 +406,14 @@ def evaluation_conditions(cfg: dict[str, Any]) -> list[tuple[int, float, str]]:
 
 
 def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[str, np.ndarray] | None]:
-    q, activity, randomized, master_seed, sys, corr, alg, selected, conditions, save_gamma = args
+    q, activity, communication_folder, sys, corr, alg, selected, conditions, save_gamma = args
     rows = []
     gamma_save = None
+    communication = load_communication_sample(communication_folder, q)
     C = build_C(activity.device_locations, **corr)
     options = {key: alg[key] for key in ("gamma_init", "K", "delta")}
     for L, snr_db, sweep in conditions:
-        paired = paired_activity_realizations(activity, randomized, master_seed, q, sys["M"], L, snr_db)
+        paired = {scenario: communication[(scenario, L, float(snr_db))] for scenario in ("correlated", "randomized")}
         for scenario, r in paired.items():
             common = {"q": q, "S_q": int(np.sum(r.a)), "scenario": scenario,
                       "L": L, "snr_db": snr_db, "sweep": sweep}
@@ -452,7 +462,8 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
     selected["reference_pilot_length"] = cfg["evaluation"]["pilot_length"]
     conditions = evaluation_conditions(cfg)
     n_gamma = min(int(cfg["evaluation"].get("gamma_distribution_samples", 0)), len(activities))
-    tasks = [(i, a, randomized[i], cfg["seeds"]["communication_evaluation"], sys, corr, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
+    communication_folder = validate_communication_dataset(cfg, "evaluation")
+    tasks = [(i, a, communication_folder, sys, corr, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
     if workers > 1:
         with ProcessPoolExecutor(max_workers=workers) as ex:
             outputs = list(tqdm(ex.map(_evaluate_sample, tasks), total=len(tasks), desc="Task 07 evaluation", unit="sample", disable=not show_progress))
@@ -500,7 +511,8 @@ def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     with (result_path(out, "tuning", "selected.json")).open("r", encoding="utf-8") as f:
         selected = json.load(f)
     validate_selection(selected, cfg)
-    r = communication_realization(activity, cfg["seeds"]["communication_evaluation"], idx, sys["M"], cfg["evaluation"]["pilot_length"], tune["reference_snr_db"])
+    folder = validate_communication_dataset(cfg, "evaluation")
+    r = load_communication_sample(folder, idx)[("correlated", int(cfg["evaluation"]["pilot_length"]), float(tune["reference_snr_db"]))]
     C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
     print("Task 08: running CGAP-SBL-ANC convergence trace...")
     cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected["cgap"]["alpha"], selected["cgap"]["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)

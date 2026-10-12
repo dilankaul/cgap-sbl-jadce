@@ -5,7 +5,7 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
-  spatial_randomization: 6031
+  spatial_randomization: 9097
 run:
   output_dir: results/experiment
   num_tuning_samples: 100
@@ -94,12 +94,18 @@ evaluation:
   gamma_distribution_samples: 100
   convergence_sample_offset: 0
 figures:
-  selected_sample: 0
-  show_event_radius: true
-  show_probability_field: true
-  probability_resolution: 301
-  probability_alpha: 1.0
-  probability_levels: 128
+  tuning_indices:
+  - 77
+  - 97
+  - 84
+  evaluation_indices:
+  - 714
+  - 495
+  - 106
+  - 618
+  - 442
+  - 101
+  - 781
 task_runtime:
   input_config: configs/experiment.yaml
   no_progress: false

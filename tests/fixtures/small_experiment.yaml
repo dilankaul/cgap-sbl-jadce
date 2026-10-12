@@ -60,9 +60,5 @@ evaluation:
   gamma_distribution_samples: 6
   convergence_sample_offset: 0
 figures:
-  selected_sample: 0
-  show_event_radius: true
-  show_probability_field: true
-  probability_resolution: 301
-  probability_alpha: 0.35
-  probability_levels: 128
+  tuning_indices: [0]
+  evaluation_indices: [0]
