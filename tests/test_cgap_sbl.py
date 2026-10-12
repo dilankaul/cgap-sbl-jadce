@@ -3,7 +3,7 @@ import pytest
 from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl, cgap_sbl_anc, stable_gamma_update, relative_gamma_change
 from cgap_sbl_jadce.algorithms.sbl import sbl
 from cgap_sbl_jadce.models.communication import simulate_communication
-from cgap_sbl_jadce.models.correlation import build_Omega_ANC
+from cgap_sbl_jadce.models.spatial_dependence import build_Omega_ANC
 
 
 def example():

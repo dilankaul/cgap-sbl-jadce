@@ -10,6 +10,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from scipy.sparse import csr_matrix, save_npz as save_sparse_npz
 from tqdm.auto import tqdm
 
 from cgap_sbl_jadce.models.activity import generate_activity_dataset, randomize_activity_sample
@@ -18,8 +19,10 @@ from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl_anc
 from cgap_sbl_jadce.algorithms.cosamp import mmv_cosamp
 from cgap_sbl_jadce.algorithms.omp import mmv_omp
 from cgap_sbl_jadce.algorithms.sbl import sbl
-from cgap_sbl_jadce.config import resolve_activity_kappa, activity_correlation_parameters
-from cgap_sbl_jadce.models.correlation import build_C
+from cgap_sbl_jadce.config import resolve_activity_kappa, activity_spatial_dependence_parameters
+from cgap_sbl_jadce.models.spatial_dependence import build_C
+from cgap_sbl_jadce.spatial_dependence_dataset import (spatial_dependence_definition, validate_spatial_dependence_dataset,
+    load_spatial_dependence_matrix, load_tuning_spatial_dependence)
 from cgap_sbl_jadce.dataset import load_activity_samples, save_activity_samples
 from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, save_npz
 from cgap_sbl_jadce.metrics import nmse, oracle_sparsity_budget, precision_recall_f1, support_from_gamma, support_from_rows
@@ -38,7 +41,7 @@ def output_dir(cfg: dict[str, Any]) -> Path:
 def tuning_definition(cfg: dict[str, Any]) -> dict[str, Any]:
     """Identify the mathematics and experiment used to select parameters."""
     return {"method": "CGAP-SBL-ANC", "revision": 1,
-            "algorithms": cfg["algorithms"], "correlation": activity_correlation_parameters(cfg),
+            "algorithms": cfg["algorithms"], "spatial_dependence": activity_spatial_dependence_parameters(cfg),
             "tuning": cfg["tuning"], "system": cfg["system"],
             "tuning_samples": cfg["run"]["num_tuning_samples"],
             "activity_seed": cfg["seeds"]["activity_tuning"],
@@ -261,41 +264,48 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict
 
 
 
-def correlation_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    out = output_dir(cfg); corr = activity_correlation_parameters(cfg)
-    activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
-    indices = cfg.get("figures", {}).get("tuning_indices", [0])
-    sample_index = indices[0] if indices else 0
-    sample_index = min(sample_index, len(activities) - 1)
-    C = build_C(activities[sample_index].device_locations, rho=corr["rho"], U=corr["U"])
-    c_path = result_path(out, "correlation", "preview_C.npz")
-    summary_path = result_path(out, "correlation", "summary.json")
-    save_npz(c_path, C=C, sample_index=np.asarray(sample_index))
-    off_diag = C[~np.eye(C.shape[0], dtype=bool)]
-    summary = {
-        "sample_index": sample_index, "rho": float(corr["rho"]), "U": float(corr["U"]),
-        "C_min": float(C.min()), "C_max": float(C.max()), "C_mean": float(C.mean()),
-        "offdiag_positive_fraction": float(np.mean(off_diag > 0.0)),
-        "offdiag_mean_positive": float(np.mean(off_diag[off_diag > 0.0])) if np.any(off_diag > 0.0) else 0.0,
-    }
+def spatial_dependence_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
+    """Task 04 saves one CSR dependence matrix per tuning/evaluation geometry."""
+    out = output_dir(cfg)
+    summary = {"status": "started"}
+    summary_path = result_path(out, "spatial_dependence", "summary.json")
     save_json(summary_path, summary)
-    save_task_snapshot(cfg, 4, sample_index=sample_index)
-    print_task_report("TASK 04 — SPATIAL CORRELATION", {
-        "preview sample": sample_index, "C shape": tuple(C.shape), "rho": corr["rho"], "U": corr["U"],
-        "positive off-diagonal fraction": summary["offdiag_positive_fraction"],
-        "mean positive off-diagonal C": summary["offdiag_mean_positive"],
-    }, [c_path, summary_path])
+    save_task_snapshot(cfg, 4, status="started")
+    for split in ("tuning", "evaluation"):
+        definition = spatial_dependence_definition(cfg, split)
+        activities = load_activity_samples(result_path(out, "activity", f"{split}_activity.npz"))
+        folder = ensure_dir(task_dir(out, 4) / split)
+        nonzeros = []
+        for q, activity in enumerate(tqdm(activities, desc=f"Task 04 {split} spatial matrices",
+                                        unit="realization", disable=not show_progress)):
+            if len(activity.a) != definition["N"]:
+                raise ValueError("Saved activity dimensions differ from configuration; rerun Task 02.")
+            C = csr_matrix(build_C(activity.device_locations, rho=definition["rho"], U=definition["U"]))
+            save_sparse_npz(folder / f"{q:04d}.npz", C, compressed=True)
+            nonzeros.append(C.nnz)
+        summary[split] = {"samples": len(activities), "definition": definition,
+                          "mean_nonzeros": float(np.mean(nonzeros)),
+                          "mean_density": float(np.mean(nonzeros) / definition["N"]**2)}
+    summary["status"] = "complete"
+    summary["evaluation_shared_between_scenarios"] = True
+    save_json(summary_path, summary)
+    save_task_snapshot(cfg, 4, status="complete", spatial_dependence_datasets=summary)
+    print_task_report("TASK 04 — SPATIAL DEPENDENCE MATRICES", {
+        "tuning matrices": summary["tuning"]["samples"],
+        "shared evaluation matrices": summary["evaluation"]["samples"],
+        "rho (m)": definition["rho"], "U (m)": definition["U"], "format": "compressed sparse CSR",
+    }, [task_dir(out, 4) / "tuning", task_dir(out, 4) / "evaluation", summary_path])
     return summary
 
 
 def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
-    activities, communication, rho, U, alpha, beta, alg = args
+    activities, communication, matrices, alpha, beta, alg = args
     gammas: list[np.ndarray] = []
     nmse_values: list[float] = []
     iterations: list[int] = []
     for i, activity in enumerate(activities):
         r = communication[i]
-        C = build_C(activity.device_locations, rho=rho, U=U)
+        C = matrices[i]
         result = cgap_sbl_anc(
             r.Theta, r.Y, r.sigma2, C, alpha=alpha, beta=beta,
             gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"],
@@ -313,12 +323,13 @@ def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
 
 def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
     """Task 05: select alpha and beta. Thresholds are finalized separately in Task 06."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]
+    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]
     algcfg = cfg["algorithms"].copy(); algcfg["num_thresholds"] = tune["num_thresholds"]
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     communication = load_tuning_communication(cfg, len(activities))
+    matrices = load_tuning_spatial_dependence(cfg, len(activities))
     tasks = [
-        (activities, communication, corr["rho"], corr["U"], alpha, beta, algcfg)
+        (activities, communication, matrices, alpha, beta, algcfg)
         for alpha in tune["alpha_values"] for beta in tune["beta_values"]
     ]
     if workers > 1:
@@ -351,18 +362,19 @@ def tune_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True
 
 def threshold_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
     """Task 06: independently tune CGAP-SBL and SBL detection thresholds."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]; alg = cfg["algorithms"]
+    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); tune = cfg["tuning"]; run = cfg["run"]; alg = cfg["algorithms"]
     activities = load_activity_samples(result_path(out, "activity", "tuning_activity.npz"))
     with (result_path(out, "tuning", "selected_alpha_beta.json")).open("r", encoding="utf-8") as f:
         selected_ab = json.load(f)
     validate_selection(selected_ab, cfg)
     communication = load_tuning_communication(cfg, len(activities))
+    matrices = load_tuning_spatial_dependence(cfg, len(activities))
     cgap_gammas: list[np.ndarray] = []
     sb_gammas: list[np.ndarray] = []
     iterator = tqdm(enumerate(activities), total=len(activities), desc="Task 06 threshold inputs", unit="sample", disable=not show_progress)
     for i, activity in iterator:
         r = communication[i]
-        C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
+        C = matrices[i]
         cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected_ab["alpha"], selected_ab["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
         sb = sbl(r.Theta, r.Y, r.sigma2, gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"])
         cgap_gammas.append(cgap.gamma); sb_gammas.append(sb.gamma)
@@ -406,11 +418,11 @@ def evaluation_conditions(cfg: dict[str, Any]) -> list[tuple[int, float, str]]:
 
 
 def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[str, np.ndarray] | None]:
-    q, activity, communication_folder, sys, corr, alg, selected, conditions, save_gamma = args
+    q, activity, communication_folder, sys, spatial_dependence_folder, alg, selected, conditions, save_gamma = args
     rows = []
     gamma_save = None
     communication = load_communication_sample(communication_folder, q)
-    C = build_C(activity.device_locations, **corr)
+    C = load_spatial_dependence_matrix(spatial_dependence_folder, q)
     options = {key: alg[key] for key in ("gamma_init", "K", "delta")}
     for L, snr_db, sweep in conditions:
         paired = {scenario: communication[(scenario, L, float(snr_db))] for scenario in ("correlated", "randomized")}
@@ -447,7 +459,7 @@ def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[
 
 def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = True) -> dict[str, Any]:
     """Task 07: run all estimators and save raw per-sample metrics."""
-    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]
+    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]
     activities = load_activity_samples(result_path(out, "activity", "evaluation_activity.npz"))
     randomized_path = result_path(out, "activity", "randomized_evaluation_activity.npz")
     if not randomized_path.exists():
@@ -463,7 +475,8 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
     conditions = evaluation_conditions(cfg)
     n_gamma = min(int(cfg["evaluation"].get("gamma_distribution_samples", 0)), len(activities))
     communication_folder = validate_communication_dataset(cfg, "evaluation")
-    tasks = [(i, a, communication_folder, sys, corr, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
+    spatial_dependence_folder = validate_spatial_dependence_dataset(cfg, "evaluation")
+    tasks = [(i, a, communication_folder, sys, spatial_dependence_folder, alg, selected, conditions, i < n_gamma) for i, a in enumerate(activities)]
     if workers > 1:
         with ProcessPoolExecutor(max_workers=workers) as ex:
             outputs = list(tqdm(ex.map(_evaluate_sample, tasks), total=len(tasks), desc="Task 07 evaluation", unit="sample", disable=not show_progress))
@@ -504,7 +517,7 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
 
 
 def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
-    out = output_dir(cfg); sys = cfg["system"]; corr = activity_correlation_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]; tune = cfg["tuning"]
+    out = output_dir(cfg); sys = cfg["system"]; dependence = activity_spatial_dependence_parameters(cfg); alg = cfg["algorithms"]; run = cfg["run"]; tune = cfg["tuning"]
     activities = load_activity_samples(result_path(out, "activity", "evaluation_activity.npz"))
     idx = int(cfg["evaluation"].get("convergence_sample_offset", 0))
     activity = activities[idx]
@@ -513,7 +526,7 @@ def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     validate_selection(selected, cfg)
     folder = validate_communication_dataset(cfg, "evaluation")
     r = load_communication_sample(folder, idx)[("correlated", int(cfg["evaluation"]["pilot_length"]), float(tune["reference_snr_db"]))]
-    C = build_C(activity.device_locations, rho=corr["rho"], U=corr["U"])
+    C = load_spatial_dependence_matrix(validate_spatial_dependence_dataset(cfg, "evaluation"), idx)
     print("Task 08: running CGAP-SBL-ANC convergence trace...")
     cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C, selected["cgap"]["alpha"], selected["cgap"]["beta"], gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"], keep_history=True, Z_true=r.Z)
     print("Task 08: running SBL convergence trace...")

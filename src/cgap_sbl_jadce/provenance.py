@@ -30,8 +30,8 @@ def save_task_snapshot(cfg, task, **runtime):
                 key: activity[key] for key in ('N', 'V', 'R', 'D', 'kappa', 'target_mean_S') if key in activity
             }
     if task >= 4:
-        from cgap_sbl_jadce.config import activity_correlation_parameters
-        snapshot["correlation"] = activity_correlation_parameters(cfg)
+        from cgap_sbl_jadce.config import activity_spatial_dependence_parameters
+        snapshot["spatial_dependence"] = activity_spatial_dependence_parameters(cfg)
         provenance["method"] = "CGAP-SBL-ANC"
         provenance["method_revision"] = 1
     snapshot['task_runtime'] = provenance

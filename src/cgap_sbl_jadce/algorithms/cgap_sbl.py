@@ -9,7 +9,7 @@ from scipy.sparse import csr_matrix
 
 from cgap_sbl_jadce.algorithms.posterior import posterior_mmv
 from cgap_sbl_jadce.metrics import nmse
-from cgap_sbl_jadce.models.correlation import anc_penalty
+from cgap_sbl_jadce.models.spatial_dependence import anc_penalty
 
 
 @dataclass(frozen=True)

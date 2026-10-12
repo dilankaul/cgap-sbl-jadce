@@ -99,13 +99,13 @@ effective-channel row energy, and received-signal magnitude figures for tuning
 and evaluation. Evaluation channel/signal figures compare the paired scenarios
 side by side. Titles include realization index, active count, L, and SNR.
 
-### Task 04 — Build the spatial correlation matrix
+### Task 04 — Build the spatial dependence matrix
 
 ```bash
-python scripts/04_build_correlation.py --config configs/experiment.yaml
+python scripts/04_build_spatial_dependence.py --config configs/experiment.yaml
 ```
 
-The correlation summary and \(\mathbf C\) visualization are saved automatically.
+The spatial dependence summary and \(\mathbf C\) visualization are saved automatically.
 
 ### Task 05 — Tune \(\alpha,\beta\)
 
@@ -259,7 +259,7 @@ Each task owns its data and figures under `results/experiment/`:
 03_communication_data/         # complete communication data and summary; figures/
   tuning/0000/                # channels.npz, pilots.npz, correlated.npz
   evaluation/0000/            # channels.npz, pilots.npz, correlated.npz, randomized.npz
-04_spatial_correlation/        # correlation data and summary; figures/
+04_spatial_dependence/        # spatial dependence data and summary; figures/
 05_alpha_beta_tuning/          # grid and selection; figures/tuning/
 06_threshold_tuning/           # thresholds and selection; figures/tuning/
 07_estimators/                 # per-sample results and gamma; figures/evaluation/
@@ -324,7 +324,7 @@ script reads saved Task 02 data and exports separate PDFs.
 
 ```text
 src/cgap_sbl_jadce/
-├── models/          # Activity, communication, realizations, correlation
+├── models/          # Activity, communication, realizations, spatial dependence
 ├── algorithms/      # SBL, CGAP-SBL, OMP, CoSaMP, posterior engine
 ├── experiments/     # Calibration, threshold tuning, nine-stage pipeline
 ├── figures/         # Descriptive task-numbered plots and shared rendering
@@ -347,7 +347,7 @@ figures/
 ├── task02_activity_realizations.py
 ├── task02_active_mtd_count_distribution.py
 ├── task03_communication_preview.py
-├── task04_spatial_correlation.py
+├── task04_spatial_dependence.py
 ├── task05_alpha_beta_tuning.py
 ├── task06_activity_threshold_tuning.py
 ├── task07_gamma_distribution.py
@@ -495,7 +495,7 @@ eight figures per tuning index and twelve per evaluation pair.
 
 The current Task-03 figure set contains HSV H, Theta, standardized W/sqrt(sigma2)
 (shared per pair), scenario-specific HSV Z and Y, row energy, and shared pilot
-cross-correlation. No magnitude-only heatmaps are exported. Theta cells are square.
+cross-correlation. No magnitude-only heatmaps are exported. Theta uses automatic cell sizing.
 Current counts: seven per tuning index and ten per evaluation pair.
 
 
@@ -504,3 +504,17 @@ figures/task02_activity_realizations.py: event circles, probability-field visibi
 resolution 301, opacity 1.0, and 128 contour levels. Experiment YAML retains only
 tuning_indices and evaluation_indices for figure selection. Paper exports reuse
 these defaults; their typography and dimensions remain local to the paper function.
+
+
+### Saved Task-04 spatial dependence matrices
+
+Task 04 saves every tuning and evaluation matrix as compressed sparse CSR:
+04_spatial_dependence/tuning/0077.npz and evaluation/0714.npz, for example.
+An evaluation matrix is shared by its correlated and randomized supports.
+Tasks 05–08 load these matrices rather than rebuild C. The summary records
+rho=kappa, U=D, dimensions, source activity identity and average density;
+missing or incompatible matrices require rerunning Task 04.
+
+Heatmaps follow figures.tuning_indices and figures.evaluation_indices and use
+figures/tuning_0077/ and figures/evaluation_0714/. Generation and figure saving
+show split progress bars; the CLI retains one compact figures/ folder summary.

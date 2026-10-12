@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from cgap_sbl_jadce.config import load_config, activity_correlation_parameters
+from cgap_sbl_jadce.config import load_config, activity_spatial_dependence_parameters
 from cgap_sbl_jadce.experiments.pipeline import evaluation_conditions, validate_selection, _evaluate_sample
 from cgap_sbl_jadce.models.activity import ActivitySample, randomize_activity_sample
 from cgap_sbl_jadce.models.realizations import paired_activity_realizations
@@ -43,7 +43,7 @@ def test_paper_conditions_and_saved_correlation_parameters(tmp_path):
     cfg['run']['output_dir'] = str(tmp_path)
     save_json(result_path(tmp_path, 'activity', 'summary.json'), {'kappa': 3.78, 'D': 15})
     cfg['activity']['D'] = 99
-    assert activity_correlation_parameters(cfg) == {'rho': 3.78, 'U': 15}
+    assert activity_spatial_dependence_parameters(cfg) == {'rho': 3.78, 'U': 15}
     with pytest.raises(ValueError, match='Rerun Tasks 05 and 06'):
         validate_selection({'definition': {'method': 'legacy'}, 'alpha': 1}, cfg)
 
@@ -56,8 +56,11 @@ def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl
     from cgap_sbl_jadce.communication_dataset import save_communication_sample
     paired = paired_activity_realizations(sample(), randomize_activity_sample(sample(), 6031, 0), 4283, 0, 3, 10, 12)
     save_communication_sample(tmp_path, 0, {(scenario, 10, 12): r for scenario, r in paired.items()})
+    from scipy.sparse import csr_matrix, save_npz
+    from cgap_sbl_jadce.models.spatial_dependence import build_C
+    save_npz(tmp_path / '0000.npz', csr_matrix(build_C(sample().device_locations)))
     rows, gamma = _evaluate_sample((0, sample(), tmp_path, {'N': 20, 'M': 3},
-                                   {'rho': 3.78, 'U': 15}, alg, selected, [(10, 12, 'pilot_sweep')], True))
+                                   tmp_path, alg, selected, [(10, 12, 'pilot_sweep')], True))
     assert len(rows) == 6
     assert {row['S_q'] for row in rows} == {3}
     assert len([row for row in rows if row['scenario'] == 'randomized']) == 2

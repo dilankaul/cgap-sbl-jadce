@@ -116,3 +116,9 @@ realizations and conditions. Shared H, scenario-specific Z and activity, and
 per-L Theta are saved once per realization. Y, W and sigma2 are saved per scenario
 and unique condition. Tasks 05–08 read the saved archives; this changes data
 ownership and storage, not the distribution, system model, or random streams.
+
+
+Task 04 constructs and saves each realization's C in compressed CSR format.
+The correlated and randomized scenarios share that saved matrix. Tasks 05–08
+load it; moving construction to Task 04 leaves the dependence formula and
+penalty mathematics unchanged.

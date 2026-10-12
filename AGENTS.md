@@ -28,7 +28,7 @@ unnumbered because they do not represent extra experimental stages.
 - Task 01: calibrate the activity model
 - Task 02: generate activity realizations
 - Task 03: generate and save full communication datasets
-- Task 04: construct spatial correlation
+- Task 04: construct spatial dependence
 - Task 05: tune CGAP-SBL alpha and beta
 - Task 06: tune activity thresholds
 - Task 07: run estimators
@@ -190,7 +190,7 @@ not save enormous per-iteration histories for every realization.
 
 Important tests include matrix dimensions, system-model identity, complex
 Gaussian generation, optimized posterior vs a full reference, conventional SBL,
-stable CGAP-SBL root, nonnegative lagged `lambda`, ANC/correlation construction, activity
+stable CGAP-SBL root, nonnegative lagged `lambda`, ANC/spatial dependence construction, activity
 cutoff, multi-event probability, deterministic seeds, simple noiseless baseline
 support recovery, and plotting that does not modify probability values.
 

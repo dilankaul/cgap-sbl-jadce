@@ -28,7 +28,7 @@ def report_task(output_dir: str | Path, task: int) -> None:
         1: result_path(out, "activity_calibration", "summary.json"),
         2: result_path(out, "activity", "summary.json"),
         3: result_path(out, "communication", "summary.json"),
-        4: result_path(out, "correlation", "summary.json"),
+        4: result_path(out, "spatial_dependence", "summary.json"),
         5: result_path(out, "tuning", "alpha_beta_summary.json"),
         6: result_path(out, "tuning", "selected.json"),
         7: result_path(out, "evaluation", "run_summary.json"),

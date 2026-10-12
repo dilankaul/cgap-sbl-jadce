@@ -15,3 +15,8 @@ per-realization shared channels/pilots and scenario observation archives. The
 older 03_communication_preview/ folder is historical. Tasks 05–08 require the
 full dataset. Task 03 saves six selected-sample diagnostic PNGs, not figures for
 every communication realization.
+
+
+Task 04 stores complete sparse C datasets in 04_spatial_dependence/tuning/ and
+evaluation/, with only selected heatmaps under padded realization figure folders.
+The prior preview_C.npz artifact is historical; consumers require the full dataset.

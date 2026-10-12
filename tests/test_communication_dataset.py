@@ -29,6 +29,7 @@ def saved_data(tmp_path):
         save_activity_samples(result_path(tmp_path, 'activity', f'{name}_activity.npz'), samples)
     save_json(result_path(tmp_path, 'activity', 'summary.json'), {'kappa': 3.78, 'D': 15, 'R': 40})
     pipeline.communication_stage(cfg, show_progress=False)
+    pipeline.spatial_dependence_stage(cfg, show_progress=False)
     return cfg
 
 
@@ -77,6 +78,7 @@ def test_downstream_tasks_do_not_regenerate_communication(saved_data, monkeypatc
         pytest.fail('Only Task 03 may generate communication data')
     monkeypatch.setattr(pipeline, 'communication_realization', forbidden)
     monkeypatch.setattr(pipeline, 'paired_activity_realizations', forbidden)
+    monkeypatch.setattr(pipeline, 'build_C', forbidden)
     pipeline.tune_stage(saved_data, show_progress=False)
     pipeline.threshold_stage(saved_data, show_progress=False)
     result = pipeline.evaluate_stage(saved_data, show_progress=False)

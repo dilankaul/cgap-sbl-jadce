@@ -118,3 +118,9 @@
 
 
 65. Simplify Task-03 diagnostics to HSV H, Theta, Z, Y and shared standardized W/sqrt(sigma2), plus channel row energy and pilot cross-correlation. H, Theta, standardized noise and pilot cross-correlation are shared per evaluation pair; Z, Y and row energy are separate per scenario. Remove magnitude-only noise/received exports. Raw noise variances remain scenario-specific and unchanged. Theta HSV uses equal aspect for square cells. Counts become seven per tuning index and ten per evaluation pair (91 for current selections).
+
+
+66. Task 04 owns full C generation and saving, using one compressed sparse CSR matrix per tuning/evaluation geometry and one shared C per evaluation pair. Tasks 05–08 load saved matrices and reject missing/incompatible source identity, N, rho or U. Keep the existing matrix formula and matched rho=kappa/U=D unchanged. Task-04 heatmaps follow the common selected tuning/evaluation index lists and padded realization folders, with split generation/figure progress and compact CLI reporting. Supersedes the earlier single-matrix preview and downstream recomputation.
+
+
+67. Use spatial dependence matrix for C throughout active code, documentation, Task-04 CLI and artifacts. Rename the model module to spatial_dependence.py, dataset module to spatial_dependence_dataset.py, figure module to task04_spatial_dependence.py, Task-04 script to 04_build_spatial_dependence.py and result folder to 04_spatial_dependence/. Rename C-related functions and metadata keys consistently. Migrate existing Task-04 files without changing matrix values. Pilot cross-correlation and the correlation-guided algorithm name remain correct and unchanged; earlier decision records retain their historical terminology.

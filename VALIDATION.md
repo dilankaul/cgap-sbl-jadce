@@ -6,7 +6,7 @@ Run the complete test suite with:
 PYTHONPATH=src pytest -q
 ```
 
-Final result: **102 tests passed**.
+Final result: **106 tests passed**.
 
 The revised implementation is checked against the local manuscript
 `Publications___CGAP_SBL.pdf`. Validation covers:
@@ -57,3 +57,9 @@ scenario exports, native HSV phase/magnitude mapping, and code-local activity
 presentation settings. Task-03 pilot heatmaps use automatic cell sizing; bold
 Greek labels use native STIX MathText. The current selected diagnostic set
 contains 91 figures.
+
+Task-04 ownership is validated against exact dense reference matrices, CSR storage,
+source/parameter mismatch rejection, selected padded figure folders and split
+progress. Downstream stages are tested with build_C disabled after Task 04.
+The full run saved and checked 100 tuning and 1,000 shared evaluation matrices,
+with ten selected heatmaps and about 146.7 MiB of compressed matrix storage.

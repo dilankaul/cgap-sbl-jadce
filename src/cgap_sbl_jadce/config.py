@@ -63,7 +63,7 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
     return kappa, origin
 
 
-def activity_correlation_parameters(cfg: dict[str, Any]) -> dict[str, float]:
+def activity_spatial_dependence_parameters(cfg: dict[str, Any]) -> dict[str, float]:
     """Paper VIII-A: rho=kappa and U=D, using the saved activity model."""
     import json
     from cgap_sbl_jadce.paths import result_path

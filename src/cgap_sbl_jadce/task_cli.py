@@ -10,7 +10,7 @@ from cgap_sbl_jadce.figures.task01_kappa_calibration import plot_activity_calibr
 from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_realizations
 from cgap_sbl_jadce.figures.task02_active_mtd_count_distribution import plot_activity_s_distribution
 from cgap_sbl_jadce.figures.task03_communication_preview import plot_communication_preview
-from cgap_sbl_jadce.figures.task04_spatial_correlation import plot_correlation_preview
+from cgap_sbl_jadce.figures.task04_spatial_dependence import plot_spatial_dependence
 from cgap_sbl_jadce.figures.task05_alpha_beta_tuning import plot_alpha_beta_tuning
 from cgap_sbl_jadce.figures.task06_activity_threshold_tuning import plot_threshold_tuning
 from cgap_sbl_jadce.figures.task07_gamma_distribution import plot_gamma_distribution
@@ -34,7 +34,7 @@ TASKS = {
     2: Task("generate activity realizations", pipeline.generate_activity_stage,
             (plot_activity_realizations, plot_activity_s_distribution), True),
     3: Task("generate full communication datasets", pipeline.communication_stage, (plot_communication_preview,), True),
-    4: Task("build spatial correlation", pipeline.correlation_stage, (plot_correlation_preview,)),
+    4: Task("build spatial dependence", pipeline.spatial_dependence_stage, (plot_spatial_dependence,), True),
     5: Task("tune CGAP-SBL alpha and beta", pipeline.tune_stage, (plot_alpha_beta_tuning,), True),
     6: Task("tune activity thresholds", pipeline.threshold_stage, (plot_threshold_tuning,), True),
     7: Task("run estimators", pipeline.evaluate_stage, (plot_gamma_distribution,), True),
@@ -66,7 +66,7 @@ def run_task(task_number: int, argv: list[str] | None = None) -> list:
     paths = []
     for render in task.plots:
         kwargs = {"formats": "png"}
-        if render in (plot_activity_realizations, plot_communication_preview, make_performance_figures):
+        if render in (plot_activity_realizations, plot_communication_preview, plot_spatial_dependence, make_performance_figures):
             kwargs["show_progress"] = not args.no_progress
         paths.extend(render(cfg, **kwargs))
     counts = []
