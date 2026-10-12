@@ -63,3 +63,11 @@ source/parameter mismatch rejection, selected padded figure folders and split
 progress. Downstream stages are tested with build_C disabled after Task 04.
 The full run saved and checked 100 tuning and 1,000 shared evaluation matrices,
 with ten selected heatmaps and about 146.7 MiB of compressed matrix storage.
+
+The paper complexity audit (Section VII, equations 75–79) is documented in
+computational_complexity.md. Timing boundaries are checked with a deterministic
+clock: solver computation is included; loading and metrics are excluded. Runtime
+summary statistics are verified against known input times. A small workflow run
+recorded 216 real solver calls, 36 per-condition timing groups, timing-environment
+provenance, and runtime plots versus both SNR and pilot length. No full publication
+runtime benchmark or manuscript numerical-time claim was generated.

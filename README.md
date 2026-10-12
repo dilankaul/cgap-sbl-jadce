@@ -518,3 +518,13 @@ missing or incompatible matrices require rerunning Task 04.
 Heatmaps follow figures.tuning_indices and figures.evaluation_indices and use
 figures/tuning_0077/ and figures/evaluation_0714/. Generation and figure saving
 show split progress bars; the CLI retains one compact figures/ folder summary.
+
+
+### Computational cost and execution time
+
+See docs/computational_complexity.md for the audit against paper equations
+(75)–(79). Task 07 records each solver's wall time as runtime_s in per_sample.csv,
+excluding generation, matrix construction, file loading and metrics. Task 09 saves
+runtime_summary.csv with per-condition timing statistics and plots mean runtime
+against SNR and pilot length. Task-07 provenance records timing scope and numerical
+thread settings. These are actual measured times, not provisional manuscript values.

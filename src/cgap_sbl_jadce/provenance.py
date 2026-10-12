@@ -3,6 +3,7 @@ from copy import deepcopy
 from pathlib import Path
 import json
 import platform
+import os
 import numpy as np
 import scipy
 from cgap_sbl_jadce.io import save_yaml, save_json
@@ -46,5 +47,11 @@ def save_task_snapshot(cfg, task, **runtime):
         'configuration': snapshot,
         'task': task, 'python': platform.python_version(), 'platform': platform.platform(),
         'numpy': np.__version__, 'scipy': scipy.__version__,
+        **({'timing_environment': {
+            'machine': platform.machine(), 'processor': platform.processor(),
+            'logical_cpus': os.cpu_count(),
+            'thread_settings': {name: os.environ.get(name) for name in (
+                'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'OMP_NUM_THREADS', 'NUMEXPR_NUM_THREADS')},
+        }} if task == 7 else {}),
     })
     return snapshot

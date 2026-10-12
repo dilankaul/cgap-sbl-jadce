@@ -37,6 +37,7 @@ def make_performance_figures(cfg: dict, formats: str = "png", show_progress: boo
         (pilot, "L", "f1", r"Activity Detection vs Pilot Length $L$", r"Pilot length $L$", r"$F_1$ score", figure_path(out, "09_f1_vs_pilot_length")),
         (pilot, "L", "nmse", r"Channel Estimation vs Pilot Length $L$", r"Pilot length $L$", r"$\mathrm{NMSE}$", figure_path(out, "09_nmse_vs_pilot_length")),
         (snr, "snr_db", "runtime_s", r"Runtime vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", "Mean runtime (s)", figure_path(out, "09_runtime_vs_snr")),
+        (pilot, "L", "runtime_s", r"Runtime vs Pilot Length $L$", r"Pilot length $L$", "Mean runtime (s)", figure_path(out, "09_runtime_vs_pilot_length")),
     ]
     comparison = df[df["algorithm"].isin(["CGAP-SBL-ANC", "SBL"])].copy()
     comparison["algorithm"] = comparison["algorithm"] + " (" + comparison["scenario"] + ")"

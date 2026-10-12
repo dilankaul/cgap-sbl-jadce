@@ -505,6 +505,12 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
         "std_realized_S": float(np.std(realized_counts, ddof=1)) if len(realized_counts) > 1 else 0.0,
         "min_realized_S": int(np.min(realized_counts)), "max_realized_S": int(np.max(realized_counts)),
         "oracle_budget_rule": "B_q = min(S_q, L, N)",
+        "timing": {
+            "clock": "time.perf_counter", "unit": "seconds", "scope": "one solver call",
+            "includes": "initialization, solver validation, all iterations, final channel estimate",
+            "excludes": "data/matrix generation, archive loading, support thresholding, metrics, plotting, saving",
+            "C_storage": "CSR; constructed in Task 04",
+        },
         "oracle_capped_conditions": int(sum(capped_by_L.values())),
         "oracle_capped_by_L": capped_by_L,
     }
@@ -569,6 +575,12 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     advantages.to_csv(advantages_path, index=False)
     overall = df.groupby(["scenario", "algorithm"])[["precision", "recall", "f1", "nmse", "runtime_s"]].mean().reset_index()
     overall_path = result_path(out, "evaluation", "overall_by_algorithm.csv"); overall.to_csv(overall_path, index=False)
+    runtime_summary = df.groupby(["scenario", "algorithm", "L", "snr_db", "sweep"])["runtime_s"].agg(
+        samples="count", mean_s="mean", std_s="std", median_s="median",
+        min_s="min", max_s="max", total_s="sum", p95_s=lambda values: values.quantile(.95),
+    ).reset_index()
+    runtime_path = result_path(out, "evaluation", "runtime_summary.csv")
+    runtime_summary.to_csv(runtime_path, index=False)
     ref_L = int(cfg["evaluation"]["pilot_length"]); ref_snr = float(cfg["tuning"]["reference_snr_db"])
     ref = aggregate[(aggregate["scenario"] == "correlated") & (aggregate["L"] == ref_L) & (aggregate["snr_db"] == ref_snr)].drop_duplicates("algorithm")
     reference_rows = ref[["algorithm", "precision", "recall", "f1", "nmse", "runtime_s"]].to_dict(orient="records")
@@ -578,7 +590,7 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     print_task_report("TASK 09 — AGGREGATION / ANALYSIS", {
         "aggregate rows": len(aggregate), "reference L": ref_L, "reference SNR": ref_snr,
         "algorithms": ", ".join(sorted(df["algorithm"].unique())),
-    }, [aggregate_path, advantages_path, overall_path, summary_path])
+    }, [aggregate_path, advantages_path, overall_path, runtime_path, summary_path])
     print("Reference-condition results:")
     if not ref.empty:
         print(ref[["algorithm", "f1", "nmse", "runtime_s"]].to_string(index=False))

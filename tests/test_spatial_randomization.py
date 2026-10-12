@@ -48,7 +48,7 @@ def test_paper_conditions_and_saved_correlation_parameters(tmp_path):
         validate_selection({'definition': {'method': 'legacy'}, 'alpha': 1}, cfg)
 
 
-def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl(tmp_path):
+def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl(tmp_path, monkeypatch):
     cfg = load_config('tests/fixtures/small_experiment.yaml')
     selected = {'cgap': {'alpha': 2, 'beta': .1, 'tau': .05}, 'sbl': {'tau': .05},
                 'reference_pilot_length': 10, 'reference_snr_db': 12}
@@ -59,9 +59,27 @@ def test_evaluation_runs_six_methods_scenarios_without_oracle_information_in_sbl
     from scipy.sparse import csr_matrix, save_npz
     from cgap_sbl_jadce.models.spatial_dependence import build_C
     save_npz(tmp_path / '0000.npz', csr_matrix(build_C(sample().device_locations)))
+    # A synthetic clock checks timer boundaries without noisy timing assertions.
+    from cgap_sbl_jadce.experiments import pipeline
+    elapsed = {'seconds': 0.}
+    monkeypatch.setattr(pipeline.time, 'perf_counter', lambda: elapsed['seconds'])
+    for name in ['cgap_sbl_anc', 'sbl', 'mmv_omp', 'mmv_cosamp']:
+        original = getattr(pipeline, name)
+        def timed_solver(*args, _solver=original, **kwargs):
+            result = _solver(*args, **kwargs)
+            elapsed['seconds'] += .01
+            return result
+        monkeypatch.setattr(pipeline, name, timed_solver)
+    for name in ['nmse', 'precision_recall_f1', 'load_communication_sample', 'load_spatial_dependence_matrix']:
+        original = getattr(pipeline, name)
+        def untimed_operation(*args, _operation=original, **kwargs):
+            elapsed['seconds'] += 100.
+            return _operation(*args, **kwargs)
+        monkeypatch.setattr(pipeline, name, untimed_operation)
     rows, gamma = _evaluate_sample((0, sample(), tmp_path, {'N': 20, 'M': 3},
                                    tmp_path, alg, selected, [(10, 12, 'pilot_sweep')], True))
     assert len(rows) == 6
+    np.testing.assert_allclose([row["runtime_s"] for row in rows], .01)
     assert {row['S_q'] for row in rows} == {3}
     assert len([row for row in rows if row['scenario'] == 'randomized']) == 2
     for row in rows:
@@ -89,6 +107,13 @@ def test_aggregation_preserves_scenarios_and_averages_paired_advantages(tmp_path
     aggregate_stage(cfg)
     aggregate = pd.read_csv(result_path(tmp_path, 'evaluation', 'aggregate.csv'))
     assert len(aggregate) == 4
+    runtime = pd.read_csv(result_path(tmp_path, 'evaluation', 'runtime_summary.csv'))
+    assert len(runtime) == 4
+    assert (runtime.samples == 2).all()
+    np.testing.assert_allclose(runtime.mean_s, .1)
+    np.testing.assert_allclose(runtime.median_s, .1)
+    np.testing.assert_allclose(runtime.total_s, .2)
+    np.testing.assert_allclose(runtime.p95_s, .1)
     assert not aggregate.nmse.isna().any()
     advantages = pd.read_csv(result_path(tmp_path, 'evaluation', 'spatial_randomization_advantages.csv')).set_index('scenario')
     assert np.isclose(advantages.loc['correlated', 'f1_gain'], .2)

@@ -124,3 +124,6 @@
 
 
 67. Use spatial dependence matrix for C throughout active code, documentation, Task-04 CLI and artifacts. Rename the model module to spatial_dependence.py, dataset module to spatial_dependence_dataset.py, figure module to task04_spatial_dependence.py, Task-04 script to 04_build_spatial_dependence.py and result folder to 04_spatial_dependence/. Rename C-related functions and metadata keys consistently. Migrate existing Task-04 files without changing matrix values. Pilot cross-correlation and the correlation-guided algorithm name remain correct and unchanged; earlier decision records retain their historical terminology.
+
+
+68. Recheck paper Section VII, equations (75)–(79): implemented Cholesky/diagonal-posterior SBL, dense general CGAP-SBL and sparse CSR ANC match the stated per-iteration costs. Record the full-call runtime scope explicitly, including initialization/validation and final posterior, excluding data/C generation, loading, metrics, plots and saving. Preserve existing per-algorithm runtime_s measurements. Add per-condition/scenario runtime statistics, CPU/thread provenance, and runtime-vs-pilot figure alongside runtime-vs-SNR. Complexity audit distinguishes per-iteration costs, actual iteration counts and complete solves; no paper performance numbers are copied into results.
