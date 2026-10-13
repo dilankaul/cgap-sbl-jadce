@@ -1,0 +1,99 @@
+{
+  "cgap": {
+    "alpha": 7.0,
+    "beta": 0.07,
+    "tau": 0.136,
+    "tuning_f1": 0.7694817593807884,
+    "tuning_nmse": 0.5012491332318393,
+    "tuning_precision": 0.7834656916048962,
+    "tuning_recall": 0.7583006189316005
+  },
+  "definition": {
+    "activity_seed": 2953,
+    "algorithms": {
+      "K": 500,
+      "cosamp_max_iter": 50,
+      "cosamp_tol": 1e-06,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    },
+    "communication_seed": 4283,
+    "method": "CGAP-SBL-ANC",
+    "revision": 2,
+    "spatial_dependence": {
+      "U": 20.0,
+      "rho": 7.0
+    },
+    "system": {
+      "M": 4,
+      "N": 500,
+      "R": 50.0,
+      "S": 20,
+      "pilot_lengths": [
+        20,
+        25,
+        30,
+        35,
+        40,
+        45
+      ],
+      "snr_db": [
+        4,
+        8,
+        12,
+        16,
+        20,
+        24
+      ]
+    },
+    "tau_grid": {
+      "start": 0.0,
+      "step": 0.001,
+      "stop": 0.2
+    },
+    "tuning": {
+      "alpha_values": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "beta_values": [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
+        0.05,
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
+      ],
+      "reference_pilot_length": 25,
+      "reference_snr_db": 12
+    },
+    "tuning_samples": 100
+  },
+  "reference_pilot_length": 25,
+  "reference_snr_db": 12,
+  "sbl": {
+    "alpha": 0.0,
+    "beta": 0.0,
+    "tau": 0.191,
+    "tuning_f1": 0.6332572253283403,
+    "tuning_nmse": 0.6088197889566601,
+    "tuning_precision": 0.6645833881241674,
+    "tuning_recall": 0.6085041401891529
+  },
+  "status": "historical",
+  "nmse_scope": "full_matrix"
+}

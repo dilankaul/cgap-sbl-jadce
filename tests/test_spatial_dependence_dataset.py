@@ -35,21 +35,21 @@ def test_saved_sparse_matrices_match_formula(saved_spatial_dependence):
             np.testing.assert_array_equal(C.toarray(), reference)
             np.testing.assert_array_equal(C.toarray(), C.T.toarray())
             np.testing.assert_array_equal(C.diagonal(), np.ones(20))
-    assert not (task_dir(cfg['run']['output_dir'], 4) / 'randomized_evaluation').exists()
+    assert {path.name for path in task_dir(cfg['run']['output_dir'], 'spatial_dependence').iterdir() if path.is_dir()} == {'tuning', 'evaluation'}
 
 
 def test_incompatible_or_missing_spatial_dependence_rejected(saved_spatial_dependence):
     cfg, _ = saved_spatial_dependence
     summary = result_path(cfg['run']['output_dir'], 'activity', 'summary.json')
     save_json(summary, {'kappa': 4., 'D': 15})
-    with pytest.raises(ValueError, match='rerun Task 04'):
+    with pytest.raises(ValueError, match='rerun spatial dependence'):
         validate_spatial_dependence_dataset(cfg, 'tuning')
-    with pytest.raises(FileNotFoundError, match='rerun Task 04'):
-        load_spatial_dependence_matrix(task_dir(cfg['run']['output_dir'], 4) / 'evaluation', 100)
+    with pytest.raises(FileNotFoundError, match='rerun spatial dependence'):
+        load_spatial_dependence_matrix(task_dir(cfg['run']['output_dir'], 'spatial_dependence') / 'evaluation', 100)
 
 
 def test_selected_spatial_dependence_heatmaps_and_split_progress(saved_spatial_dependence, monkeypatch):
-    from cgap_sbl_jadce.figures import task04_spatial_dependence as plotting
+    from cgap_sbl_jadce.figures import spatial_dependence as plotting
     cfg, _ = saved_spatial_dependence
     cfg['figures'].update(tuning_indices=[1], evaluation_indices=[0])
     bars = []

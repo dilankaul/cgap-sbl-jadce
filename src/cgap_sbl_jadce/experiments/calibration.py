@@ -11,7 +11,7 @@ class CalibrationBracketError(ValueError):
 
 
 def calibrate_kappa_adaptive(*, target, coarse_values, refinement_steps,
-                             validation_seed, validation_samples, tolerance=0.1, **kwargs):
+                             validation_seed, validation_samples, tolerance=0.1, checkpoint=None, **kwargs):
     steps = [float(step) for step in refinement_steps]
     coarse = sorted(set(float(value) for value in coarse_values))
     if len(coarse) < 2 or any(not np.isfinite(x) or x <= 0 for x in coarse):
@@ -33,7 +33,10 @@ def calibrate_kappa_adaptive(*, target, coarse_values, refinement_steps,
                 print(f'Kappa scan {stage}: {fresh[0]:g} to {fresh[-1]:g}, {len(fresh)} new candidates', flush=True)
             # Same seed, sample count, and batching replay identical geometries
             # and Bernoulli uniforms across every refinement stage.
-            rows = calibrate_kappa_grid(kappa_values=fresh, **kwargs)
+            options = dict(kwargs)
+            if checkpoint:
+                options['checkpoint'] = checkpoint.child(stage, {'values': fresh, **{key: value for key, value in kwargs.items() if key != 'show_progress'}})
+            rows = calibrate_kappa_grid(kappa_values=fresh, **options)
             for row in rows:
                 cache[round(row.kappa, 12)] = row
                 records.append({**asdict(row), 'stage': stage})
@@ -59,6 +62,8 @@ def calibrate_kappa_adaptive(*, target, coarse_values, refinement_steps,
     # Choose from the final aligned grid, rather than an off-grid coarse point.
     best = best_kappa_for_target([cache[x] for x in values], target)
     validation_args = {**kwargs, 'seed': validation_seed, 'num_samples': validation_samples}
+    if checkpoint:
+        validation_args['checkpoint'] = checkpoint.child('validation', {'kappa': best.kappa, 'seed': validation_seed, 'samples': validation_samples})
     validation = calibrate_kappa_grid(kappa_values=[best.kappa], **validation_args)[0]
     validation_info = {
         **asdict(validation), 'seed': validation_seed, 'samples': validation_samples,

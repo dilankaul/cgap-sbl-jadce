@@ -1,516 +1,264 @@
-# CGAP-SBL for JADCE in MTC — Reproducible Implementation
+# CGAP-SBL JADCE experiments
 
-Codespaces-ready implementation for the paper **Correlation-Guided Adaptive Penalized SBL for Joint Activity Detection and Channel Estimation in MTC**.
+Reproducible event-driven joint activity detection and channel estimation with
+MMV-OMP, MMV-CoSaMP, SBL, and CGAP-SBL-ANC. This branch evaluates one event-driven
+activity dataset. A future GL variant can reuse the independent estimator workflow.
 
-The scientific workflow contains **seven tasks (01–07)**. Standard figures are saved automatically by the numbered task that produces the corresponding data. Numbered tasks save PNG previews for the repository; the paper activity script saves vector PDF.
+## Installation
 
-`AGENTS.md` contains persistent instructions for Codex, while `DECISIONS.md` records locked scientific and implementation decisions.
+```bash
+python -m pip install -e '.[dev]'
+```
 
-## Implemented CGAP-SBL theory
+## Experiment dashboard
 
-The lagged nonnegative penalty is `lambda = positive_part(Omega @ gamma)`.
-The complex-MMV second moment is `eta_i = Sigma_ii + ||mu_i||²/M`, and the update is
-`gamma_i = 2*eta_i / (1 + sqrt(1 + 4*lambda_i*eta_i/M))`.
-Zero penalty recovers conventional SBL exactly. Both methods use relative gamma
-change below `delta=1e-4` or at most `K=500` iterations.
+Launch from the repository root:
 
-The ANC version uses `Omega_ANC = alpha*(beta*1-C)` and computes penalties
-without constructing dense Omega. Its spatial parameters match the saved
-activity model: `rho=kappa=3.78`, `U=D=15 m` for the current experiment.
-The interaction is an adaptive penalization design, not a proper Gaussian
-hyperprior or a guarantee of monotonic global-objective improvement.
-See [docs/theory.md](docs/theory.md) for equations and interpretation.
+```bash
+cgap-sbl-gui
+```
 
-## Revised-paper experiment
+Open `http://localhost:8501`; forward port 8501 in VS Code/Codespaces when working
+remotely. `python -m cgap_sbl_jadce` opens the same GUI. The old terminal task
+menu and `cgap-sbl` command have been removed.
 
-Tuning uses 100 independent realizations at `L=25`, SNR 12 dB, with
-`alpha=[2,4,6,8,10,12,14]` and `beta=[0.05,0.10,...,0.35]`.
-Evaluation uses 1,000 realizations: pilot lengths 20–45 in steps of 5 at
-12 dB, and SNR 4–24 dB in steps of 4 at `L=30`. Convergence uses `L=30`, 12 dB.
-Task 05 saves both F1 and NMSE contours.
+The overview shows three preparation boxes, four algorithm boxes, and Compare
+and Convergence boxes. Click a box to open its task page, with a completion
+indicator and current progress on the overview. Activity opens Calibrate κ and
+Generate activity; SBL and ANC open Tune and Run. Run requires compatible saved
+tuning selections. Requirements follow data dependencies: OMP, CoSaMP, SBL and
+ANC can run in any order once their inputs are ready. Spatial dependence can be
+built before communication; SBL needs no spatial matrices.
 
-Task 02 saves paired spatially randomized evaluation activity; Task 06 loads
-these supports for CGAP-SBL-ANC and SBL,
-retaining each realization's active count, geometry, channels, and pilots.
-Parameters tuned on correlated activity remain fixed. Task 06 saves four-curve
-spatial comparisons and `spatial_randomization_advantages.csv`, reporting the
-within-scenario F1 gain and NMSE reduction relative to SBL.
+Compare has a selector for algorithms completed at the requested conditions,
+and can use even one algorithm. Convergence offers only completed SBL and ANC
+runs, with a selected evaluation realization and L/SNR condition. OMP and CoSaMP
+are excluded from convergence analysis.
 
-Existing event-driven Task-01/02 data remain compatible. Rerun Task 02 once
-to create its new paired randomized evaluation dataset and figures. Rerun Tasks 03–09 for the revised
-schema and method; old tuning is explicitly rejected. Historical saved outputs
-are preserved and are not evidence of CGAP-SBL performance. Provisional numerical
-claims in the manuscript are not treated as generated experiment results.
-The Python import namespace is `cgap_sbl_jadce`; the implemented methods
-are `cgap_sbl` and `cgap_sbl_anc`, and the distribution is `cgap-sbl-jadce`.
+Choose **All conditions** or **Selected conditions** to run an algorithm or compare
+specific L/SNR pairs. Completed scores and measured runtimes accumulate without
+duplication. The reference pair shared by two sweep plots is solved once and
+uses the same recorded runtime in both views. Later runs reuse compatible completed units; partial evaluation does
+not require finishing unrelated conditions. A setup can use the default fixed-value
+SNR/pilot sweeps, or a full pilot-length × SNR grid.
 
-## Setup
+### Experiment setups
 
-Verify the environment with:
+In **Experiment setups**, choose **Default settings** (or copy the current setup),
+edit the environment, sample counts, sweep ranges, solver settings, seeds and
+figure selections, and create a named setup. New setups have isolated folders at
+`results/<setup-name>/`, with one stable `config.yaml`. Task manifests record
+effective parameters separately. The default settings and existing results stay
+available through the sidebar setup selector. Changing an existing experiment is
+handled by creating a new setup from it, which preserves earlier datasets/results.
+There is no need to edit YAML or enter file paths in the GUI.
+
+Choose either SBL/ANC tuning policy when creating a setup:
+
+- **One reference selection:** tune at the reference L/SNR and reuse its selection
+  across all selected evaluation conditions (the default).
+- **Separate selections:** save tuning communication at each condition, select
+  which conditions to tune, and evaluate with each condition's own saved selection.
+  Selections and tuning tables are saved under `tuning/Lxxxx_snrXdB/`.
+
+All tuning uses the independent tuning realizations. Evaluation never tunes on
+held-out data. For separately tuned setups, only the requested conditions need
+compatible selections before an evaluation run.
+
+### Controls and figures
+
+A detached worker shows progress, live logs and recent jobs. Pause waits for the
+current completed calculation/checkpoint, keeping pause time out of solver
+runtimes. Once paused, another task can run. Return to the original task to Continue; Stop interrupts the unfinished unit.
+**Restart from checkpoints** reuses compatible work after failure. Browser/server
+restarts reconnect to a live worker; after machine restart, recovery is manual.
+Private worker records, logs and export files live in ignored `.gui/`.
+
+The **Graph generator** inside each task page builds interactive Plotly charts from numerical arrays
+and tables. It never displays saved PNG/PDF figures. Drag to pan, scroll to zoom,
+hover for values and click legends to toggle traces. Activity/spatial views select
+a split and realization; communication also selects an available L/SNR condition.
+HSV matrices expose the actual magnitude, phase, real and imaginary values on
+hover. NMSE uses logarithmic axes/colors; recorded historical scope is identified.
+
+**Regenerate publication exports** renders fresh PNG/PDFs from the same data using
+the existing code-defined Matplotlib typography. Paper activity exports omit the
+title. Standard task PNG outputs remain available as reproducible artifacts;
+the GUI visualizations use their underlying data directly.
+
+### Task responsibilities
+
+| Task | Responsibility |
+|---|---|
+| Kappa calibration | Calibrate kappa to the target mean active count |
+| Activity | Save tuning/evaluation activity and selected figures |
+| Communication | Save all communication inputs |
+| Spatial dependence | Save each spatial dependence matrix C |
+| OMP / CoSaMP | Evaluate independently |
+| SBL | Tune tau, then Run evaluation |
+| CGAP-SBL-ANC | Tune alpha/beta/tau, then Run evaluation |
+| Compare | Summarize selected completed algorithms |
+| Convergence | Record selected completed SBL/ANC iteration histories |
+
+
+## Configuration and reproducibility
+
+`configs/experiment.yaml` defines dimensions, activity, sweeps and tuning grids.
+Kappa calibration scans ascending kappa values, brackets the target expected count, then
+refines the bracket on the configured steps. Every candidate uses identical
+geometries and Bernoulli uniforms. Independent validation reports uncertainty
+and tolerance. Activity generation automatically reads the compatible saved calibration;
+the source YAML is never rewritten.
+
+The six distinct seeds separate kappa calibration, kappa validation, tuning
+activity, evaluation activity, tuning communication and evaluation communication.
+All estimators load identical a, H, Z, Theta, W and Y for a realization and condition.
+H stays fixed across conditions; Theta stays fixed across SNRs at each pilot length.
+Tuning and evaluation use separate data. Missing or incompatible input archives
+stop a task with instructions to regenerate the producing stage.
+
+The legacy default experiment retains its root `results/experiment/config.yaml`
+snapshot. Named GUI setups use that file as their stable input definition; tasks
+never overwrite it. Each task has a
+JSON manifest with its effective configuration and runtime metadata. Font sizes
+and figure dimensions are defined locally in plotting functions, not YAML.
+
+## Algorithm tuning and metrics
+
+SBL > Tune runs SBL on tuning realizations and selects its own tau. ANC > Tune runs
+the configured alpha/beta grid, selects tau separately for each pair, then ranks
+pairs by mean F1, lower NMSE and higher recall. Both use tau=0 through 0.2 inclusive
+in steps of 0.001 (201 candidates). ANC alpha=0 recovers conventional SBL; SBL's
+selection remains independent of the ANC grid. Each Tune action saves its selection under
+its own `tuning/selected.json`. Run reads and validates that selection before
+evaluating held-out realizations; missing or incompatible selections require Tune.
+Tuning and evaluation figures are generated by their respective actions.
+
+OMP and CoSaMP use the feasible oracle sparsity budget B_q=min(S_q,L,N).
+Their raw rows record S_q, B_q and whether capping occurs. SBL and ANC receive
+neither the true support nor the oracle sparsity budget.
+
+NMSE uses the true active rows in both numerator and reference-energy denominator:
+
+`NMSE_q = sum_{i:a_i=1} ||z_i-z_hat_i||_2^2 / sum_{i:a_i=1} ||z_i||_2^2`.
+
+Missed active devices contribute error; estimates on inactive rows are excluded.
+The full posterior estimate is retained for SBL methods. Zero-reference-energy
+NMSE is undefined and excluded from its average; detection scores still include
+those realizations. The true activity mask is used only for scoring.
+
+Each algorithm task records solver-call wall time with `time.perf_counter`,
+excluding tuning, loading, metrics, plots and saving. Raw scores, aggregate scores,
+and runtime statistics belong to that algorithm's folder. Algorithm comparison checks source
+identity, setup, selected parameters, completeness and metric scope before comparison.
+NMSE line plots and convergence use logarithmic y-axes; the ANC NMSE heatmap uses
+logarithmic color scaling. See `docs/computational_complexity.md` for the complexity audit.
+
+## Saved outputs
+
+```text
+results/experiment/
+  config.yaml
+  kappa_calibration/
+  activity/
+    tuning/tuning_activity.npz
+    evaluation/evaluation_activity.npz
+    figures/tuning_0051/
+    figures/evaluation_0855/
+  communication/
+    tuning/0000/             # channels.npz, pilots.npz, observations.npz
+    evaluation/0000/         # same layout, all evaluation conditions
+  spatial_dependence/
+    tuning/0000.npz          # compressed sparse CSR C
+    evaluation/0000.npz
+  omp/
+  cosamp/
+  sbl/
+    tuning/                 # threshold curve and selection
+  cgap_sbl_anc/
+    tuning/                 # alpha/beta/tau grid, threshold curve and selection
+  comparison/
+  convergence/
+```
+
+Each algorithm folder contains `per_sample.csv`, `aggregate.csv`,
+`runtime_summary.csv`, `run_summary.json`, and its own figures. SBL and ANC also
+save gamma-distribution data. Saved numerical outputs and figures are versioned.
+Migrated older scores are explicitly marked historical and must be rerun before
+comparison; their NMSE values are not converted or relabeled.
+
+Communication generation stores H, a and Z once, Theta once per L, and Y, W and sigma2 per unique
+condition. Overlapping sweep conditions share inputs. Spatial dependence generation saves every C;
+ANC loads those matrices and never constructs them during evaluation.
+
+## Restart after interruption
+
+Restart the same GUI action with the same setup and condition selection. New
+runs automatically save private checkpoints under the producing task's
+`.checkpoints/` directories. Finished work is reused after a crash or process
+restart; the unfinished calculation unit is repeated.
+
+Recovery boundaries are calibration batches, activity/communication/spatial
+realizations, individual tuning solves, individual evaluation conditions, and
+complete convergence traces. Calibration restores its RNG state and running
+sums; activity generation preserves each realization's original seed sequence.
+Tuning saves gamma outputs before moving on, and evaluation saves each score
+and measured solver runtime before starting the next condition. Resume does
+not duplicate rows or rerun completed solvers. Aggregate outputs and figures
+can be rebuilt from that committed numerical work.
+
+Checkpoints are isolated by settings, input data identities, scientific code,
+numerical library versions and thread settings. Changed settings use a different
+checkpoint set. Generated communication and spatial files are checked against
+saved hashes before reuse; missing or changed files are rebuilt. Unreadable
+checkpoint units are recomputed. Old results produced before this feature are
+not retroactively checkpointed.
+
+JSON, YAML, CSV, NPZ, sparse matrices and figures are written through temporary
+files, flushed, and atomically replaced. A failure before replacement leaves
+the previous complete file intact. Checkpoints and unfinished temporary files
+are excluded from Git; final experiment outputs remain versioned. Keep the
+results directory to retain restart progress.
+
+## Figures and publication PDFs
+
+Configure zero-based `figures.tuning_indices` and `figures.evaluation_indices`.
+A list selects realizations, `all` selects every realization, and `[]` skips that
+split's maps. Activity generation still saves the full datasets and active-count histogram.
+Activity, communication and spatial dependence tasks save selected figures in padded folders such as `evaluation_0855`.
+Communication generation exports HSV H, Theta, standardized W/sigma, Z and Y, effective-channel
+row energy and pilot cross-correlation: seven figures per selected realization.
+Worker reports show the figure folder and compact counts.
+
+The plotted activation field is the actual model probability
+`P(x)=1-product_v(1-P_v(x))`. Values are never thresholded, shifted or changed for
+appearance. Only the region outside the physical cell is masked. The colormap
+maps zero to white and increasing probability to red.
+
+Normal tasks save PNG. Export one title-free publication PDF from saved Activity generation data:
+
+```bash
+python scripts/paper_figures/activity_realization.py --split evaluation --index 855
+```
+
+The filename is `event_driven_activation_model_evaluation_0855.pdf` under
+`results/experiment/paper_figures/activity/evaluation/`. No separate paper YAML
+or LaTeX installation is required. Edit `figure_style` and `figsize` inside
+`figures/paper_activity_realizations.py` for publication-specific typography.
+Native serif and Computer Modern math fonts are used with embedded TrueType PDF
+fonts; bold Greek labels use local STIX math rendering.
+
+## Code structure and validation
+
+The GUI selects independent actions from the shared `tasks.py` registry. Data preparation lives in
+`experiments/pipeline.py`; the estimator registry and shared tuning, scoring,
+comparison and convergence workflow live in `experiments/estimators.py`.
+Algorithm mathematics remains in `algorithms/`, data models in `models/`, and
+plotting in `figures/`. A later GL method can supply its solver and tuning grid
+through the same estimator interface, with a dedicated task and result folder.
 
 ```bash
 PYTHONPATH=src pytest -q
 ```
 
-Use `configs/experiment.yaml` for the experiment workflow. The activity model uses `D=15 m`; Task 01 automatically selects kappa before Task 02. `system.S` is the **target mean activity level**, not a hard per-realization sparsity constraint.
-
-## Numbered scientific workflow
-
-Each numbered task automatically saves its standard figures as PNG. Paper activity figures are exported separately as vector PDF.
-
-### Task 01 — Calibrate kappa
-
-```bash
-python scripts/01_calibrate_kappa.py
-```
-
-This saves the calibration CSV/JSON and the \(\kappa\)-calibration figure. It does not overwrite Task-02 activity datasets.
-
-### Task 02 — Generate activity realizations
-
-```bash
-python scripts/02_generate_activity.py \
-  --config configs/experiment.yaml
-```
-
-The event process is unconditioned, so the realized activity count \(S_q\) varies. This task saves tuning/evaluation activity datasets, `realized_s.csv`, summary statistics, every event-driven tuning/evaluation activity realization with the activation-probability field, randomized evaluation maps without event overlays, and the realized-\(S\) distribution.
-
-### Task 03 — Generate the full communication dataset
-
-```bash
-python scripts/03_generate_communication.py --config configs/experiment.yaml
-```
-
-The model uses
-
-\[
-\mathbf Z=\operatorname{diag}(\mathbf a)\mathbf H^T,
-\qquad
-\mathbf Y=\mathbf\Theta\mathbf Z+\mathbf W,
-\]
-
-with unit-norm QPSK pilots and deterministic condition-specific random streams. Task 03 saves all tuning observations at the tuning condition and both evaluation
-scenarios across the pilot/SNR sweeps. Shared channels and pilots are stored once
-per realization; each scenario archive contains its condition-specific Y, W,
-and sigma2. Tasks 05–08 load these exact inputs rather than regenerate them.
-
-For the selected realization, Task 03 automatically saves pilot cross-correlation,
-effective-channel row energy, and received-signal magnitude figures for tuning
-and evaluation. Evaluation channel/signal figures compare the paired scenarios
-side by side. Titles include realization index, active count, L, and SNR.
-
-### Task 04 — Build the spatial dependence matrix
-
-```bash
-python scripts/04_build_spatial_dependence.py --config configs/experiment.yaml
-```
-
-The spatial dependence summary and \(\mathbf C\) visualization are saved automatically.
-
-### Task 05 — Tune \(\alpha,\beta,\tau\)
-
-```bash
-python scripts/05_tune_alpha_beta_tau.py
-```
-
-Task 05 tests every alpha/beta pair using the same fixed threshold grid: tau=0 through 0.2 inclusive in steps of 0.001 (201 candidates). Each pair runs the estimator once per tuning realization; its gamma values are reused for every threshold. The best mean F1 selects tau for each pair. Pairs are ranked by mean F1, then lower NMSE, then higher recall. NMSE measures channel error only on the true active support, using that same support for reference energy; missed active MTDs still contribute error. Tuning, evaluation and convergence use this definition. Saved full-matrix NMSE results require rerunning Tasks 05–07; Tasks 01–04 remain reusable. Alpha=0, beta=0 supplies the conventional SBL baseline and its final threshold.
-
-The task saves all threshold scores, the per-pair selection grid, and `selected.json` containing final CGAP-SBL-ANC and SBL parameters. It generates F1, NMSE and selected-tau heatmaps plus separate threshold-score graphs for both algorithms. Task 06 has been absorbed into Task 05; Task 06 reads this combined selection and also aggregates results and generates comparison figures; Task 07 analyzes convergence. Existing results in the former Task 05/06 folders are historical and must be regenerated with the new task before evaluation.
-
-### Task 06 — Run all estimators
-
-```bash
-python scripts/06_run_estimators.py
-```
-
-This runs CGAP-SBL-ANC, conventional SBL, MMV-OMP/SOMP, and MMV-CoSaMP on identical communication realizations and automatically saves gamma-distribution diagnostics, aggregates scores and runtimes, and generates F1, NMSE, runtime, and spatial comparison figures.
-
-For each realization, the greedy baselines use
-
-\[
-B_q=\min(S_q,L,N),
-\]
-
-where \(S_q=\sum_i a_i\). Thus `B_q == S_q` whenever feasible. If `S_q > L`, the greedy support budget is capped at `L`. Raw baseline rows record `S_q`, `B_q`, and `oracle_capped`; `run_summary.json` reports how often capping occurs. CGAP-SBL and SBL are **not** given \(S_q\) or \(B_q\).
-
-### Task 07 — Run convergence analysis
-
-```bash
-python scripts/07_run_convergence.py --config configs/experiment.yaml
-```
-
-The convergence data and convergence figure are saved automatically.
-
-## Automatic task figures
-
-Run the numbered tasks normally; each saves its PNG figures automatically.
-All task scripts default to `configs/experiment.yaml`. The only CLI options
-are `--config` and `--no-progress` (plus standard `--help`); the paper export
-additionally requires `--split` and `--index`. All scientific
-settings come from the experiment YAML. Run tasks in order for a
-new experiment; Task 02 reads Task 01's calibrated kappa. For title-free paper
-activity PDFs, use `scripts/paper_figures/activity_realization.py` after Task 02.
-
-## Activity-probability figure
-
-The displayed field is the actual event-model probability
-
-\[
-P(\mathbf x)=1-\prod_v\left[1-P_v(\mathbf x)\right].
-\]
-
-The probability data are never thresholded, epsilon-shifted, or modified to make the figure white. The only mask is outside the physical circular BS cell. A custom colormap maps `P=0` to pure white and increasing probability toward dark red. Publication PDFs use vector `contourf` with levels spanning exactly `[0,1]`.
-
-## Baselines
-
-- **SBL:** proper complex-MMV SBL using the optimized posterior engine.
-- **MMV-OMP / SOMP:** joint row-support greedy baseline using oracle budget \(B_q\).
-- **MMV-CoSaMP:** joint row-support CoSaMP using unregularized SVD least squares and the same oracle budget \(B_q\).
-
-The greedy methods should be described in the paper as **oracle sparsity-budget baselines**, not as methods always receiving the uncapped realized sparsity.
-
-## Reproducibility
-
-- Tuning and evaluation activity streams are deterministic and separate.
-- Activity and communication random streams are separate.
-- All algorithms receive identical \(\mathbf a,\mathbf H,\mathbf Z,\mathbf\Theta,\mathbf W,\mathbf Y\) for a given condition.
-- \(\mathbf H\) is fixed across pilot lengths and SNRs for a realization.
-- \(\mathbf\Theta\) is fixed across SNR values for a given realization and pilot length.
-- Thresholds are selected only from tuning data.
-- CGAP-SBL \(\alpha,\beta\) and both thresholds must be retuned for the revised setup.
-- Task 03 saves communication inputs in compressed per-realization archives; later tasks load them.
-
-## Validation
-
-Run:
-
-```bash
-PYTHONPATH=src pytest -q
-```
-
-See `VALIDATION.md` for the validation scope.
-
-### Native PDF fonts
-
-Paper figures use PDF with Matplotlib's native renderer; no LaTeX
-installation is required. Serif fonts are selected in order: Computer Modern
-Roman, CMU Serif, STIXGeneral, DejaVu Serif. Math uses Computer Modern.
-PDF output embeds TrueType fonts.
-
-```bash
-python scripts/paper_figures/activity_realization.py --split tuning --index 0
-```
-
-### Figure measurements
-
-Each plotting function in `src/cgap_sbl_jadce/figures/` defines its own `figsize`
-and `figure_style` dictionary. Edit those values to change title, axis, tick,
-legend, or colorbar font sizes for that figure. Activity realization labels remain
-15 pt and ticks/legends 13 pt. Experiment YAML does not contain font overrides.
-
-### Experiment outputs and all activity realizations
-
-`configs/experiment.yaml` is the full experiment configuration and writes to
-`results/experiment/`. Saved numerical results, summaries, and PNG/PDF figures
-are eligible for version control. Previously saved config/manifest files retain
-their original paths as historical run provenance.
-
-Task 02 exports selected tuning and evaluation activity realizations
-in PNG, with the split, zero-based realization number, and realized active
-MTD count in its title. The numerical datasets still contain 100 tuning and 1,000 paired evaluation
-realizations; figure counts depend on tuning_indices and evaluation_indices. Batch export shows progress.
-
-```bash
-PYTHONPATH=src python scripts/02_generate_activity.py --config configs/experiment.yaml
-```
-
-`plot_activity_sample()` controls dimensions and font sizes for all spatial realizations.
-Figures are saved as part of the normal task run.
-
-### Task output folders
-
-Each task owns its data and figures under `results/experiment/`:
-
-```text
-01_kappa_calibration/       # calibration CSV and summary; figures/
-02_activity_realizations/      # summary and realized_s.csv
-  tuning/                     # tuning_activity.npz
-  evaluation/                 # evaluation_activity.npz
-  randomized_evaluation/      # randomized_evaluation_activity.npz
-  figures/
-    tuning/                   # one PNG per tuning realization
-    evaluation/               # one PNG per event-driven evaluation realization
-    randomized_evaluation/    # one PNG per randomized evaluation realization
-                              # distribution PNG is directly in figures/
-03_communication_data/         # complete communication data and summary; figures/
-  tuning/0000/                # channels.npz, pilots.npz, correlated.npz
-  evaluation/0000/            # channels.npz, pilots.npz, correlated.npz, randomized.npz
-04_spatial_dependence/        # spatial dependence data and summary; figures/
-05_alpha_beta_tau_tuning/      # joint grid, thresholds and selection; figures/tuning/
-06_estimators/                 # raw results, summaries and comparison figures/evaluation/
-07_convergence/                # traces and summary; figures/evaluation/
-```
-
-Run-level `config.yaml` remains at the results root. Each task stores its own
-`manifest.json`. Existing saved outputs have been
-moved without changing their numerical data or historical run metadata.
-
-### Automatic calibrated kappa
-
-The experiment configuration sets `activity.kappa_source: calibration`. Run Task 01,
-then Task 02; Task 02 reads `closest_grid_kappa` from `01_kappa_calibration/summary.json`.
-No manual YAML update is needed. Missing calibration or mismatched N, R, V, D,
-target activity, or calibration seed stops generation and asks you to rerun Task 01.
-Task 02 prints its selected kappa and records its source in the activity summary;
-the saved run config contains the effective value. Input YAML is unchanged.
-The experiment config uses automatic calibration and omits a fixed `activity.kappa`.
-Run Task 01 before Task 02. Explicit manual mode remains available
-by setting `kappa_source: configured` and adding `activity.kappa`.
-
-### Coarse-to-fine kappa calibration
-
-Task 01 scans ascending `activity.kappa_scan` values, finds a bracket around the
-requested mean activity, then refines using `kappa_refinement_steps` (defaults:
-0.1, 0.02, 0.005). The selected value comes from the final aligned grid. Every
-stage replays the same seed, sample count, and batch size to compare identical
-geometries and Bernoulli uniforms. Set the coarse candidates in the experiment YAML.
-
-`kappa_sweep.csv` records all unique candidates, their first evaluation stage,
-and expected/realized activity statistics. The summary records brackets,
-selection, final spacing, and validation on an independent deterministic seed
-(`seeds.kappa_validation`).
-Validation reports expected-mean standard error, an approximate 95% interval,
-and whether the mean is within `calibration_tolerance` (default 0.1 device).
-Validation does not retune the selected value. A tolerance miss is reported;
-it does not silently redefine the target. Calibration and validation remain
-separate from Task 02 datasets. A missing bracket saves a failed summary and
-stops; Task 02 rejects that summary instead of consuming an old selection.
-
-The experiment requires its own Task-01 results. Paper exports use the saved Task-02 model parameters.
-
-### Configuration provenance
-
-`configs/experiment.yaml` is the input. Results contain only one run-level
-`config.yaml`: Task 01 creates it when absent, and Task 02 updates it with the
-activity-generation configuration. Later tasks leave this root snapshot unchanged.
-Each task's `manifest.json` stores its exact effective configuration under
-`configuration`, alongside runtime options and environment versions. This preserves
-calibration overrides, selected kappa, thresholds, and seeds without extra YAML
-files. Existing task YAML snapshots were migrated into JSON manifests before removal.
-Source configuration is never rewritten.
-
-### Code organization
-
-The numbered scripts are thin, import-safe wrappers around
-`task_cli.run_task(task_number)`. Shared CLI handling loads the experiment
-configuration, executes one stage, and saves PNG figures. The paper activity
-script reads saved Task 02 data and exports separate PDFs.
-
-```text
-src/cgap_sbl_jadce/
-├── models/          # Activity, communication, realizations, spatial dependence
-├── algorithms/      # SBL, CGAP-SBL, OMP, CoSaMP, posterior engine
-├── experiments/     # Calibration, threshold tuning, scientific pipeline
-├── figures/         # Descriptive task-numbered plots and shared rendering
-├── task_cli.py      # Registry and common --config / --no-progress arguments
-├── config.py
-├── dataset.py
-├── io.py
-├── metrics.py
-├── paths.py
-├── provenance.py
-└── reporting.py
-```
-
-Figure filenames identify the producing task and the plotted quantity:
-
-```text
-figures/
-├── common.py
-├── task01_kappa_calibration.py
-├── task02_activity_realizations.py
-├── task02_active_mtd_count_distribution.py
-├── task03_communication_preview.py
-├── task04_spatial_dependence.py
-├── task05_alpha_beta_tau_tuning.py
-├── task05_threshold_scores.py
-├── task06_gamma_distribution.py
-├── task07_convergence.py
-├── task06_performance.py
-└── paper_activity_realizations.py
-```
-
-Shared typography and saving live in `figures/common.py`. Figure dimensions and
-font sizes stay local to their plotting functions. Paper styling lives in
-`paper_activity_realizations.py` and reuses Task 02's drawing function.
-`experiments/pipeline.py` coordinates the scientific stages.
-
-### Activity figure splits
-
-Task 02 generates both activity datasets and exports both sets of PNG figures by
-default. No separate figure selection switches are required.
-Known fontTools timestamp messages are filtered during figure saving; other
-warnings remain visible.
-
-### Explicit random seeds
-
-The `seeds` section names seven independent streams: `kappa_calibration` selects
-the decay parameter that gives the target mean active MTD count;
-`kappa_validation` checks that selection on independent samples.
-`activity_tuning` and `activity_evaluation` generate the two activity datasets.
-`communication_tuning` and `communication_evaluation` generate their channels,
-pilots, and noise. All seven seeds are explicit and distinct; no seed offsets
-are applied between these streams. `spatial_randomization=9097` generates paired
-randomized supports independently of the six retained streams. Algorithms still share realizations within
-each condition.
-
-The streams use distinct four-digit seeds listed in `configs/experiment.yaml`.
-The six existing activity and communication streams are preserved; only the
-spatial-randomization stream is new. Existing saved activity remains compatible.
-
-### Paper activity figures
-
-Task 02 continues saving all standard figures with titles and its default sizes.
-Export selected saved realizations as separate, title-free publication PDFs:
-
-```bash
-python scripts/paper_figures/activity_realization.py --split tuning --index 0
-```
-
-This uses the existing experiment configuration and saved Task 02 data. No
-separate paper YAML is needed. Edit `figure_style` and `figsize` inside
-`plot_paper_activity_figure` in
-`src/cgap_sbl_jadce/figures/paper_activity_realizations.py` to adjust font
-sizes in points and dimensions in inches, just like the task plotting functions.
-Each run exports exactly one saved realization. Choose `--split tuning` or
-`--split evaluation` and a zero-based `--index`. PDFs are written to
-`results/experiment/paper_figures/activity/`, with tuning/evaluation subfolders.
-The script does not run scientific tasks or write configuration snapshots.
-Both export paths reuse the same saved-model and probability-field settings.
-Their font sizes remain separate local definitions. The experiment config omits
-`max_attempts` because variable-activity sampling does not use rejection retries;
-exact-sparsity experiments can still set it explicitly.
-
-
-Paper activity PDFs use `event_driven_activation_model_[split]_[index].pdf` with four-digit index padding,
-for example `event_driven_activation_model_evaluation_0005.pdf`.
-
-
-### Saved randomized evaluation activity
-
-Task 02 saves `02_activity_realizations/randomized_evaluation/randomized_evaluation_activity.npz`
-and automatically draws every map under `02_activity_realizations/figures/randomized_evaluation/`.
-Each saved sample retains its paired device/event geometry and active count.
-Randomized support uses the same seed/index sequence as the former Task-07 generator.
-Its stored marginal activation probabilities are S_q/N conditional on count;
-selection is without replacement, not independent Bernoulli activation.
-Randomized maps omit events, event boundaries, and the event probability field.
-Task 06 requires these saved pairs and never generates new activity supports.
-Task 03 generates and saves communication observations for each condition;
-Tasks 05–08 load them.
-
-
-Task-03 archives preserve the original deterministic generation exactly. H and
-scenario-specific a/Z are stored in channels.npz; pilots.npz contains one Theta
-per L; correlated.npz and randomized.npz contain Y, W, and sigma2 per unique
-condition. Overlapping sweep conditions share saved inputs. Evaluation loads one
-realization at a time; tuning loads its much smaller reference-condition dataset.
-The summary records source activity SHA-256 hashes, communication seeds,
-dimensions and conditions. Missing or incompatible data require rerunning Task 03.
-Old 03_communication_preview outputs remain historical and cannot satisfy this
-new dataset requirement. Standard CLI options and experiment settings are unchanged.
-
-
-### Selecting task figures
-
-Configure independent zero-based index lists, or `all`, in configs/experiment.yaml:
-
-```yaml
-figures:
-  tuning_indices: [0, 5]
-  evaluation_indices: [0, 714]
-```
-
-Tasks 02–04 save figures for these selected realizations. Set `evaluation_indices: all`
-to include every saved evaluation realization; this also includes randomized
-activity/communication figures in Tasks 02 and 03. The same option works for tuning. Each evaluation
-index includes its correlated/randomized pair. Use [] to skip a split's realization
-figures. All numerical datasets and the full-sample active-count histogram remain
-complete. Selections can be changed before calling the plotting functions on saved
-data; no communication regeneration is needed. Existing saved images are retained.
-This replaces the old selected_sample setting and default all-realization spatial exports.
-
-
-### Figure folders and CLI summaries
-
-Tasks 02 and 03 group selected realization figures under their own figures/
-folder, using tuning_0077/ and evaluation_0714/ names (four-digit indices).
-Task-02 correlated and randomized maps for one evaluation index share its
-folder, with distinct filenames; Task-03 paired diagnostic panels use that same
-per-task grouping. The full-sample histogram stays directly in Task-02 figures/.
-Numerical dataset paths do not change. Previously saved figure files are retained.
-
-The CLI prints one task figure-folder path and a compact count summary, for example:
-
-```text
-Task 03 figures: 60 files (3 tuning realizations, 7 evaluation realizations)
-  - results/experiment/03_communication_data/figures
-```
-
-All numbered tasks use this concise report rather than listing every image.
-
-
-Task 03 exports separate evaluation and randomized_evaluation figures for every
-selected evaluation index, with six diagnostics per scenario. Filenames identify
-the scenario; both sets are grouped in the evaluation_{index:04d}/ folder.
-Z magnitude, row-energy axes and received-magnitude scales are shared across
-each pair for comparison. Figure saving displays progress and respects --no-progress.
-
-
-Within each selected evaluation pair, Task 03 saves shared H, Theta and pilot
-cross-correlation figures once. Z, channel row energy and received magnitude
-remain separate for the two scenarios. Each tuning index produces six figures,
-and each evaluation index produces nine (81 for the current selections).
-
-
-Task 03 includes a noise-magnitude figure per scenario, with shared paired color
-limits and sigma2/SNR in its title. The standardized-noise magnitude W/sqrt(sigma2)
-is shown once per evaluation pair (and once per tuning realization). This yields
-eight figures per tuning index and twelve per evaluation pair.
-
-
-The current Task-03 figure set contains HSV H, Theta, standardized W/sqrt(sigma2)
-(shared per pair), scenario-specific HSV Z and Y, row energy, and shared pilot
-cross-correlation. No magnitude-only heatmaps are exported. Theta uses automatic cell sizing.
-Current counts: seven per tuning index and ten per evaluation pair.
-
-
-Activity presentation controls are defined in _activity_plot_options() in
-figures/task02_activity_realizations.py: event circles, probability-field visibility,
-resolution 301, opacity 1.0, and 128 contour levels. Experiment YAML retains only
-tuning_indices and evaluation_indices for figure selection. Paper exports reuse
-these defaults; their typography and dimensions remain local to the paper function.
-
-
-### Saved Task-04 spatial dependence matrices
-
-Task 04 saves every tuning and evaluation matrix as compressed sparse CSR:
-04_spatial_dependence/tuning/0077.npz and evaluation/0714.npz, for example.
-An evaluation matrix is shared by its correlated and randomized supports.
-Tasks 05–08 load these matrices rather than rebuild C. The summary records
-rho=kappa, U=D, dimensions, source activity identity and average density;
-missing or incompatible matrices require rerunning Task 04.
-
-Heatmaps follow figures.tuning_indices and figures.evaluation_indices and use
-figures/tuning_0077/ and figures/evaluation_0714/. Generation and figure saving
-show split progress bars; the CLI retains one compact figures/ folder summary.
-
-
-### Computational cost and execution time
-
-See docs/computational_complexity.md for the audit against paper equations
-(75)–(79). Task 06 records each solver's wall time as runtime_s in per_sample.csv,
-excluding generation, matrix construction, file loading and metrics. Task 06 saves
-runtime_summary.csv with per-condition timing statistics and plots mean runtime
-against SNR and pilot length. Task-06 provenance records timing scope and numerical
-thread settings. These are actual measured times, not provisional manuscript values.
+See `VALIDATION.md` and `docs/theory.md` for validation scope and mathematical details.

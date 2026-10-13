@@ -6,7 +6,6 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
-  spatial_randomization: 6031
 
 run:
   output_dir: results/quick

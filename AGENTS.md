@@ -20,27 +20,38 @@ Read `DECISIONS.md` before making algorithmic or experimental changes.
 7. Prefer numerically stable linear algebra and avoid explicit matrix inverses.
 8. If code behavior and paper equations disagree, identify the discrepancy instead of silently choosing one.
 
-## Numbered task workflow
+## Prerequisite workflow
 
-The scientific workflow has seven tasks (01–07). Utilities are intentionally
-unnumbered because they do not represent extra experimental stages.
+Task identifiers and output folders are descriptive, never numbered.
+The GUI overview contains preparation, algorithm and analysis boxes.
 
-- Task 01: calibrate the activity model
-- Task 02: generate activity realizations
-- Task 03: generate and save full communication datasets
-- Task 04: construct spatial dependence
-- Task 05: tune CGAP-SBL alpha, beta and tau
-- Task 06: run estimators, aggregate results and generate performance figures
-- Task 07: convergence analysis
+- Activity model: calibrate kappa, then generate activity.
+- Communication and spatial dependence each depend on activity and can run independently.
+- OMP/CoSaMP depend on evaluation communication only.
+- SBL has Tune and Run; Run requires its saved tuning selection.
+- ANC has Tune and Run; both also require spatial dependence matrices.
+- Compare allows any selected completed algorithm, including just one.
+- Convergence allows only completed SBL/ANC runs at the selected condition.
 
-Numbered tasks automatically save PNG figures. The paper activity script
-`scripts/paper_figures/activity_realization.py` exports one title-free vector PDF
-from saved data. Numbered CLI options are only --config and --no-progress.
-Plotting functions remain callable on saved data for regeneration.
+Tasks automatically save PNG artifacts; the GUI always constructs interactive
+Plotly figures directly from saved numerical data. Publication exports regenerate
+native-font PDF figures from data. Launch through cgap-sbl-gui (or python -m
+cgap_sbl_jadce); the old curses menu, task_cli module and cgap-sbl command are removed.
+The tasks.py registry owns orchestration. Dependencies determine availability,
+not an ordinal sequence. Algorithm runs support independent L/SNR selections and merge
+completed conditions. SBL/ANC have separate Tune/Run actions and support either
+reference tuning or condition-specific selections, chosen in a setup definition.
+New GUI setups copy default/current settings into isolated results/<name>/config.yaml
+before work starts. That one source config stays stable; effective settings live
+in task manifests. Keep all setup datasets, results and checkpoints separate.
+Detached GUI workers pause between completed units so timing excludes paused time;
+private job records and generated exports live in ignored .gui/.
 
 After each task inspect saved outputs before continuing. Long-running tasks must
 show progress. Figures must remain regenerable from saved data without rerunning
-expensive tasks.
+expensive tasks. New scientific work must checkpoint completed units and use
+atomic output writes. Rerunning the same action resumes compatible checkpoints;
+never reuse work after incompatible settings, inputs or mathematical code changes.
 
 ## Reproducibility
 
@@ -103,26 +114,23 @@ Gaussian-inspired design for iteration-specific penalization, not a proper
 Gaussian hyperprior or a fixed-global MAP/MM convergence guarantee.
 The ANC matrix is `Omega_ANC = alpha*(beta*1-C)` with its diagonal retained;
 `1` means all ones. Compute `lambda = alpha*positive_part(beta*sum(gamma)-C@gamma)`
-without constructing dense Omega. Match `rho=kappa`, `U=D` from saved Task-02 data.
+without constructing dense Omega. Match `rho=kappa`, `U=D` from saved Activity generation data.
 
 Use the relative stopping criterion `norm(gamma_new-gamma)/norm(gamma) < delta`,
 with `K=500`, `delta=1e-4`. Independently retune thresholds and ANC parameters;
 reject old method/setup selections. The final channel estimate is the unmasked
 posterior mean from final gamma.
 
-Tuning: 100 samples at L=25, SNR=12 dB; alpha in 2:2:14, beta in .05:.05:.35.
+Tuning: use the saved tuning dataset and the grids in configs/experiment.yaml.
 Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
-Convergence: L=30, 12 dB. Preserve the six existing seeds and use the seventh
-explicit spatial_randomization seed for uniformly randomized paired supports.
-Task 02 generates and saves paired randomized evaluation supports and spatial maps.
-Task 03 saves full communication inputs with shared channels/pilots and
-scenario-specific observations. Tasks 05–08 load these inputs and never regenerate
-communication data. Task 06 loads saved supports and does not randomize activity. Randomized maps omit
-event markers, cutoff circles, and event probability backgrounds.
-Paired scenarios retain S_q, geometry, H, Theta, and C, with separately scaled
-common standardized noise and fixed correlated-tuning selections. Evaluate only
-CGAP-SBL-ANC and SBL in the randomized scenario. Do not import provisional
-manuscript results as measured data or relabel historical estimator results.
+Convergence: L=30, 12 dB. Use the six explicit independent seeds.
+Activity generation saves event-driven tuning and evaluation supports. Communication generation saves all
+communication inputs; downstream tasks load them and never regenerate data.
+Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need no tuning or C;
+SBL tunes tau independently; ANC tunes its own alpha, beta and tau.
+Record true-active-support NMSE and solver-call runtimes. Algorithm comparison compares only
+compatible completed results. Do not relabel historical scores as current.
+The independent estimator registry should also support a future GL solver.
 
 ## Spatial activity model
 
@@ -136,12 +144,10 @@ For multiple events use
 
 `P_i = 1 - product_v(1 - P_iv)`.
 
-Current intended event influence radius is `D = 15 m`. The main experiment uses
-variable realized activity. Do not force every realization to have exactly
-`S=10`; instead calibrate `kappa` so that `E[S] ~= 10`. The current manuscript
-and saved calibration use `kappa=3.78`.
-
-Task 02 must report realized-S mean, standard deviation, minimum, maximum, and
+Use the experiment dimensions from configs/experiment.yaml. This branch uses
+N=500, target mean S=20, R=50 m and D=20 m. Calibrate kappa automatically rather
+than fixing per-realization activity counts.
+Activity generation must report realized-S mean, standard deviation, minimum, maximum, and
 distribution/histogram.
 
 ## Baselines
@@ -157,7 +163,7 @@ receive `S_q` or `B_q`.
 
 ## Activity figures
 
-Selected-realization figures must be reproducible from saved Task-02 data and
+Selected-realization figures must be reproducible from saved Activity generation data and
 may show the BS, cell boundary, inactive/active MTDs, events, optional cutoff
 circles, activation-probability field, and a colorbar. Save PNG previews and
 vector PDF publication output.

@@ -74,7 +74,7 @@ C_{ij}=\begin{cases}
 \]
 
 Its diagonal remains one. The simulation matches `rho=kappa` and `U=D`, resolved
-from the saved Task-02 activity parameters. This is a spatial dependence model,
+from the saved Activity generation activity parameters. This is a spatial dependence model,
 not an empirical activity covariance.
 
 Equations (65)–(69) specify
@@ -108,25 +108,15 @@ SBL estimators. Convergence traces use the same metric. Zero-energy realizations
 have undefined NMSE and are excluded from that average. Detection
 metrics still include them, with empty-denominator scores set to zero.
 
-The spatial-randomization experiment uniformly samples `S_q` distinct device
-identities independently of geometry, conditional on count. It retains device
-and event positions, `H`, `Theta`, and `C` in each pair. The same standardized
-noise is separately scaled to each scenario's prescribed SNR. Only CGAP-SBL-ANC
-and SBL are compared in the randomized scenario, with parameters and thresholds
-selected from correlated tuning data and held fixed across scenarios. Support
-randomization uses a separate explicit seed and is fixed across pilot/SNR conditions.
-Stored `q` and figure indices are zero-based; the manuscript indexes realizations
+Stored q and figure indices are zero-based; the manuscript indexes realizations
 from one.
 
+Communication generation stores the event-driven communication inputs for all configured
+realizations and conditions. H, a, Z and per-L Theta are saved once per
+realization; Y, W and sigma2 are saved per unique condition. All algorithm tasks
+read those same inputs. The data distribution and communication seeds are unchanged.
 
-Task 03 generates and stores these communication inputs for all configured
-realizations and conditions. Shared H, scenario-specific Z and activity, and
-per-L Theta are saved once per realization. Y, W and sigma2 are saved per scenario
-and unique condition. Tasks 05–08 read the saved archives; this changes data
-ownership and storage, not the distribution, system model, or random streams.
-
-
-Task 04 constructs and saves each realization's C in compressed CSR format.
-The correlated and randomized scenarios share that saved matrix. Tasks 05–08
-load it; moving construction to Task 04 leaves the dependence formula and
-penalty mathematics unchanged.
+Spatial dependence generation constructs and saves each C in compressed CSR format. ANC loads the
+saved matrix. OMP, CoSaMP and SBL do not need a spatial matrix.
+SBL and ANC select their parameters independently on the tuning data before
+held-out evaluation; all methods use the same true-active-support NMSE.

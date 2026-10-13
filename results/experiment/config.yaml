@@ -5,7 +5,6 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
-  spatial_randomization: 9097
 run:
   output_dir: results/experiment
   num_tuning_samples: 100
@@ -113,8 +112,8 @@ figures:
   - 118
   - 355
 task_runtime:
-  input_config: configs/experiment.yaml
-  no_progress: false
-  kappa_source: results/experiment/01_kappa_calibration/summary.json
+  input_config: /workspaces/cgap-sbl-jadce/configs/experiment.yaml
+  action: run
+  kappa_source: results/experiment/kappa_calibration/summary.json
   show_progress: true
   task: 2

@@ -4,4 +4,6 @@ pandas>=2.2
 PyYAML>=6.0
 matplotlib>=3.8
 tqdm>=4.66
+streamlit>=1.58,<2
+plotly>=6,<8
 pytest>=8.0

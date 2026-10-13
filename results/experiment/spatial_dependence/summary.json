@@ -1,0 +1,27 @@
+{
+  "evaluation": {
+    "definition": {
+      "N": 500,
+      "U": 20.0,
+      "activity_sha256": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c",
+      "rho": 7.0,
+      "schema": 1
+    },
+    "mean_density": 0.134625,
+    "mean_nonzeros": 33656.25,
+    "samples": 1000
+  },
+  "status": "complete",
+  "tuning": {
+    "definition": {
+      "N": 500,
+      "U": 20.0,
+      "activity_sha256": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542",
+      "rho": 7.0,
+      "schema": 1
+    },
+    "mean_density": 0.13501792,
+    "mean_nonzeros": 33754.48,
+    "samples": 100
+  }
+}

@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Iterable
 
 import matplotlib.pyplot as plt
 from matplotlib.text import Text
 
-from cgap_sbl_jadce.io import ensure_dir
+from cgap_sbl_jadce.io import ensure_dir, atomic_path
+from cgap_sbl_jadce.execution_control import pause_point
 
 
 # Shared native typography; no external LaTeX renderer is required.
@@ -97,24 +99,41 @@ def _quiet_font_timestamps():
         logger.removeFilter(warning_filter)
 
 
+_destination = ContextVar("figure_destination", default=None)
+
+
+@contextmanager
+def figure_destination(source: Path, destination: Path):
+    """Redirect previews without changing ordinary task or paper output paths."""
+    token = _destination.set((Path(source).resolve(), Path(destination).resolve()))
+    try:
+        yield
+    finally:
+        _destination.reset(token)
+
+
 def _save(fig: plt.Figure, stem: Path, formats: str | Iterable[str] = "pdf") -> list[Path]:
     paths: list[Path] = []
+    destination = _destination.get()
+    if destination:
+        source, folder = destination
+        stem = folder / Path(stem).resolve().relative_to(source)
     ensure_dir(stem.parent)
     for ext in figure_formats(formats):
         path = Path(f"{stem}.{ext}")
         kwargs = {"bbox_inches": "tight"}
         if ext == "png": kwargs["dpi"] = 250
-        with _quiet_font_timestamps():
-            fig.savefig(path, **kwargs)
+        with _quiet_font_timestamps(), atomic_path(path) as temporary:
+            fig.savefig(temporary, **kwargs)
         paths.append(path)
     plt.close(fig)
+    pause_point()
     return paths
 
 
 
 def selected_realizations(cfg: dict, split: str, count: int) -> list[int]:
     """Resolve zero-based figure selections without changing numerical datasets."""
-    split = 'evaluation' if split == 'randomized_evaluation' else split
     indices = cfg.get('figures', {}).get(f'{split}_indices', [0])
     if indices == 'all':
         return list(range(count))

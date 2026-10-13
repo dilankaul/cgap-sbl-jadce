@@ -13,7 +13,6 @@ def load_config(path: str | Path) -> dict[str, Any]:
         names = (
             "kappa_calibration", "kappa_validation", "activity_tuning",
             "activity_evaluation", "communication_tuning", "communication_evaluation",
-            "spatial_randomization",
         )
         seeds = cfg["seeds"]
         if not isinstance(seeds, dict) or set(seeds) != set(names):
@@ -23,11 +22,14 @@ def load_config(path: str | Path) -> dict[str, Any]:
             raise ValueError("Each seed must be a non-negative integer.")
         if len(set(values)) != len(values):
             raise ValueError("Each experimental random stream must have a distinct seed.")
+    if cfg.get('experiment', {}).get('name'):
+        # Named GUI definitions live beside their results and remain portable.
+        cfg['run']['output_dir'] = str(Path(path).resolve().parent)
     return cfg
 
 
 def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
-    """Read a compatible Task-01 selection without rewriting the input config."""
+    """Read a compatible kappa-calibration selection without rewriting the input config."""
     import json
     import math
     from cgap_sbl_jadce.paths import result_path
@@ -38,13 +40,13 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
         kappa = float(activity["kappa"])
         origin = "configured"
     elif source == "calibration":
-        path = result_path(cfg["run"]["output_dir"], "activity_calibration", "summary.json")
+        path = result_path(cfg["run"]["output_dir"], "kappa_calibration", "summary.json")
         if not path.exists():
-            raise FileNotFoundError(f"Run Task 01 (01_calibrate_kappa.py) first: {path}")
+            raise FileNotFoundError(f"Run kappa calibration (calibrate kappa) in the GUI first: {path}")
         with path.open(encoding="utf-8") as f:
             summary = json.load(f)
         if summary.get("status", "success") != "success":
-            raise ValueError("Task 01 calibration failed; rerun 01_calibrate_kappa.py")
+            raise ValueError("kappa calibration calibration failed; rerun kappa calibration in the GUI")
         expected = {
             "N": cfg["system"]["N"], "R": cfg["system"]["R"],
             "V": activity["V"], "D": activity["D"],
@@ -53,7 +55,7 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
         }
         mismatches = [key for key, value in expected.items() if summary.get(key) != value]
         if mismatches:
-            raise ValueError(f"Task 01 calibration differs in {', '.join(mismatches)}; rerun 01_calibrate_kappa.py for this configuration.")
+            raise ValueError(f"kappa calibration calibration differs in {', '.join(mismatches)}; rerun kappa calibration in the GUI for this setup.")
         kappa = float(summary["closest_grid_kappa"])
         origin = str(path)
     else:

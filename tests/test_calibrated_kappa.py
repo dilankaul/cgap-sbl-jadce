@@ -21,13 +21,13 @@ def calibration_config(tmp_path):
         'seed': cfg['seeds']['kappa_calibration'],
         'closest_grid_kappa': 2.75,
     }
-    path = result_path(tmp_path, 'activity_calibration', 'summary.json')
+    path = result_path(tmp_path, 'kappa_calibration', 'summary.json')
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(summary))
     return cfg, path, summary
 
 
-def test_task02_uses_saved_selection_and_preserves_input(tmp_path):
+def test_activity_uses_saved_selection_and_preserves_input(tmp_path):
     cfg, path, _ = calibration_config(tmp_path)
     original = copy.deepcopy(cfg)
     generate_activity_stage(cfg, show_progress=False)
@@ -50,7 +50,7 @@ def test_incompatible_calibration_is_rejected(tmp_path, key):
 def test_missing_calibration_is_not_silently_replaced(tmp_path):
     cfg, path, _ = calibration_config(tmp_path)
     path.unlink()
-    with pytest.raises(FileNotFoundError, match='Task 01'):
+    with pytest.raises(FileNotFoundError, match='kappa calibration'):
         resolve_activity_kappa(cfg)
     cfg['activity']['kappa_source'] = 'configured'
     cfg['activity']['kappa'] = 3.0

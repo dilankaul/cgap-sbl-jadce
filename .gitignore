@@ -16,3 +16,11 @@ figures/*
 !figures/README.md
 data/generated/*
 !data/generated/README.md
+
+# Private restart checkpoints are regenerated locally; final results remain versioned.
+.checkpoints/
+# Uncommitted atomic-write files left by process termination.
+.tmp-*
+
+# Local dashboard jobs and saved-data previews.
+.gui/

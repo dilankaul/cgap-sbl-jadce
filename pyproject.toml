@@ -15,7 +15,12 @@ dependencies = [
   "PyYAML>=6.0",
   "matplotlib>=3.8",
   "tqdm>=4.66",
+  "streamlit>=1.58,<2",
+  "plotly>=6,<8",
 ]
+
+[project.scripts]
+cgap-sbl-gui = "cgap_sbl_jadce.gui.app:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

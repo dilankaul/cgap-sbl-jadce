@@ -1,0 +1,5 @@
+{
+  "status": "historical",
+  "nmse_scope": "full_matrix",
+  "note": "Recorded scores; rerun algorithm tasks and comparison for the current workflow."
+}

@@ -1,0 +1,18 @@
+{
+  "status": "historical",
+  "method": "MMV-CoSaMP",
+  "nmse_scope": "full_matrix",
+  "metric_rows": 12000,
+  "Q": 1000,
+  "timing": {
+    "C_storage": "CSR; constructed during spatial dependence generation",
+    "clock": "time.perf_counter",
+    "excludes": "data/matrix generation, archive loading, support thresholding, metrics, plotting, saving",
+    "includes": "initialization, solver validation, all iterations, final channel estimate",
+    "scope": "one solver call",
+    "unit": "seconds"
+  },
+  "reference_pilot_length": 30,
+  "reference_snr_db": 12,
+  "note": "Recorded before independent estimator tasks; rerun this algorithm task for compatible results."
+}

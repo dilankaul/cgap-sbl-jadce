@@ -1,22 +1,20 @@
-Saved experiment outputs are versioned in Git. `experiment/` contains experiment data, summaries, configuration snapshots, and task figures, generated with `configs/experiment.yaml`.
+Saved experiment outputs are versioned in Git under `experiment/`.
 
+Data preparation own calibration, event-driven activity, full communication data and
+spatial dependence matrices. The algorithms own OMP, CoSaMP, SBL and ANC results;
+Algorithm comparison owns comparison figures and Convergence analysis owns convergence. SBL/ANC selections
+are saved in their respective `tuning/` subfolders.
 
-The source now implements the revised CGAP-SBL manuscript. Existing outputs are
-historical and retain the method/configuration recorded in their manifests;
-they are not relabeled as CGAP-SBL measurements. Task-01/02 activity data remain
-compatible. Regenerate Tasks 03–09 with `configs/experiment.yaml` for the revised
-noise/penalty notation, matched ANC parameters, relative stopping criterion,
-and paired spatial-randomization comparison. Task-local manifests record the
-actual effective configuration; the root YAML remains the activity snapshot.
+Communication generation stores `channels.npz` (H, a, Z), `pilots.npz` (Theta per L), and
+`observations.npz` (Y, W, sigma2 per condition) for each tuning/evaluation
+realization. All algorithms read the same archives. Spatial dependence generation stores C as sparse CSR.
+Activity, communication and spatial dependence tasks plot only configured indices in padded realization folders.
 
+Older event-driven results have been split into the algorithm folders without
+changing measured values. `status: historical` records require rerunning their
+algorithm tasks before Algorithm comparison. Historical full-matrix NMSE is never labeled as
+true-active-support NMSE. The existing event-driven inputs remain reusable.
 
-Task 03 now saves full communication data under 03_communication_data/, with
-per-realization shared channels/pilots and scenario observation archives. The
-older 03_communication_preview/ folder is historical. Tasks 05–08 require the
-full dataset. Task 03 saves six selected-sample diagnostic PNGs, not figures for
-every communication realization.
-
-
-Task 04 stores complete sparse C datasets in 04_spatial_dependence/tuning/ and
-evaluation/, with only selected heatmaps under padded realization figure folders.
-The prior preview_C.npz artifact is historical; consumers require the full dataset.
+A single root config YAML records the activity setup; task-local JSON manifests
+record the effective task configuration and execution environment. New estimator
+results record runtime and `nmse_scope: true_active_support`.
