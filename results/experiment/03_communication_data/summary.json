@@ -2,10 +2,10 @@
   "evaluation": {
     "definition": {
       "M": 4,
-      "N": 400,
+      "N": 500,
       "activity_sha256": {
-        "evaluation": "af6c6189c17229a3f50fb54f0f81b3e5aeb604c6af963f85210572e0e87efd8d",
-        "randomized_evaluation": "cfbef2cf3c289ef7e595c7201463a1dcab2d871c42326825625b15c6ad18859f"
+        "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c",
+        "randomized_evaluation": "38d7a7e1616532786d7c706ff9fabc201afe0c2fbb353bc31c9e49b041ed263d"
       },
       "conditions": [
         [
@@ -70,9 +70,9 @@
   "tuning": {
     "definition": {
       "M": 4,
-      "N": 400,
+      "N": 500,
       "activity_sha256": {
-        "tuning": "9ee02ec25fba0a61735b2317e559476653bb75b47b586e8ac1caf0a8b418186c"
+        "tuning": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542"
       },
       "conditions": [
         [

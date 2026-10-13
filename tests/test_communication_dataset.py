@@ -145,7 +145,7 @@ def test_selected_diagnostics_respect_separate_indices(saved_data):
     assert all('03_tuning_' in path.name and path.stem.endswith('0001') for path in paths)
 
 
-@pytest.mark.parametrize('indices', [[-1], [2], [True], 'all'])
+@pytest.mark.parametrize('indices', [[-1], [2], [True], 'everything'])
 def test_invalid_figure_indices_are_rejected(indices):
     from cgap_sbl_jadce.figures.common import selected_realizations
     with pytest.raises(ValueError, match='figures.evaluation_indices'):
@@ -165,6 +165,11 @@ def test_combined_tuning_saves_final_thresholds_and_five_figures(saved_data):
     from cgap_sbl_jadce.figures.task05_alpha_beta_tau_tuning import plot_alpha_beta_tau_tuning
     from cgap_sbl_jadce.figures.task05_threshold_scores import plot_threshold_tuning
     selected = pipeline.tune_stage(saved_data, show_progress=False)
+    assert selected['definition']['nmse_scope'] == 'true_active_support'
+    previous = {**selected, 'definition': {**selected['definition'], 'revision': 2}}
+    previous['definition'].pop('nmse_scope')
+    with pytest.raises(ValueError, match='Rerun Task 05'):
+        pipeline.validate_selection(previous, saved_data)
     out = saved_data['run']['output_dir']
     scores = pd.read_csv(result_path(out, 'tuning', 'alpha_beta_tau_scores.csv'))
     assert len(scores) == 4 * 201
@@ -179,3 +184,11 @@ def test_combined_tuning_saves_final_thresholds_and_five_figures(saved_data):
                                zero_alpha[zero_alpha.beta.eq(.1)].f1)
     paths = plot_alpha_beta_tau_tuning(saved_data) + plot_threshold_tuning(saved_data)
     assert len(paths) == 5 and all(path.exists() for path in paths)
+
+
+@pytest.mark.parametrize('split', ['tuning', 'evaluation', 'randomized_evaluation'])
+@pytest.mark.parametrize('count', [0, 3])
+def test_all_figure_indices_follow_saved_dataset_count(split, count):
+    from cgap_sbl_jadce.figures.common import selected_realizations
+    cfg = {'figures': {'tuning_indices': 'all', 'evaluation_indices': 'all'}}
+    assert selected_realizations(cfg, split, count) == list(range(count))

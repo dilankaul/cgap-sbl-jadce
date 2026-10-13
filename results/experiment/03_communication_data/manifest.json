@@ -1,17 +1,16 @@
 {
   "configuration": {
     "activity": {
-      "D": 15.0,
+      "D": 20.0,
       "V": 2,
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "exact_sparsity": false,
-      "kappa": 3.78,
+      "kappa": 7.0,
       "kappa_refinement_steps": [
         0.1,
-        0.02,
-        0.005
+        0.01
       ],
       "kappa_scan": [
         0.5,
@@ -51,18 +50,18 @@
     },
     "figures": {
       "evaluation_indices": [
-        714,
-        495,
-        106,
-        618,
-        442,
-        101,
-        781
+        855,
+        188,
+        398,
+        896,
+        311,
+        118,
+        355
       ],
       "tuning_indices": [
-        77,
-        97,
-        84
+        51,
+        86,
+        78
       ]
     },
     "run": {
@@ -81,9 +80,9 @@
     },
     "system": {
       "M": 4,
-      "N": 400,
-      "R": 40.0,
-      "S": 10,
+      "N": 500,
+      "R": 50.0,
+      "S": 20,
       "pilot_lengths": [
         20,
         25,
@@ -103,12 +102,12 @@
     },
     "task_runtime": {
       "activity_parameters_used": {
-        "D": 15.0,
-        "N": 400,
-        "R": 40.0,
+        "D": 20.0,
+        "N": 500,
+        "R": 50.0,
         "V": 2,
-        "kappa": 3.78,
-        "target_mean_S": 10.0
+        "kappa": 7.0,
+        "target_mean_S": 20.0
       },
       "activity_randomization_seed": 9097,
       "activity_summary": "results/experiment/02_activity_realizations/summary.json",
@@ -116,10 +115,10 @@
         "evaluation": {
           "definition": {
             "M": 4,
-            "N": 400,
+            "N": 500,
             "activity_sha256": {
-              "evaluation": "af6c6189c17229a3f50fb54f0f81b3e5aeb604c6af963f85210572e0e87efd8d",
-              "randomized_evaluation": "cfbef2cf3c289ef7e595c7201463a1dcab2d871c42326825625b15c6ad18859f"
+              "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c",
+              "randomized_evaluation": "38d7a7e1616532786d7c706ff9fabc201afe0c2fbb353bc31c9e49b041ed263d"
             },
             "conditions": [
               [
@@ -184,9 +183,9 @@
         "tuning": {
           "definition": {
             "M": 4,
-            "N": 400,
+            "N": 500,
             "activity_sha256": {
-              "tuning": "9ee02ec25fba0a61735b2317e559476653bb75b47b586e8ac1caf0a8b418186c"
+              "tuning": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542"
             },
             "conditions": [
               [
@@ -214,24 +213,31 @@
     },
     "tuning": {
       "alpha_values": [
+        0,
+        1,
         2,
+        3,
         4,
+        5,
         6,
+        7,
         8,
-        10,
-        12,
-        14
+        9,
+        10
       ],
       "beta_values": [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
         0.05,
-        0.1,
-        0.15,
-        0.2,
-        0.25,
-        0.3,
-        0.35
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
       ],
-      "num_thresholds": 80,
       "reference_pilot_length": 25,
       "reference_snr_db": 12
     }

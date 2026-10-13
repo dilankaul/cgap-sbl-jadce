@@ -96,8 +96,16 @@ For realization `q`, `S_q=sum(a)` varies naturally. MMV-OMP and MMV-CoSaMP recei
 only the feasible oracle count `B_q=min(S_q,L,N)`, never the true identities.
 Their estimated supports use the top `B_q` recovered row energies. SBL methods
 receive neither `S_q` nor `B_q`. Channel NMSE uses the unmasked final posterior
-means for SBL and sparse least-squares estimates for greedy methods; zero-energy
-realizations have undefined NMSE and are excluded from that average. Detection
+means for SBL and sparse least-squares estimates for greedy methods, restricted
+in both numerator and denominator to the true active set
+`A_q = {i : a_i=1}`:
+
+`NMSE_q = sum_{i in A_q} ||z_i - z_hat_i||_2^2 / sum_{i in A_q} ||z_i||_2^2`.
+
+Missed active MTDs contribute their estimation error; estimates on inactive rows
+are excluded. The true activity mask is used only for scoring, never passed to
+SBL estimators. Convergence traces use the same metric. Zero-energy realizations
+have undefined NMSE and are excluded from that average. Detection
 metrics still include them, with empty-denominator scores set to zero.
 
 The spatial-randomization experiment uniformly samples `S_q` distinct device

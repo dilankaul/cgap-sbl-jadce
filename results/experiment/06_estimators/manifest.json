@@ -1,17 +1,16 @@
 {
   "configuration": {
     "activity": {
-      "D": 15.0,
+      "D": 20.0,
       "V": 2,
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "exact_sparsity": false,
-      "kappa": 3.78,
+      "kappa": 7.0,
       "kappa_refinement_steps": [
         0.1,
-        0.02,
-        0.005
+        0.01
       ],
       "kappa_scan": [
         0.5,
@@ -51,18 +50,18 @@
     },
     "figures": {
       "evaluation_indices": [
-        714,
-        495,
-        106,
-        618,
-        442,
-        101,
-        781
+        855,
+        188,
+        398,
+        896,
+        311,
+        118,
+        355
       ],
       "tuning_indices": [
-        77,
-        97,
-        84
+        51,
+        86,
+        78
       ]
     },
     "run": {
@@ -80,14 +79,14 @@
       "spatial_randomization": 9097
     },
     "spatial_dependence": {
-      "U": 15.0,
-      "rho": 3.78
+      "U": 20.0,
+      "rho": 7.0
     },
     "system": {
       "M": 4,
-      "N": 400,
-      "R": 40.0,
-      "S": 10,
+      "N": 500,
+      "R": 50.0,
+      "S": 20,
       "pilot_lengths": [
         20,
         25,
@@ -107,12 +106,12 @@
     },
     "task_runtime": {
       "activity_parameters_used": {
-        "D": 15.0,
-        "N": 400,
-        "R": 40.0,
+        "D": 20.0,
+        "N": 500,
+        "R": 50.0,
         "V": 2,
-        "kappa": 3.78,
-        "target_mean_S": 10.0
+        "kappa": 7.0,
+        "target_mean_S": 20.0
       },
       "activity_randomization_seed": 9097,
       "activity_summary": "results/experiment/02_activity_realizations/summary.json",
@@ -123,13 +122,13 @@
       "no_progress": false,
       "selected_parameters": {
         "cgap": {
-          "alpha": 30.0,
-          "beta": 0.03,
-          "tau": 0.085,
-          "tuning_f1": 0.9927208623496574,
-          "tuning_nmse": 0.05502044539482667,
-          "tuning_precision": 0.994202509951349,
-          "tuning_recall": 0.9917730880230881
+          "alpha": 7.0,
+          "beta": 0.07,
+          "tau": 0.136,
+          "tuning_f1": 0.7694817593807884,
+          "tuning_nmse": 0.5012491332318393,
+          "tuning_precision": 0.7834656916048962,
+          "tuning_recall": 0.7583006189316005
         },
         "definition": {
           "activity_seed": 2953,
@@ -144,14 +143,14 @@
           "method": "CGAP-SBL-ANC",
           "revision": 2,
           "spatial_dependence": {
-            "U": 15.0,
-            "rho": 3.78
+            "U": 20.0,
+            "rho": 7.0
           },
           "system": {
             "M": 4,
-            "N": 400,
-            "R": 40.0,
-            "S": 10,
+            "N": 500,
+            "R": 50.0,
+            "S": 20,
             "pilot_lengths": [
               20,
               25,
@@ -177,16 +176,16 @@
           "tuning": {
             "alpha_values": [
               0,
+              1,
+              2,
+              3,
+              4,
               5,
-              10,
-              15,
-              20,
-              25,
-              30,
-              35,
-              40,
-              45,
-              50
+              6,
+              7,
+              8,
+              9,
+              10
             ],
             "beta_values": [
               0.0,
@@ -211,11 +210,11 @@
         "sbl": {
           "alpha": 0.0,
           "beta": 0.0,
-          "tau": 0.181,
-          "tuning_f1": 0.9758697518523608,
-          "tuning_nmse": 0.07353626578369793,
-          "tuning_precision": 0.9898603479853478,
-          "tuning_recall": 0.9640013597513598
+          "tau": 0.191,
+          "tuning_f1": 0.6332572253283403,
+          "tuning_nmse": 0.6088197889566601,
+          "tuning_precision": 0.6645833881241674,
+          "tuning_recall": 0.6085041401891529
         }
       },
       "show_progress": true,
@@ -225,16 +224,16 @@
     "tuning": {
       "alpha_values": [
         0,
+        1,
+        2,
+        3,
+        4,
         5,
-        10,
-        15,
-        20,
-        25,
-        30,
-        35,
-        40,
-        45,
-        50
+        6,
+        7,
+        8,
+        9,
+        10
       ],
       "beta_values": [
         0.0,

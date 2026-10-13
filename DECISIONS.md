@@ -127,3 +127,6 @@
 
 
 68. Recheck paper Section VII, equations (75)–(79): implemented Cholesky/diagonal-posterior SBL, dense general CGAP-SBL and sparse CSR ANC match the stated per-iteration costs. Record the full-call runtime scope explicitly, including initialization/validation and final posterior, excluding data/C generation, loading, metrics, plots and saving. Preserve existing per-algorithm runtime_s measurements. Add per-condition/scenario runtime statistics, CPU/thread provenance, and runtime-vs-pilot figure alongside runtime-vs-SNR. Complexity audit distinguishes per-iteration costs, actual iteration counts and complete solves; no paper performance numbers are copied into results.
+
+
+69. Restrict channel NMSE in Tasks 05–07 to the true active MTD rows in both the numerator and reference-energy denominator. Score missed active rows, exclude estimates on inactive rows, and keep zero-reference-energy realizations undefined (NaN). Use saved activity masks for tuning and evaluation; convergence history infers support from the true effective channel. This affects scoring only, not solver inputs or detection metrics. Record nmse_scope=true_active_support and invalidate older tuning definitions; do not relabel historical full-matrix scores. Tasks 01–04 remain reusable; regenerate Tasks 05–07 for the new metric.

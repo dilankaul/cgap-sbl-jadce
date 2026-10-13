@@ -1,28 +1,28 @@
 {
   "evaluation": {
     "definition": {
-      "N": 400,
-      "U": 15.0,
-      "activity_sha256": "af6c6189c17229a3f50fb54f0f81b3e5aeb604c6af963f85210572e0e87efd8d",
-      "rho": 3.78,
+      "N": 500,
+      "U": 20.0,
+      "activity_sha256": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c",
+      "rho": 7.0,
       "schema": 1
     },
-    "mean_density": 0.12048468749999999,
-    "mean_nonzeros": 19277.55,
+    "mean_density": 0.134625,
+    "mean_nonzeros": 33656.25,
     "samples": 1000
   },
   "evaluation_shared_between_scenarios": true,
   "status": "complete",
   "tuning": {
     "definition": {
-      "N": 400,
-      "U": 15.0,
-      "activity_sha256": "9ee02ec25fba0a61735b2317e559476653bb75b47b586e8ac1caf0a8b418186c",
-      "rho": 3.78,
+      "N": 500,
+      "U": 20.0,
+      "activity_sha256": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542",
+      "rho": 7.0,
       "schema": 1
     },
-    "mean_density": 0.12047675,
-    "mean_nonzeros": 19276.28,
+    "mean_density": 0.13501792,
+    "mean_nonzeros": 33754.48,
     "samples": 100
   }
 }

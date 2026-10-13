@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 import pandas as pd
 from cgap_sbl_jadce.paths import result_path, figure_path
@@ -24,7 +25,8 @@ def plot_alpha_beta_tau_tuning(cfg: dict, formats: str = "png") -> list[Path]:
         pivot = df.pivot(index="alpha", columns="beta", values=metric).sort_index().sort_index(axis=1)
         fig, ax = plt.subplots(figsize=(7.0, 5.2))
         image = ax.imshow(pivot.values, aspect="auto", origin="lower",
-                          interpolation="nearest", cmap=cmap)
+                          interpolation="nearest", cmap=cmap,
+                          norm=LogNorm() if metric == "nmse" else None)
         ax.set_xticks(np.arange(len(pivot.columns)), [f"{x:g}" for x in pivot.columns])
         ax.set_yticks(np.arange(len(pivot.index)), [f"{x:g}" for x in pivot.index])
         ax.set_xticks(np.arange(len(pivot.columns) + 1) - 0.5, minor=True)

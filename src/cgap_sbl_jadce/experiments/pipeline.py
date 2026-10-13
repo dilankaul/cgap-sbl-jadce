@@ -25,7 +25,7 @@ from cgap_sbl_jadce.spatial_dependence_dataset import (spatial_dependence_defini
     load_spatial_dependence_matrix, load_tuning_spatial_dependence)
 from cgap_sbl_jadce.dataset import load_activity_samples, save_activity_samples
 from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, save_npz
-from cgap_sbl_jadce.metrics import nmse, oracle_sparsity_budget, precision_recall_f1, support_from_gamma, support_from_rows
+from cgap_sbl_jadce.metrics import NMSE_SCOPE, nmse, oracle_sparsity_budget, precision_recall_f1, support_from_gamma, support_from_rows
 from cgap_sbl_jadce.models.realizations import communication_realization, paired_activity_realizations
 from cgap_sbl_jadce.communication_dataset import (communication_definition, validate_communication_dataset,
     save_communication_sample, load_communication_sample, load_tuning_communication)
@@ -40,7 +40,7 @@ def output_dir(cfg: dict[str, Any]) -> Path:
 
 def tuning_definition(cfg: dict[str, Any]) -> dict[str, Any]:
     """Identify the mathematics and experiment used to select parameters."""
-    return {"method": "CGAP-SBL-ANC", "revision": 2, "tau_grid": {"start": 0.0, "stop": 0.2, "step": 0.001},
+    return {"method": "CGAP-SBL-ANC", "revision": 3, "nmse_scope": NMSE_SCOPE, "tau_grid": {"start": 0.0, "stop": 0.2, "step": 0.001},
             "algorithms": cfg["algorithms"], "spatial_dependence": activity_spatial_dependence_parameters(cfg),
             "tuning": cfg["tuning"], "system": cfg["system"],
             "tuning_samples": cfg["run"]["num_tuning_samples"],
@@ -310,7 +310,7 @@ def _tune_pair(args: tuple[Any, ...]) -> dict[str, Any]:
             r.Theta, r.Y, r.sigma2, C, alpha=alpha, beta=beta,
             gamma_init=alg["gamma_init"], K=alg["K"], delta=alg["delta"],
         )
-        gammas.append(result.gamma); nmse_values.append(nmse(r.Z, result.mu)); iterations.append(result.iterations)
+        gammas.append(result.gamma); nmse_values.append(nmse(r.Z, result.mu, activity.a)); iterations.append(result.iterations)
     gammas_arr = np.asarray(gammas)
     a_true = np.stack([a.a for a in activities])
     curve = threshold_curve(a_true, gammas_arr)
@@ -396,7 +396,7 @@ def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[
         paired = {scenario: communication[(scenario, L, float(snr_db))] for scenario in ("correlated", "randomized")}
         for scenario, r in paired.items():
             common = {"q": q, "S_q": int(np.sum(r.a)), "scenario": scenario,
-                      "L": L, "snr_db": snr_db, "sweep": sweep}
+                      "L": L, "snr_db": snr_db, "sweep": sweep, "nmse_scope": NMSE_SCOPE}
             t0 = time.perf_counter()
             cgap = cgap_sbl_anc(r.Theta, r.Y, r.sigma2, C,
                 selected["cgap"]["alpha"], selected["cgap"]["beta"], **options)
@@ -407,7 +407,7 @@ def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[
             for name, result, key, runtime in (("CGAP-SBL-ANC", cgap, "cgap", cgap_runtime), ("SBL", sb, "sbl", sbl_runtime)):
                 precision, recall, f1 = precision_recall_f1(r.a, support_from_gamma(result.gamma, selected[key]["tau"]))
                 rows.append({**common, "algorithm": name, "precision": precision, "recall": recall,
-                             "f1": f1, "nmse": nmse(r.Z, result.mu), "iterations": result.iterations, "runtime_s": runtime})
+                             "f1": f1, "nmse": nmse(r.Z, result.mu, r.a), "iterations": result.iterations, "runtime_s": runtime})
             if scenario == "randomized":
                 continue
             B_q = oracle_sparsity_budget(common["S_q"], L, sys["N"])
@@ -418,7 +418,7 @@ def _evaluate_sample(args: tuple[Any, ...]) -> tuple[list[dict[str, Any]], dict[
                 runtime = time.perf_counter() - t0
                 precision, recall, f1 = precision_recall_f1(r.a, support_from_rows(Z_hat, B_q))
                 rows.append({**common, "algorithm": name, "precision": precision, "recall": recall, "f1": f1,
-                             "nmse": nmse(r.Z, Z_hat), "iterations": B_q if name == "MMV-OMP" else np.nan,
+                             "nmse": nmse(r.Z, Z_hat, r.a), "iterations": B_q if name == "MMV-OMP" else np.nan,
                              "B_q": B_q, "oracle_capped": B_q < common["S_q"], "runtime_s": runtime})
             if save_gamma and L == selected["reference_pilot_length"] and snr_db == selected["reference_snr_db"]:
                 gamma_save = {"a": r.a.astype(np.uint8), "cgap_gamma": cgap.gamma, "sbl_gamma": sb.gamma}
@@ -467,7 +467,7 @@ def evaluate_stage(cfg: dict[str, Any], workers: int = 1, show_progress: bool = 
             key = str(int(row["L"]))
             capped_by_L[key] = capped_by_L.get(key, 0) + 1
     summary = {
-        "Q": len(activities), "conditions_per_realization": len(conditions), "scenarios": ["correlated", "randomized"], "metric_rows": len(rows),
+        "nmse_scope": NMSE_SCOPE, "Q": len(activities), "conditions_per_realization": len(conditions), "scenarios": ["correlated", "randomized"], "metric_rows": len(rows),
         "gamma_samples": len(gamma_outputs), "workers": int(workers),
         "mean_realized_S": float(np.mean(realized_counts)),
         "std_realized_S": float(np.std(realized_counts, ddof=1)) if len(realized_counts) > 1 else 0.0,
@@ -509,9 +509,9 @@ def convergence_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     conv_path = result_path(out, "convergence", "convergence.npz")
     save_npz(conv_path, cgap_gamma_history=cgap.gamma_history, cgap_lambda_history=cgap.lambda_history, cgap_nmse_history=cgap.nmse_history, sbl_gamma_history=sb.gamma_history, sbl_nmse_history=sb.nmse_history)
     summary = {
-        "q": idx, "L": int(cfg["evaluation"]["pilot_length"]),
+        "nmse_scope": NMSE_SCOPE, "q": idx, "L": int(cfg["evaluation"]["pilot_length"]),
         "snr_db": float(tune["reference_snr_db"]), "K": alg["K"], "delta": alg["delta"],
-        "cgap_final_nmse": nmse(r.Z, cgap.mu), "sbl_final_nmse": nmse(r.Z, sb.mu),
+        "cgap_final_nmse": nmse(r.Z, cgap.mu, r.a), "sbl_final_nmse": nmse(r.Z, sb.mu, r.a),
         "cgap_iterations": int(cgap.iterations), "cgap_converged": bool(cgap.converged),
         "sbl_iterations": int(sb.iterations), "sbl_converged": bool(sb.converged),
         "cgap_last_e_step_nmse": float(cgap.nmse_history[-1]) if cgap.nmse_history is not None and len(cgap.nmse_history) else None,
@@ -530,7 +530,10 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     df = pd.read_csv(per_sample_path)
     if "scenario" not in df or "CGAP-SBL-ANC" not in set(df["algorithm"]):
         raise ValueError("Legacy estimator results cannot be relabeled. Rerun Task 06 for CGAP-SBL-ANC.")
+    if "nmse_scope" not in df or not df["nmse_scope"].eq(NMSE_SCOPE).all():
+        raise ValueError("Saved NMSE does not use true active support. Rerun Task 06.")
     aggregate = df.groupby(["scenario", "algorithm", "L", "snr_db", "sweep"], as_index=False)[["precision", "recall", "f1", "nmse", "runtime_s"]].mean()
+    aggregate["nmse_scope"] = NMSE_SCOPE
     aggregate_path = result_path(out, "evaluation", "aggregate.csv")
     ensure_dir(aggregate_path.parent)
     aggregate.to_csv(aggregate_path, index=False)
@@ -553,7 +556,7 @@ def aggregate_stage(cfg: dict[str, Any]) -> dict[str, Any]:
     ref_L = int(cfg["evaluation"]["pilot_length"]); ref_snr = float(cfg["tuning"]["reference_snr_db"])
     ref = aggregate[(aggregate["scenario"] == "correlated") & (aggregate["L"] == ref_L) & (aggregate["snr_db"] == ref_snr)].drop_duplicates("algorithm")
     reference_rows = ref[["algorithm", "precision", "recall", "f1", "nmse", "runtime_s"]].to_dict(orient="records")
-    summary = {"aggregate_rows": int(len(aggregate)), "reference_L": ref_L, "reference_snr_db": ref_snr, "reference_results": reference_rows}
+    summary = {"nmse_scope": NMSE_SCOPE, "aggregate_rows": int(len(aggregate)), "reference_L": ref_L, "reference_snr_db": ref_snr, "reference_results": reference_rows}
     summary_path = result_path(out, "evaluation", "summary.json"); save_json(summary_path, summary)
     print_task_report("TASK 06 — AGGREGATION / ANALYSIS", {
         "aggregate rows": len(aggregate), "reference L": ref_L, "reference SNR": ref_snr,

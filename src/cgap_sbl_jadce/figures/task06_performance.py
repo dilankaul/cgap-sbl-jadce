@@ -20,6 +20,8 @@ def _line_plot(df: pd.DataFrame, x: str, y: str, title: str, xlabel: str, ylabel
         randomized = paired and group["scenario"].iloc[0] == "randomized"
         ax.plot(group[x], group[y], marker="s" if algorithm.startswith("SBL") else "o",
                 linestyle="--" if randomized else "-", label=algorithm)
+    if y == "nmse":
+        ax.set_yscale("log")
     fixed_column = "L" if x == "snr_db" else "snr_db"
     fixed_values = df[fixed_column].unique()
     if len(fixed_values) != 1:

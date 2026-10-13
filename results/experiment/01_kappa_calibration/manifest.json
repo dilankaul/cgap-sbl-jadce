@@ -1,18 +1,17 @@
 {
   "configuration": {
     "activity": {
-      "D": 15.0,
+      "D": 20.0,
       "V": 2,
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "calibration_validation_samples": 5000,
       "exact_sparsity": false,
-      "kappa": 3.78,
+      "kappa": 7.0,
       "kappa_refinement_steps": [
         0.1,
-        0.02,
-        0.005
+        0.01
       ],
       "kappa_scan": [
         0.5,
@@ -52,18 +51,18 @@
     },
     "figures": {
       "evaluation_indices": [
-        714,
-        495,
-        106,
-        618,
-        442,
-        101,
-        781
+        855,
+        188,
+        398,
+        896,
+        311,
+        118,
+        355
       ],
       "tuning_indices": [
-        77,
-        97,
-        84
+        51,
+        86,
+        78
       ]
     },
     "run": {
@@ -82,9 +81,9 @@
     },
     "system": {
       "M": 4,
-      "N": 400,
-      "R": 40.0,
-      "S": 10.0,
+      "N": 500,
+      "R": 50.0,
+      "S": 20.0,
       "pilot_lengths": [
         20,
         25,
@@ -106,31 +105,38 @@
       "calibration_seed": 1379,
       "input_config": "configs/experiment.yaml",
       "no_progress": false,
-      "selected_kappa": 3.78,
+      "selected_kappa": 7.0,
       "status": "success",
       "task": 1,
       "validation_seed": 8641
     },
     "tuning": {
       "alpha_values": [
+        0,
+        1,
         2,
+        3,
         4,
+        5,
         6,
+        7,
         8,
-        10,
-        12,
-        14
+        9,
+        10
       ],
       "beta_values": [
+        0.0,
+        0.01,
+        0.02,
+        0.03,
+        0.04,
         0.05,
-        0.1,
-        0.15,
-        0.2,
-        0.25,
-        0.3,
-        0.35
+        0.06,
+        0.07,
+        0.08,
+        0.09,
+        0.1
       ],
-      "num_thresholds": 80,
       "reference_pilot_length": 25,
       "reference_snr_db": 12
     }

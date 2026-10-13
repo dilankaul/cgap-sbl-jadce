@@ -8,6 +8,7 @@ import numpy as np
 import scipy
 from cgap_sbl_jadce.io import save_yaml, save_json
 from cgap_sbl_jadce.paths import task_dir, result_path
+from cgap_sbl_jadce.metrics import NMSE_SCOPE
 
 
 def save_task_snapshot(cfg, task, **runtime):
@@ -35,6 +36,8 @@ def save_task_snapshot(cfg, task, **runtime):
         snapshot["spatial_dependence"] = activity_spatial_dependence_parameters(cfg)
         provenance["method"] = "CGAP-SBL-ANC"
         provenance["method_revision"] = 1
+    if task >= 5:
+        provenance['nmse_scope'] = NMSE_SCOPE
     snapshot['task_runtime'] = provenance
     folder = task_dir(out, task)
     root_config = Path(out) / "config.yaml"

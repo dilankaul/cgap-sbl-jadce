@@ -1,69 +1,61 @@
 {
-  "D": 15.0,
-  "N": 400,
-  "R": 40.0,
+  "D": 20.0,
+  "N": 500,
+  "R": 50.0,
   "V": 2,
-  "absolute_expected_gap": 0.0018215404250909728,
+  "absolute_expected_gap": 0.008324432009956695,
   "calibration_samples": 5000,
-  "closest_grid_kappa": 3.78,
-  "closest_grid_mean_expected_active": 9.998178459574909,
-  "closest_grid_mean_realized_active": 9.9982,
-  "final_step": 0.005,
+  "closest_grid_kappa": 7.0,
+  "closest_grid_mean_expected_active": 20.008324432009957,
+  "closest_grid_mean_realized_active": 19.991,
+  "final_step": 0.01,
   "method": "coarse_to_fine",
   "seed": 1379,
   "selection_within_tolerance": true,
   "stages": [
     {
       "bracket": [
-        3.5,
-        4.0
+        6.5,
+        7.0
       ],
       "stage": "coarse"
     },
     {
       "bracket": [
-        3.7,
-        3.8
+        6.9,
+        7.0
       ],
       "stage": "refine_1",
       "step": 0.1
     },
     {
       "bracket": [
-        3.78,
-        3.8
+        6.99,
+        7.0
       ],
       "stage": "refine_2",
-      "step": 0.02
-    },
-    {
-      "bracket": [
-        3.78,
-        3.785
-      ],
-      "stage": "refine_3",
-      "step": 0.005
+      "step": 0.01
     }
   ],
   "status": "success",
-  "target_mean_active": 10.0,
+  "target_mean_active": 20.0,
   "tolerance": 0.1,
   "validation": {
-    "expected_gap": 0.009255186355227707,
+    "expected_gap": 0.034828208175902375,
     "expected_mean_ci95": [
-      9.953952261813617,
-      10.064558110896838
+      19.9386091563977,
+      20.131047259954105
     ],
-    "kappa": 3.78,
-    "max_realized_active": 24,
-    "mean_expected_active": 10.009255186355228,
-    "mean_realized_active": 9.996,
-    "min_realized_active": 1,
+    "kappa": 7.0,
+    "max_realized_active": 40,
+    "mean_expected_active": 20.034828208175902,
+    "mean_realized_active": 20.0704,
+    "min_realized_active": 4,
     "samples": 5000,
-    "se_expected_active": 0.028215777827352434,
+    "se_expected_active": 0.04909135294806269,
     "seed": 8641,
-    "std_expected_active": 1.9951567838173938,
-    "std_realized_active": 3.2514763446293036,
+    "std_expected_active": 3.471282856719734,
+    "std_realized_active": 4.980924187452789,
     "within_tolerance": true
   }
 }

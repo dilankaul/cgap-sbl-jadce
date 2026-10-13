@@ -99,14 +99,21 @@ def test_aggregation_preserves_scenarios_and_averages_paired_advantages(tmp_path
             for method in ['CGAP-SBL-ANC', 'SBL']:
                 rows.append(dict(q=q, scenario=scenario, algorithm=method, L=20, snr_db=12,
                                  sweep='snr_sweep', precision=.5, recall=.5, runtime_s=.1,
+                                 nmse_scope='true_active_support',
                                  f1=.5 + (gain if method == 'CGAP-SBL-ANC' else 0),
                                  nmse=(np.nan if q == 0 else (.2 if method == 'CGAP-SBL-ANC' else .3))))
     path = result_path(tmp_path, 'evaluation', 'per_sample.csv')
     path.parent.mkdir(parents=True)
     pd.DataFrame(rows).to_csv(path, index=False)
+    old = pd.DataFrame(rows).drop(columns='nmse_scope')
+    old.to_csv(path, index=False)
+    with pytest.raises(ValueError, match='Rerun Task 06'):
+        aggregate_stage(cfg)
+    pd.DataFrame(rows).to_csv(path, index=False)
     aggregate_stage(cfg)
     aggregate = pd.read_csv(result_path(tmp_path, 'evaluation', 'aggregate.csv'))
     assert len(aggregate) == 4
+    assert aggregate.nmse_scope.eq("true_active_support").all()
     runtime = pd.read_csv(result_path(tmp_path, 'evaluation', 'runtime_summary.csv'))
     assert len(runtime) == 4
     assert (runtime.samples == 2).all()

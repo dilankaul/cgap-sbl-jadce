@@ -113,7 +113,7 @@ The spatial dependence summary and \(\mathbf C\) visualization are saved automat
 python scripts/05_tune_alpha_beta_tau.py
 ```
 
-Task 05 tests every alpha/beta pair using the same fixed threshold grid: tau=0 through 0.2 inclusive in steps of 0.001 (201 candidates). Each pair runs the estimator once per tuning realization; its gamma values are reused for every threshold. The best mean F1 selects tau for each pair. Pairs are ranked by mean F1, then lower NMSE, then higher recall. Alpha=0, beta=0 supplies the conventional SBL baseline and its final threshold.
+Task 05 tests every alpha/beta pair using the same fixed threshold grid: tau=0 through 0.2 inclusive in steps of 0.001 (201 candidates). Each pair runs the estimator once per tuning realization; its gamma values are reused for every threshold. The best mean F1 selects tau for each pair. Pairs are ranked by mean F1, then lower NMSE, then higher recall. NMSE measures channel error only on the true active support, using that same support for reference energy; missed active MTDs still contribute error. Tuning, evaluation and convergence use this definition. Saved full-matrix NMSE results require rerunning Tasks 05–07; Tasks 01–04 remain reusable. Alpha=0, beta=0 supplies the conventional SBL baseline and its final threshold.
 
 The task saves all threshold scores, the per-pair selection grid, and `selected.json` containing final CGAP-SBL-ANC and SBL parameters. It generates F1, NMSE and selected-tau heatmaps plus separate threshold-score graphs for both algorithms. Task 06 has been absorbed into Task 05; Task 06 reads this combined selection and also aggregates results and generates comparison figures; Task 07 analyzes convergence. Existing results in the former Task 05/06 folders are historical and must be regenerated with the new task before evaluation.
 
@@ -423,7 +423,7 @@ new dataset requirement. Standard CLI options and experiment settings are unchan
 
 ### Selecting task figures
 
-Configure independent zero-based index lists in configs/experiment.yaml:
+Configure independent zero-based index lists, or `all`, in configs/experiment.yaml:
 
 ```yaml
 figures:
@@ -431,7 +431,9 @@ figures:
   evaluation_indices: [0, 714]
 ```
 
-Tasks 02 and 03 save figures only for these selected realizations. Each evaluation
+Tasks 02–04 save figures for these selected realizations. Set `evaluation_indices: all`
+to include every saved evaluation realization; this also includes randomized
+activity/communication figures in Tasks 02 and 03. The same option works for tuning. Each evaluation
 index includes its correlated/randomized pair. Use [] to skip a split's realization
 figures. All numerical datasets and the full-sample active-count histogram remain
 complete. Selections can be changed before calling the plotting functions on saved
