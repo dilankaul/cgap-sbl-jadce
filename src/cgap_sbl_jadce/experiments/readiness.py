@@ -1,13 +1,8 @@
-"""Actual data dependencies for independently selected workflow actions."""
-import json
-from pathlib import Path
 
 from cgap_sbl_jadce.config import resolve_activity_kappa
 from cgap_sbl_jadce.communication_dataset import validate_communication_dataset
 from cgap_sbl_jadce.spatial_dependence_dataset import validate_spatial_dependence_dataset
-from cgap_sbl_jadce.paths import result_path
-from cgap_sbl_jadce.experiments.estimators import (ESTIMATORS, evaluation_conditions, evaluation_selections,
-    tuning_conditions, load_selection, completed_methods, convergence_methods)
+from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, evaluation_conditions, evaluation_selections, tuning_conditions, completed_methods, convergence_methods
 
 
 def blocking_reasons(cfg, task, action='run', conditions=None, methods=None, condition=None):

@@ -1,4 +1,3 @@
-"""Independent paused workers and one computing worker per workspace, with durable status and append-only logs."""
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
@@ -21,8 +20,7 @@ RECOVERABLE = {'failed', 'stopped', 'interrupted'}
 
 
 def config_digest(path, request=None):
-    if request is None:  # Legacy job records used the exact YAML bytes.
-        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    request = request or {}
     from cgap_sbl_jadce.config import load_config
     from cgap_sbl_jadce.settings import request_settings
     if request.get('kind') not in {'task', 'preview'}:
@@ -31,7 +29,6 @@ def config_digest(path, request=None):
 
 
 def process_token(pid):
-    """Linux process start time guards against PID reuse and zombie workers."""
     try:
         fields = Path(f'/proc/{pid}/stat').read_text().rsplit(')', 1)[1].split()
         return fields[19] if fields[0] != 'Z' else None
@@ -49,21 +46,21 @@ class Jobs:
 
     @contextmanager
     def locked(self):
+        self.folder.mkdir(parents=True, exist_ok=True)
         with (self.folder / 'lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             yield
 
     def records(self):
+        for child in self.children.values():
+            child.poll()
         records = []
         for path in sorted(self.folder.glob('*/job.json'), reverse=True):
             record = json.loads(path.read_text())
-            child = self.children.get(record['id'])
-            if child is not None:
-                child.poll()  # Reap completed children while this server is alive.
             if record['status'] in ACTIVE:
                 token = process_token(record.get('pid'))
                 if not token or token != record.get('process_token'):
-                    # A queued record gets a short launch grace period.
+
                     if record['status'] != 'queued' or time.time() - record['created'] > 10:
                         record.update(status='interrupted', updated=time.time())
                         save_json(path, record)
@@ -94,16 +91,15 @@ class Jobs:
                 continue
             job_id = 'saved-' + hashlib.sha256(str(saved['path']).encode()).hexdigest()[:16]
             record = {'id': job_id, 'status': 'interrupted', 'portable': True,
-                      'request': saved['request'], 'config_digest': saved['config_digest'], 'config_scope': saved.get('schema', 1),
+                      'request': saved['request'], 'config_digest': saved['config_digest'],
                       'created': saved['created']}
             self.saved_jobs[job_id] = record
             candidates.append(record)
-        # Keep unfinished work reachable after another condition completes.
+
         candidates.sort(key=lambda job: job['created'], reverse=True)
         return next((job for job in candidates if job['status'] in ACTIVE), None) or (candidates[0] if candidates else None)
 
     def start(self, request, resume=False, complete=False):
-        """Requests identify existing tasks or saved-data previews, never shell code."""
         request = dict(request)
         config = Path(request['config'])
         config = (self.project / config).resolve() if not config.is_absolute() else config.resolve()
@@ -131,7 +127,7 @@ class Jobs:
             job_id = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S') + '-' + uuid4().hex[:8]
             folder = self.folder / job_id
             folder.mkdir()
-            record = {'id': job_id, 'request': request, 'resume': resume, 'complete': complete, 'config_digest': config_digest(config, request), 'config_scope': 2,
+            record = {'id': job_id, 'request': request, 'resume': resume, 'complete': complete, 'config_digest': config_digest(config, request),
                       'status': 'queued', 'created': time.time(), 'updated': time.time()}
             save_json(folder / 'job.json', record)
             save_json(folder / 'control.json', {'command': 'run'})
@@ -164,7 +160,6 @@ class Jobs:
         return plan
 
     def complete(self, request):
-        """Skip finished conditions and recover pending units before starting new work."""
         request = dict(request, config=str(Path(request['config']).resolve()))
         self._validate_completion(request)
         if self.busy():
@@ -173,8 +168,8 @@ class Jobs:
         cfg = load_config(request['config'])
         from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
         pairs = {value[:2] for value in evaluation_conditions(cfg, request.get('conditions'), method=request['task'])}
-        # A broader completion request adopts only paused overlapping work. The
-        # confirmed pause boundary has already saved completed calculation units.
+
+
         paused = []
         for job in self.records():
             old = job['request']
@@ -208,14 +203,14 @@ class Jobs:
                 busy = self.busy()
                 if busy and busy['id'] != job_id:
                     raise ValueError('Pause the running task and wait for confirmation before resuming this task.')
-                if config_digest(record['request']['config'], record['request'] if record.get('config_scope') == 2 else None) != record['config_digest']:
+                if config_digest(record['request']['config'], record['request']) != record['config_digest']:
                     raise ValueError('Configuration changed while the worker was running. Stop it, then start with the new settings.')
                 from cgap_sbl_jadce.gui.inputs import input_signature
                 if record.get('input_signature') and input_signature(record['request']) != record['input_signature']:
                     raise ValueError('Required inputs changed while paused. Stop this task, then Resume to use compatible checkpoints.')
             save_json(self.folder / job_id / 'control.json', {'command': command})
-            # Pausing is cooperative. Stopping interrupts the current unit, which
-            # will be repeated on restart; previously committed units survive.
+
+
             if command == 'stop' and record.get('process_token') == process_token(record.get('pid')):
                 try:
                     os.kill(record['pid'], signal.SIGTERM)
@@ -223,14 +218,13 @@ class Jobs:
                     pass
 
     def resume(self, job_id):
-        """Continue a live paused worker or recover its request from checkpoints."""
         record = self.saved_jobs.get(job_id) or next(job for job in self.records() if job['id'] == job_id)
         if record['status'] == 'paused':
             self.control(job_id, 'run')
             return record
         if record['status'] not in RECOVERABLE:
             raise ValueError('Only paused, interrupted, stopped, or failed tasks can resume.')
-        if config_digest(record['request']['config'], record['request'] if record.get('config_scope') == 2 else None) != record['config_digest']:
+        if config_digest(record['request']['config'], record['request']) != record['config_digest']:
             raise ValueError('Configuration changed. Start a new task; only compatible checkpoints will be reused.')
         return self.start(record['request'], resume=True, complete=record.get('complete', False))
 

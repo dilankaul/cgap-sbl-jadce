@@ -1,4 +1,3 @@
-"""Independent estimator tasks over the same saved communication realizations."""
 from copy import deepcopy
 import hashlib
 from dataclasses import dataclass
@@ -16,7 +15,7 @@ from cgap_sbl_jadce.algorithms.cosamp import mmv_cosamp
 from cgap_sbl_jadce.algorithms.sbl import sbl
 from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl_anc
 from cgap_sbl_jadce.communication_dataset import (
-    communication_definition, validate_communication_dataset,
+    validate_communication_dataset,
     load_communication_sample, load_tuning_communication,
 )
 from cgap_sbl_jadce.spatial_dependence_dataset import (
@@ -69,33 +68,12 @@ class Estimator:
     spatial: bool = False
 
 
-# A later GL variant supplies a solver and tuning grid here and reuses the workflow.
 ESTIMATORS = {
     'omp': Estimator('omp', 'MMV-OMP', _omp),
     'cosamp': Estimator('cosamp', 'MMV-CoSaMP', _cosamp),
     'sbl': Estimator('sbl', 'SBL', _sbl, lambda cfg: [{}]),
     'anc': Estimator('anc', 'CGAP-SBL-ANC', _anc, _anc_grid, spatial=True),
 }
-
-
-def legacy_tuning_definition(cfg, method):
-    spec = ESTIMATORS[method]
-    definition = {'method': spec.name, 'revision': 1, 'nmse_scope': NMSE_SCOPE,
-                  'condition': [reference_settings(cfg)['reference_pilot_length'], reference_settings(cfg)['reference_snr_db']],
-                  'tau_grid': {key: tuning_settings(cfg, method)['tau_' + key] for key in ('start', 'stop', 'step')},
-                  'algorithms': legacy_solver_config(cfg, method),
-                  'communication': communication_definition(cfg, 'tuning'),
-                  'parameters': spec.tuning_grid(cfg), 'samples': cfg['run']['num_tuning_samples'],
-                  'archive_sha256': archive_identity(task_dir(cfg['run']['output_dir'], 'communication') / 'tuning',
-                      cfg['run']['num_tuning_samples'], ['channels.npz', 'pilots.npz', 'observations.npz'])}
-    if spec.spatial:
-        definition['spatial_dependence'] = spatial_dependence_definition(cfg, 'tuning')
-        definition['spatial_archive_sha256'] = archive_identity(task_dir(cfg['run']['output_dir'], 'spatial_dependence') / 'tuning', cfg['run']['num_tuning_samples'], ['matrix'])
-    return definition
-
-
-def legacy_solver_config(cfg, method):
-    return {**solver_settings(cfg, method if method in {'sbl', 'anc'} else 'sbl'), **solver_settings(cfg, 'cosamp')}
 
 
 def tuning_definition(cfg, method):
@@ -144,7 +122,7 @@ def tuning_conditions(cfg, requested=None, method="anc"):
     return selected
 
 
-def load_selection(cfg, method, condition=None, expected=None):
+def load_selection(cfg, method, condition=None):
     if condition is not None and tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
         cfg = condition_config(cfg, condition, method)
     cfg = method_config(cfg, method)
@@ -154,14 +132,8 @@ def load_selection(cfg, method, condition=None, expected=None):
         raise FileNotFoundError(f'Choose Algorithms > {spec.name} > Tune : {path}')
     selected = json.loads(path.read_text())
     definition = tuning_definition(cfg, method)
-    if selected.get('definition', {}).get('revision') == 1:
-        from cgap_sbl_jadce.compatibility import legacy_definition_matches
-        matches = legacy_definition_matches(selected['definition'], legacy_tuning_definition(cfg, method), cfg, method)
-    else:
-        matches = selected.get('definition') == definition
-    if not matches:
-        from cgap_sbl_jadce.compatibility import require_match
-        require_match(selected.get('definition', {}), definition, f'{spec.name} tuning')
+    from cgap_sbl_jadce.compatibility import require_match
+    require_match(selected.get('definition', {}), definition, f'{spec.name} tuning')
     return selected
 
 
@@ -255,10 +227,8 @@ def tune_estimator(cfg, method, show_progress=True):
     return selected
 
 
-
 @checkpointed
 def tune_estimator_stage(cfg, method, show_progress=True, conditions=None):
-    """Tune one algorithm using only tuning realizations; save its selection."""
     spec = ESTIMATORS[method]
     if spec.tuning_grid is None:
         raise ValueError(f"{spec.name} does not require tuning.")
@@ -296,15 +266,8 @@ def evaluation_conditions(cfg, selected=None, method=None, include_optional=Fals
     settings = evaluation_settings(cfg)
     L0 = int(settings['pilot_length'])
     snr0 = float(settings['snr_db'])
-    mode = settings.get('condition_mode', 'sweeps')
-    if mode == 'selected':
-        conditions = [(int(L), float(snr), 'condition') for L, snr in settings['conditions']]
-    elif mode == 'grid':  # Read historical definitions; the GUI never offers a Cartesian grid.
-        conditions = [(int(L), float(snr), 'condition') for L in settings['pilot_lengths']
-                      for snr in settings['snr_values']]
-    else:
-        conditions = ([(L0, float(snr), 'snr_sweep') for snr in settings['snr_values']]
-                      + [(int(L), snr0, 'pilot_sweep') for L in settings['pilot_lengths']])
+    conditions = ([(L0, float(snr), 'snr_sweep') for snr in settings['snr_values']]
+                  + [(int(L), snr0, 'pilot_sweep') for L in settings['pilot_lengths']])
     if include_optional or selected is not None:
         from cgap_sbl_jadce.additional_conditions import additional_conditions
         existing = {value[:2] for value in conditions}
@@ -317,27 +280,7 @@ def evaluation_conditions(cfg, selected=None, method=None, include_optional=Fals
     return [condition for condition in conditions if condition[:2] in pairs]
 
 
-def legacy_evaluation_definition(cfg, method, selected=None):
-    spec = ESTIMATORS[method]
-    definition = {'method': spec.name, 'revision': 1, 'nmse_scope': NMSE_SCOPE,
-                  'communication': communication_definition(cfg, 'evaluation'),
-                  'algorithms': legacy_solver_config(cfg, method), 'conditions': [list(x) for x in evaluation_conditions(cfg)],
-                  'samples': cfg['run']['num_evaluation_samples'],
-                  'archive_sha256': archive_identity(task_dir(cfg['run']['output_dir'], 'communication') / 'evaluation',
-                      cfg['run']['num_evaluation_samples'], ['channels.npz', 'pilots.npz', 'observations.npz'])}
-    if spec.tuning_grid:
-        if tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
-            definition['tuning'] = legacy_tuning_definition(cfg, method)
-            definition['selection_mode'] = 'per_condition'
-        else:
-            definition['selection'] = selected if selected is not None else load_selection(cfg, method)
-    if spec.spatial:
-        definition['spatial_dependence'] = spatial_dependence_definition(cfg, 'evaluation')
-        definition['spatial_archive_sha256'] = archive_identity(task_dir(cfg['run']['output_dir'], 'spatial_dependence') / 'evaluation', cfg['run']['num_evaluation_samples'], ['matrix'])
-    return definition
-
-
-def evaluation_definition(cfg, method, selected=None, condition=None):
+def evaluation_definition(cfg, method, condition=None):
     from cgap_sbl_jadce.compatibility import solver_revision
     from cgap_sbl_jadce.communication_dataset import communication_condition_identity
     pairs = [tuple(condition)] if condition is not None else list(dict.fromkeys(value[:2] for value in evaluation_conditions(cfg)))
@@ -353,10 +296,7 @@ def evaluation_definition(cfg, method, selected=None, condition=None):
     return definition
 
 
-def evaluation_matches(saved, cfg, method, pair, expected=None):
-    if saved.get('revision') == 1:
-        from cgap_sbl_jadce.compatibility import legacy_definition_matches
-        return legacy_definition_matches(saved, expected or legacy_evaluation_definition(cfg, method), cfg, method, pair)
+def evaluation_matches(saved, cfg, method, pair):
     return saved == evaluation_definition(cfg, method, condition=pair)
 
 
@@ -372,9 +312,7 @@ def _aggregate(df):
 
 @checkpointed
 def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume=False):
-    """Each L/SNR condition owns final data and its unfinished numerical units."""
-    from cgap_sbl_jadce.condition_results import (completed_conditions, rebuild_algorithm_results,
-                                                 migrate_legacy_results)
+    from cgap_sbl_jadce.condition_results import (completed_conditions, rebuild_algorithm_results)
     from cgap_sbl_jadce.figures.estimator_condition import plot_condition_scores
     from cgap_sbl_jadce.checkpoints import output_hashes
     resume = is_resuming()
@@ -385,13 +323,11 @@ def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume
     requested = evaluation_conditions(cfg, conditions, method=method)
     selections = evaluation_selections(cfg, method, requested)
     selected = next(iter(selections.values()), None)
-    definition = None
-    migrate_legacy_results(cfg, method, definition, selections)
     save_task_snapshot(cfg, spec.task, status='started', action='run', method=spec.name)
     count = int(cfg['run']['num_evaluation_samples'])
     gamma_count = min(int(cfg['evaluation'].get('gamma_distribution_samples', 0)), count)
     pairs = list(dict.fromkeys(value[:2] for value in requested))
-    done = {pair for pair, _, _ in completed_conditions(cfg, method, definition, selections)}
+    done = {pair for pair, _, _ in completed_conditions(cfg, method, selections)}
     for pair in tqdm(pairs, desc=f'{spec.name} conditions', unit='condition', disable=not show_progress):
         if resume and pair in done:
             continue
@@ -451,7 +387,7 @@ def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume
             'outputs': {str(path.relative_to(folder)): digest
                         for path, digest in zip(files, output_hashes(files).values())},
         })
-        # The lifecycle owner clears this condition only after data and figures commit.
+
         checkpoint.clear(prune=True)
         rebuild_algorithm_results(cfg, method, selections=selections)
     summary = rebuild_algorithm_results(cfg, method, selections=selections)
@@ -466,28 +402,20 @@ def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume
 
 
 def completed_methods(cfg, conditions=None):
-    """Methods with complete, current scores for the requested condition subset."""
     from cgap_sbl_jadce.condition_results import completed_conditions
     requested = {value[:2] for value in evaluation_conditions(cfg, conditions)}
     available = []
     for method in ESTIMATORS:
         try:
-            if run_path(cfg, method).exists():
-                current = {pair for pair, _, _ in completed_conditions(cfg, method)}
-                if requested <= current:
-                    available.append(method)
-            else:
-                summary = json.loads(result_path(cfg['run']['output_dir'], method, 'run_summary.json').read_text())
-                if (summary.get('status') in {'complete', 'partial'} and summary.get('nmse_scope') == NMSE_SCOPE and
-                        all(evaluation_matches(summary.get('definition', {}), cfg, method, pair) for pair in requested)):
-                    available.append(method)
+            current = {pair for pair, _, _ in completed_conditions(cfg, method)}
+            if requested <= current:
+                available.append(method)
         except (OSError, ValueError, KeyError):
             continue
     return available
 
 
 def convergence_methods(cfg, condition=None):
-    """Only completed, compatible SBL-family evaluation results are eligible."""
     condition = condition or (cfg['evaluation']['pilot_length'], evaluation_settings(cfg)['snr_db'])
     try:
         completed = completed_methods(cfg, [condition])
@@ -518,7 +446,6 @@ def analysis_methods(cfg, kind, methods=None, conditions=None, condition=None):
 
 
 def comparison_stage(cfg, show_progress=True, conditions=None, methods=None):
-    """Summarize any selected subset of compatible completed algorithm outputs."""
     out = cfg['run']['output_dir']
     requested = evaluation_conditions(cfg, conditions)
     methods = analysis_methods(cfg, 'comparison', methods, conditions)
@@ -530,12 +457,9 @@ def comparison_stage(cfg, show_progress=True, conditions=None, methods=None):
             raise FileNotFoundError(f'Run {spec.name} for these conditions first.')
         summary = json.loads(summary_path.read_text())
         if method not in completed_methods(cfg, conditions):
-            raise ValueError(f'Incompatible or historical {spec.name} results. Rerun {spec.name}.')
-        if run_path(cfg, method).exists():
-            from cgap_sbl_jadce.condition_results import completed_conditions
-            df = pd.concat([frame for pair, _, frame in completed_conditions(cfg, method) if pair in {value[:2] for value in requested}], ignore_index=True)
-        else:
-            df = pd.read_csv(result_path(out, method, 'per_sample.csv'))
+            raise ValueError(f'Incompatible {spec.name} results. Rerun {spec.name}.')
+        from cgap_sbl_jadce.condition_results import completed_conditions
+        df = pd.concat([frame for pair, _, frame in completed_conditions(cfg, method) if pair in {value[:2] for value in requested}], ignore_index=True)
         expected = {(q, L, snr, sweep) for q in range(cfg['run']['num_evaluation_samples'])
                     for L, snr, sweep in requested}
         df = df[df.apply(lambda row: (row.L, row.snr_db, row.sweep) in requested, axis=1)]
@@ -563,7 +487,6 @@ def comparison_stage(cfg, show_progress=True, conditions=None, methods=None):
 
 @checkpointed
 def convergence_stage(cfg, show_progress=True, methods=None, realization_index=None, condition=None):
-    """Record iteration histories for any selected available algorithms."""
     out = cfg['run']['output_dir']
     q = int(cfg['evaluation'].get('convergence_sample_offset', 0) if realization_index is None else realization_index)
     if not 0 <= q < cfg['run']['num_evaluation_samples']:

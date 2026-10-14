@@ -1,4 +1,3 @@
-"""Settings owned by each task; legacy flat definitions remain readable."""
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 import math
@@ -7,11 +6,10 @@ CALIBRATION_KEYS = ('calibration_samples', 'calibration_validation_samples', 'ka
                     'kappa_refinement_steps', 'calibration_tolerance', 'batch_size')
 
 
-def range_values(settings, name, legacy_key=None, integer=False):
-    """Inclusive regular sweeps, with decimal steps and legacy explicit-grid support."""
+def range_values(settings, name, values_key=None, integer=False):
     keys = [name + '_' + part for part in ('start', 'stop', 'step')]
     if not any(key in settings for key in keys):
-        return list(settings.get(legacy_key or name + '_values', []))
+        return list(settings.get(values_key or name + '_values', []))
     if not all(key in settings for key in keys):
         raise ValueError(f'{name} needs start, stop and step')
     values = [settings[key] for key in keys]
@@ -30,7 +28,6 @@ def range_values(settings, name, legacy_key=None, integer=False):
 
 
 def range_parameters(values, name, integer=False):
-    """Convert an existing regular grid only when every value is preserved exactly."""
     if not values:
         return None
     try:
@@ -43,10 +40,10 @@ def range_parameters(values, name, integer=False):
         return None
 
 
-def _group_range(settings, name, legacy_key=None, integer=False):
-    key = legacy_key or name + '_values'
+def _group_range(settings, name, values_key=None, integer=False):
+    key = values_key or name + '_values'
     if any(name + '_' + part in settings for part in ('start', 'stop', 'step')):
-        range_values(settings, name, key, integer)  # Validate even when a stale list is present.
+        range_values(settings, name, key, integer)
         settings.pop(key, None)
     elif key in settings:
         fields = range_parameters(settings[key], name, integer)
@@ -90,6 +87,8 @@ def tuning_settings(cfg, method):
 
 
 def evaluation_settings(cfg):
+    if cfg['evaluation'].get('condition_mode', 'sweeps') != 'sweeps' or 'conditions' in cfg['evaluation']:
+        raise ValueError('Evaluation settings use sweeps; add optional conditions on the Run page.')
     settings = {'pilot_lengths': cfg['system'].get('pilot_lengths', []),
                 'snr_values': cfg['system'].get('snr_db', []),
                 'snr_db': reference_settings(cfg)['reference_snr_db'], **cfg['evaluation']}
@@ -113,14 +112,11 @@ def tuning_pairs(cfg, method=None, include_optional=False):
     if include_optional and method and tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
         from cgap_sbl_jadce.additional_conditions import additional_conditions
         pairs.update(additional_conditions(cfg, method))
-    # Old setups may deliberately have additional saved tuning conditions.
-    if not any(name in cfg.get('algorithms', {}) for name in ('sbl', 'anc')):
-        pairs.update(tuple(pair) for pair in cfg.get('communication', {}).get('tuning_conditions', []))
+
     return sorted(pairs)
 
 
 def grouped_config(cfg):
-    """One portable, grouped source definition, without runtime snapshots or aliases."""
     result = deepcopy(cfg)
     result.pop('task_runtime', None)
     result.pop('spatial_dependence', None)
@@ -131,10 +127,6 @@ def grouped_config(cfg):
             result['activity'].pop(key, None)
     result['communication'] = {'reference': reference_settings(cfg)}
     result['evaluation'] = evaluation_settings(cfg)
-    if result['evaluation'].get('condition_mode') == 'grid':
-        from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
-        result['evaluation']['conditions'] = [list(pair) for pair in dict.fromkeys(value[:2] for value in evaluation_conditions(cfg))]
-        result['evaluation']['condition_mode'] = 'selected'
     _group_range(result['evaluation'], 'pilot_length', 'pilot_lengths', integer=True)
     _group_range(result['evaluation'], 'snr', 'snr_values')
     result['system'].pop('pilot_lengths', None)
@@ -144,7 +136,7 @@ def grouped_config(cfg):
         result['algorithms'][name]['tuning'] = tuning_settings(cfg, name)
         for parameter in ('alpha', 'beta'):
             _group_range(result['algorithms'][name]['tuning'], parameter)
-    # Preserve future registered algorithms and their independently owned parameters.
+
     for name, values in cfg.get('algorithms', {}).items():
         if isinstance(values, dict) and name not in result['algorithms']:
             result['algorithms'][name] = deepcopy(values)
@@ -155,7 +147,6 @@ def grouped_config(cfg):
 
 
 def method_config(cfg, method):
-    """Expose the selected method's reference to shared plotting/data loaders."""
     result = deepcopy(cfg)
     tune = tuning_settings(cfg, method)
     result['communication'] = {**result.get('communication', {}), 'reference': {
@@ -164,7 +155,6 @@ def method_config(cfg, method):
 
 
 def request_settings(cfg, request):
-    """Semantic settings used by this execution, excluding unrelated edits and paths."""
     cfg = grouped_config(cfg)
     task, action = request.get('task'), request.get('action', 'run')
     if not task:

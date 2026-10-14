@@ -1,9 +1,7 @@
-"""Task-local interactive charts and freshly rendered publication exports."""
 from pathlib import Path
 from cgap_sbl_jadce.gui.previews import (PREVIEWS, SAMPLE_PREVIEWS, sample_options,
-                                       historical_results, missing_preview_inputs)
+                                       missing_preview_inputs)
 from cgap_sbl_jadce.gui.charts import interactive_figures, source_version
-from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, condition_config
 
 CATEGORIES = {
     'kappa_calibration': ['kappa'], 'activity': ['activity', 'active_counts', 'paper_activity'],
@@ -15,8 +13,7 @@ CATEGORIES = {
 def figure_panel(st, cfg, config, jobs, task, action):
     categories = CATEGORIES.get(task, [f'{task}_{action}'])
     from cgap_sbl_jadce.gui.theme import section_heading
-    section_heading(st, 'Graph generator', 'Interactive views from your data')
-    st.caption('Every chart is built from numerical data. Drag to pan, scroll to zoom, hover for values, and click legend entries to show or hide series.')
+    section_heading(st, 'Graph generator')
     from cgap_sbl_jadce.gui.workflow import numerical_state
     state = numerical_state(cfg, task, action)
     if state.status == 'incompatible':
@@ -36,7 +33,7 @@ def figure_panel(st, cfg, config, jobs, task, action):
             plot_cfg = tuning_preview_config(cfg, method, request)
     missing = missing_preview_inputs(plot_cfg, category)
     if missing:
-        st.info('Numerical data unavailable. Run the corresponding action first: ' + ', '.join(str(path) for path in missing))
+        st.info('No results yet.')
         ready = False
     if category in SAMPLE_PREVIEWS:
         selectors = st.columns(3)
@@ -53,8 +50,11 @@ def figure_panel(st, cfg, config, jobs, task, action):
                 request['condition'] = list(pair)
             else:
                 selectors[2].metric('Saved realizations', count)
+        except FileNotFoundError:
+            st.info('No results yet.')
+            ready = False
         except (OSError, ValueError, KeyError) as error:
-            st.info(f'Data unavailable: {error}')
+            st.info(str(error))
             ready = False
     if category.endswith('_run'):
         from cgap_sbl_jadce.paths import result_path
@@ -68,10 +68,6 @@ def figure_panel(st, cfg, config, jobs, task, action):
                                 format_func=lambda pair: 'All completed conditions' if pair is None else f'L={pair[0]}, SNR={pair[1]:g} dB')
             if view is not None:
                 request['condition'] = list(view)
-    if category.endswith('_run') or category == 'comparison':
-        task_id = ESTIMATORS[category.removesuffix('_run')].task if category.endswith('_run') else 'comparison'
-        if historical_results(cfg, task_id):
-            st.warning('Historical output: these recorded results may use full-matrix NMSE. Rerun for current true-active-support NMSE.')
     if ready:
         try:
             figures = interactive_figures(request)
@@ -99,4 +95,3 @@ def figure_panel(st, cfg, config, jobs, task, action):
         if paths:
             path = st.selectbox('Regenerated PDF', paths, format_func=lambda value: value.name)
             st.download_button('Download PDF', path.read_bytes(), icon=':material/download:', file_name=path.name, mime='application/pdf')
-    st.caption('Interactive chart downloads use the Plotly toolbar. Publication exports retain the existing code-defined fonts and styles.')

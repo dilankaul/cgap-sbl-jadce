@@ -13,7 +13,6 @@ class ThresholdChoice:
 
 
 def threshold_candidates() -> np.ndarray:
-    """Shared fixed grid: 0 through 0.2 inclusive, in steps of 0.001."""
     return np.arange(201, dtype=float) / 1000
 
 

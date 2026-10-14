@@ -1,4 +1,3 @@
-"""Optional algorithm conditions do not alter setup sweeps or saved base inputs."""
 from dataclasses import replace
 from pathlib import Path
 import json
@@ -38,12 +37,8 @@ def test_optional_registration_is_separate_and_shared(saved_data, tmp_path):
     assert additional_conditions(saved_data, 'omp') == [PAIR]
 
 
-def test_preparation_preserves_base_inputs_and_legacy_results(saved_data):
+def test_preparation_preserves_base_inputs_and_results(saved_data):
     estimators.run_estimator_stage(saved_data, 'omp', False, conditions=[(7, 8)])
-    path = run_path(saved_data, 'omp', 'summary.json', (7, 8))
-    summary = json.loads(path.read_text())
-    summary['definition'] = estimators.legacy_evaluation_definition(saved_data, 'omp')
-    path.write_text(json.dumps(summary))
     folder = task_dir(saved_data['run']['output_dir'], 'communication')
     original = {path: path.read_bytes() for path in folder.glob('*/*/*.npz')}
     add_condition(saved_data, 'omp', PAIR)

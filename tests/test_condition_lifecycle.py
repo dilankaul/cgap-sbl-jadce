@@ -1,4 +1,3 @@
-"""Fresh reruns, durable per-condition progress, cleanup and portable GUI recovery."""
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -33,7 +32,7 @@ def test_conditions_complete_individually_and_rerun_does_not_use_finished_checkp
         folder = run_path(saved_data, 'omp', condition=pair)
         assert json.loads((folder / 'summary.json').read_text())['status'] == 'complete'
         assert (folder / 'figures/realization_scores.png').exists()
-        assert not list(folder.rglob('*.npz'))  # Greedy final data are CSV; no recovery archives remain.
+        assert not list(folder.rglob('*.npz'))
     assert summary['status'] == 'complete' and len(summary['completed_pairs']) == 3
     assert len(calls) == 6
     untouched = run_path(saved_data, 'omp', 'per_sample.csv', (5, 12)).read_bytes()
@@ -141,21 +140,14 @@ def test_condition_graphs_and_export_use_numerical_results(saved_data, tmp_path,
     assert {path.suffix for path in paths} == {'.pdf', '.png'}
 
 
-def test_legacy_migration_preserves_recorded_scores(saved_data):
-    from cgap_sbl_jadce.condition_results import migrate_legacy_results, rebuild_algorithm_results
+def test_combined_tables_do_not_replace_missing_condition_results(saved_data):
     estimators.run_estimator_stage(saved_data, 'omp', False)
-    path = result_path(saved_data['run']['output_dir'], 'omp', 'run_summary.json')
-    summary = json.loads(path.read_text())
-    summary.pop('layout')
-    summary['definition'] = estimators.legacy_evaluation_definition(saved_data, 'omp')
-    path.write_text(json.dumps(summary))
-    original = pd.read_csv(result_path(saved_data['run']['output_dir'], 'omp', 'per_sample.csv'))
+    path = result_path(saved_data['run']['output_dir'], 'omp', 'per_sample.csv')
+    original = path.read_bytes()
     shutil.rmtree(run_path(saved_data, 'omp'))
-    assert migrate_legacy_results(saved_data, 'omp')
-    migrated = rebuild_algorithm_results(saved_data, 'omp')
-    assert migrated['status'] == 'complete'
-    actual = pd.read_csv(result_path(saved_data['run']['output_dir'], 'omp', 'per_sample.csv'))
-    pd.testing.assert_frame_equal(original, actual)
+    assert estimators.completed_methods(saved_data) == []
+    assert not run_path(saved_data, 'omp').exists()
+    assert path.read_bytes() == original
 
 
 def test_crash_during_final_cleanup_resumes_without_recomputing(saved_data, tmp_path, monkeypatch):

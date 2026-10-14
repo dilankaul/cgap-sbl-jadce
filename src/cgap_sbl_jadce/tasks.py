@@ -1,4 +1,3 @@
-"""Task registry and shared orchestration used by the GUI worker."""
 from __future__ import annotations
 
 from functools import partial
@@ -48,9 +47,7 @@ TASKS = {
 }
 
 
-
 def task_actions(task_id: str) -> dict[str, Task]:
-    """Algorithms with tunable parameters expose separate Tune and Run actions."""
     for method, spec in estimators.ESTIMATORS.items():
         if spec.task == task_id and spec.tuning_grid:
             plots = (partial(plot_threshold_tuning, method=method),)
@@ -63,12 +60,10 @@ def task_actions(task_id: str) -> dict[str, Task]:
     return {'run': TASKS[task_id]}
 
 
-
 @checkpointed
 def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool = True,
              conditions: list | None = None, methods: list | None = None,
              realization_index: int | None = None, condition: tuple | None = None) -> list:
-    """Run only this action, then regenerate its standard PNG outputs from data."""
     request = None
     if cfg.get('task_runtime', {}).get('input_config'):
         request = {'kind': 'task', 'config': cfg['task_runtime']['input_config'], 'task': task_id, 'action': action}

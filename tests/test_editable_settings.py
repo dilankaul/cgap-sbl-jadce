@@ -1,4 +1,3 @@
-"""Settings edits affect only scientific dependents and are reversible."""
 from copy import deepcopy
 from dataclasses import replace
 import json
@@ -68,15 +67,15 @@ def test_added_conditions_keep_finished_pairs_without_repeated_solves(saved_data
     assert run_path(cfg, 'omp', 'per_sample.csv', (7, 8)).read_bytes() == output
 
 
-def test_selected_conditions_can_change_views_without_invalidating_measurements(saved_data):
+def test_sweep_subset_preserves_completed_measurements(saved_data):
     cfg = grouped_config(saved_data)
     estimators.run_estimator_stage(cfg, 'omp', False, conditions=[[7, 12]])
-    cfg['evaluation'].update(condition_mode='selected', conditions=[[7, 12]])
-    assert estimators.evaluation_conditions(cfg) == [(7, 12., 'condition')]
+    cfg['evaluation'].update(pilot_length_start=7, pilot_length_stop=7, snr_start=12., snr_stop=12.)
+    assert {value[:2] for value in estimators.evaluation_conditions(cfg)} == {(7, 12.)}
     assert estimators.completed_methods(cfg) == ['omp']
     assert numerical_state(cfg, 'omp').status == 'completed'
     comparison = estimators.comparison_stage(cfg, False, methods=['omp'])
-    assert comparison['metric_rows'] == 2
+    assert comparison['metric_rows'] == 4
 
 
 def test_separate_algorithm_tuning_policies_and_reference_conditions(saved_data):
@@ -148,11 +147,6 @@ def test_active_settings_guard_allows_unrelated_changes_and_requires_pause(saved
 
 def test_preparation_seed_edits_block_successors_and_restore(saved_data):
     cfg = deepcopy(saved_data)
-    # Existing recorded manifests identify activity seeds, not only dimensions.
-    source = result_path(cfg['run']['output_dir'], 'activity', 'manifest.json')
-    original = deepcopy(cfg); original['activity']['kappa'] = 3.78
-    save_json(source, {'configuration': original})
-    cfg['activity']['kappa_source'] = 'configured'; cfg['activity']['kappa'] = 3.78
     cfg['seeds']['activity_evaluation'] += 1
     assert numerical_state(cfg, 'activity').status == 'incompatible'
     assert blocking_reasons(cfg, 'communication')
@@ -224,7 +218,7 @@ def test_incompatible_preparation_cannot_overwrite_existing_communication_summar
     assert path.read_bytes() == before
 
 
-def test_historical_tuning_graphs_remain_available_after_policy_changes(saved_data, tmp_path, monkeypatch):
+def test_saved_tuning_graphs_remain_available_after_policy_changes(saved_data, tmp_path, monkeypatch):
     from cgap_sbl_jadce.gui.previews import stored_tuning_options, render_preview
     from cgap_sbl_jadce.gui.charts import interactive_figures, source_version
     cfg = grouped_config(saved_data)
@@ -239,3 +233,14 @@ def test_historical_tuning_graphs_remain_available_after_policy_changes(saved_da
     exports = render_preview(request, tmp_path / 'export')
     assert {path.suffix for path in exports} == {'.png', '.pdf'}
     assert all(path.exists() for path in exports)
+
+
+def test_preparation_without_compatibility_metadata_is_rejected(saved_data):
+    path = result_path(saved_data['run']['output_dir'], 'activity', 'summary.json')
+    summary = json.loads(path.read_text())
+    summary.pop('compatibility')
+    save_json(path, summary)
+    before = result_path(saved_data['run']['output_dir'], 'communication', 'summary.json').read_bytes()
+    with pytest.raises(ValueError, match='metadata missing'):
+        pipeline.communication_stage(saved_data, False)
+    assert result_path(saved_data['run']['output_dir'], 'communication', 'summary.json').read_bytes() == before

@@ -1,4 +1,3 @@
-"""Recorded scores by realization for one algorithm and communication condition."""
 import matplotlib.pyplot as plt
 import pandas as pd
 

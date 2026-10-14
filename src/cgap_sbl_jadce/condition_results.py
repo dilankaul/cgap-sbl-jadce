@@ -1,6 +1,4 @@
-"""Condition-local algorithm results and derived whole-algorithm summaries."""
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -12,9 +10,9 @@ from cgap_sbl_jadce.metrics import NMSE_SCOPE
 from cgap_sbl_jadce.settings import evaluation_settings
 
 
-def completed_conditions(cfg, method, definition=None, selections=None):
+def completed_conditions(cfg, method, selections=None):
     from cgap_sbl_jadce.experiments.estimators import (evaluation_definition, evaluation_conditions,
-                                                     evaluation_selections, selection_digest, evaluation_matches, legacy_evaluation_definition)
+                                                     evaluation_selections, selection_digest, evaluation_matches)
     requested = evaluation_conditions(cfg, method=method, include_optional=True)
     if selections is None:
         selections = {}
@@ -24,14 +22,11 @@ def completed_conditions(cfg, method, definition=None, selections=None):
             except (OSError, ValueError):
                 pass
     result = []
-    legacy_expected = None
     for pair in dict.fromkeys(value[:2] for value in requested):
         folder = run_path(cfg, method, condition=pair)
         try:
             summary = json.loads((folder / 'summary.json').read_text())
-            if summary.get('definition', {}).get('revision') == 1 and legacy_expected is None:
-                legacy_expected = legacy_evaluation_definition(cfg, method)
-            if summary['status'] != 'complete' or not evaluation_matches(summary['definition'], cfg, method, pair, expected=legacy_expected):
+            if summary['status'] != 'complete' or not evaluation_matches(summary['definition'], cfg, method, pair):
                 continue
             if summary.get('selection_digest') != (selection_digest(selections[pair]) if pair in selections else None):
                 continue
@@ -50,7 +45,7 @@ def completed_conditions(cfg, method, definition=None, selections=None):
             unique = frame.drop(columns='sweep').drop_duplicates('q')
             if frame.drop(columns='sweep').drop_duplicates().shape[0] != len(expected):
                 continue
-            # Sweep labels are presentation views, not part of the solver result.
+
             frame = pd.concat([unique.assign(sweep=view) for L, snr, view in requested if (L, snr) == pair], ignore_index=True)
             result.append((pair, summary, frame))
         except (OSError, ValueError, KeyError):
@@ -58,12 +53,11 @@ def completed_conditions(cfg, method, definition=None, selections=None):
     return result
 
 
-def rebuild_algorithm_results(cfg, method, definition=None, selections=None):
-    """Keep sweep tables as derived views; condition folders own completed data."""
+def rebuild_algorithm_results(cfg, method, selections=None):
     from cgap_sbl_jadce.experiments.estimators import (_aggregate, evaluation_definition,
                                                      evaluation_conditions, ESTIMATORS)
-    definition = definition or {"method": ESTIMATORS[method].name, "revision": 2}
-    records = completed_conditions(cfg, method, definition, selections)
+    definition = {"method": ESTIMATORS[method].name, "revision": 2}
+    records = completed_conditions(cfg, method, selections)
     required_conditions = evaluation_conditions(cfg)
     all_conditions = evaluation_conditions(cfg, method=method, include_optional=True)
     order = {value: i for i, value in enumerate(all_conditions)}
@@ -85,7 +79,6 @@ def rebuild_algorithm_results(cfg, method, definition=None, selections=None):
         save_csv(result_path(cfg['run']['output_dir'], method, 'runtime_summary.csv'), runtime)
     summary = {
         'status': 'complete' if {value[:2] for value in required_conditions} <= {pair for pair, _, _ in records} else 'partial',
-        'layout': 'condition_results',
         'definition': definition, 'method': ESTIMATORS[method].name,
         'completed_conditions': [list(value) for value in done],
         'completed_pairs': [list(pair) for pair, _, _ in records],
@@ -106,94 +99,13 @@ def rebuild_algorithm_results(cfg, method, definition=None, selections=None):
     return summary
 
 
-def migrate_legacy_results(cfg, method, definition=None, selections=None):
-    """Split compatible recorded results without running solvers or altering measurements."""
-    from cgap_sbl_jadce.experiments.estimators import evaluation_definition, evaluation_conditions, legacy_evaluation_definition, evaluation_matches
-    try:
-        source = result_path(cfg['run']['output_dir'], method, 'run_summary.json')
-        summary = json.loads(source.read_text())
-        if summary.get('layout') == 'condition_results':
-            return False
-        if (summary.get('status') not in {'complete', 'partial'} or
-                not all(evaluation_matches(summary.get('definition', {}), cfg, method, pair) for pair in dict.fromkeys(v[:2] for v in evaluation_conditions(cfg))) or summary.get('nmse_scope') != NMSE_SCOPE):
-            return False
-        expected = definition or (legacy_evaluation_definition(cfg, method) if summary.get('definition', {}).get('revision') == 1 else evaluation_definition(cfg, method))
-        frame = pd.read_csv(result_path(cfg['run']['output_dir'], method, 'per_sample.csv'))
-        expected_conditions = evaluation_conditions(cfg)
-        for pair in dict.fromkeys(value[:2] for value in expected_conditions):
-            if run_path(cfg, method, 'summary.json', pair).exists():
-                continue
-            part = frame[(frame.L == pair[0]) & (frame.snr_db == pair[1])]
-            keys = {(q, L, snr, sweep) for q in range(cfg['run']['num_evaluation_samples'])
-                    for L, snr, sweep in expected_conditions if (L, snr) == pair}
-            if len(part) != len(keys) or set(part[['q', 'L', 'snr_db', 'sweep']].itertuples(index=False, name=None)) != keys:
-                continue
-            if not part.nmse_scope.eq(NMSE_SCOPE).all():
-                continue
-            folder = run_path(cfg, method, condition=pair)
-            save_csv(folder / 'per_sample.csv', part)
-            from cgap_sbl_jadce.experiments.estimators import _aggregate
-            aggregate, runtime = _aggregate(part)
-            save_csv(folder / 'aggregate.csv', aggregate)
-            save_csv(folder / 'runtime_summary.csv', runtime)
-            gamma_samples = 0
-            gamma_source = result_path(cfg['run']['output_dir'], method, 'gamma_distribution.npz')
-            if pair == (summary.get('reference_pilot_length'), summary.get('reference_snr_db')) and gamma_source.exists():
-                with np.load(gamma_source) as archive:
-                    save_npz(folder / 'gamma_distribution.npz', a=archive['a'], gamma=archive['gamma'])
-                    gamma_samples = len(archive['a'])
-            names = ['per_sample.csv', 'aggregate.csv', 'runtime_summary.csv']
-            if gamma_samples:
-                names.append('gamma_distribution.npz')
-            save_json(folder / 'summary.json', {
-                'status': 'complete', 'condition': list(pair), 'definition': expected,
-                'selection_digest': summary.get('selection_digests', {}).get(f'{pair[0]}_{pair[1]:g}'),
-                'gamma_samples': gamma_samples, 'nmse_scope': NMSE_SCOPE,
-                'outputs': output_hashes([folder / name for name in names]),
-                'migrated_from': 'per_sample.csv',
-            })
-        return run_path(cfg, method).exists()
-    except (OSError, ValueError, KeyError):
-        return False
-
-
-def migrate_setup_results(cfg):
-    """Convert compatible finished outputs; never reinterpret historical scores."""
-    from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, evaluation_conditions
-    from cgap_sbl_jadce.checkpoints import prune_owned_checkpoints
-    from cgap_sbl_jadce.paths import task_dir
-    migrated = []
-    expected = {value[:2] for value in evaluation_conditions(cfg)}
-    for method, spec in ESTIMATORS.items():
-        if not migrate_legacy_results(cfg, method):
-            continue
-        records = completed_conditions(cfg, method)
-        path = result_path(cfg['run']['output_dir'], method, 'run_summary.json')
-        summary = json.loads(path.read_text())
-        pairs = {pair for pair, _, _ in records}
-        if not pairs:
-            continue
-        summary.update(layout='condition_results', completed_pairs=[list(pair) for pair in sorted(pairs)],
-                       total_conditions=len(expected))
-        save_json(path, summary)
-        if pairs == expected and summary['status'] == 'complete':
-            prune_owned_checkpoints(task_dir(cfg['run']['output_dir'], spec.task) / 'evaluation' / '.checkpoints',
-                                    {'definition': {'method': spec.name}})
-        migrated.append(method)
-    return migrated
-
-
 def condition_issue(cfg, method, pair):
-    """Explain a stored condition's mismatch without changing its recorded results."""
     from cgap_sbl_jadce.experiments.estimators import evaluation_definition, evaluation_matches, ESTIMATORS
     from cgap_sbl_jadce.compatibility import require_match
     try:
         summary = json.loads(run_path(cfg, method, 'summary.json', pair).read_text())
         saved = summary.get('definition', {})
-        if saved.get('revision') == 2:
-            require_match(saved, evaluation_definition(cfg, method, condition=pair), ESTIMATORS[method].name + ' results')
-        elif not evaluation_matches(saved, cfg, method, pair):
-            return 'Recorded settings, input identities or tuning selection differ.'
+        require_match(saved, evaluation_definition(cfg, method, condition=pair), ESTIMATORS[method].name + ' results')
     except (OSError, ValueError, KeyError) as error:
         return str(error)
     return 'A required result/figure is missing, incomplete or differs from its recorded hash.'

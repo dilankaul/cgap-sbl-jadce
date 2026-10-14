@@ -1,4 +1,3 @@
-"""Saved communication archives, shared by all downstream experiments."""
 from pathlib import Path
 import hashlib
 import json
@@ -52,7 +51,6 @@ def validate_communication_dataset(cfg, split, conditions=None):
 
 
 def save_communication_sample(folder, q, realizations):
-    """Save H/Z/a once, pilots once per L, and Y/W/sigma2 per condition."""
     folder = Path(folder) / f'{q:04d}'
     first = next(iter(realizations.values()))
     pilots = {}
@@ -126,7 +124,6 @@ def _array_digest(path, size, modified, changed, keys):
 
 
 def communication_condition_identity(cfg, split, pair):
-    """Hash only arrays used by this condition; adding other L/SNR inputs is harmless."""
     folder = validate_communication_dataset(cfg, split, [pair])
     L, snr = pair
     key = f'L{L}_snr{snr:g}'
@@ -148,7 +145,6 @@ def communication_condition_identity(cfg, split, pair):
 
 
 def add_communication_conditions(cfg, conditions, methods=(), show_progress=True):
-    """Prepare optional inputs, preserving all existing shared arrays and conditions."""
     from tqdm.auto import tqdm
     from cgap_sbl_jadce.additional_conditions import additional_conditions, validate_pair, input_splits
     from cgap_sbl_jadce.checkpoints import Checkpoint, completed_outputs, output_hashes
@@ -183,7 +179,7 @@ def add_communication_conditions(cfg, conditions, methods=(), show_progress=True
                 with np.load(source / 'pilots.npz') as archive:
                     if f'L{L}' in archive and not np.array_equal(archive[f'L{L}'], r.Theta):
                         raise ValueError('Saved shared pilots differ from deterministic inputs; rerun communication generation.')
-                # Keep base archives byte-for-byte intact, including legacy result identities.
+
                 values = {'condition': np.asarray(pair), 'Theta': r.Theta, 'Y': r.Y, 'W': r.W, 'sigma2': np.asarray(r.sigma2)}
                 unchanged = False
                 if path.exists():

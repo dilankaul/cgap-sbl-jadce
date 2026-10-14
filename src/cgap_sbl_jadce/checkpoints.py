@@ -1,4 +1,3 @@
-"""Persistent, definition-specific checkpoints for completed calculation units."""
 from pathlib import Path
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -34,7 +33,6 @@ def is_resuming():
 
 @contextmanager
 def checkpoint_session(resume=False):
-    """Fresh actions discard their own units; successful actions clear owned units."""
     session = {'resume': resume, 'checkpoints': []}
     token = _session.set(session)
     try:
@@ -70,11 +68,8 @@ def scientific_revision():
 
 
 def checkpoint_owner(definition):
-    """Only a task/action or a specific algorithm condition can own cleanup."""
     if 'condition' in definition and 'definition' in definition:
         return ('run', definition['definition'].get('method'), tuple(definition['condition']))
-    if 'definition' in definition and definition['definition'].get('method'):
-        return ('legacy_run', definition['definition']['method'])
     if 'method' in definition and 'condition' in definition:
         return ('tune', definition['method'], tuple(definition['condition']))
     if 'task' in definition:
@@ -85,7 +80,6 @@ def checkpoint_owner(definition):
 
 
 def prune_owned_checkpoints(root, definition):
-    """Release obsolete identities for a completed owner, preserving every other owner."""
     owner = checkpoint_owner(definition)
     if owner is None:
         return
@@ -95,7 +89,7 @@ def prune_owned_checkpoints(root, definition):
             identity = json.loads(manifest.read_text())
             if checkpoint_owner(identity['definition']) != owner:
                 continue
-            # Calibration child archives remain inside their verified parent's scope.
+
             children = list(manifest.parent.rglob('definition.json'))
             for child in sorted(children, key=lambda path: len(path.parts), reverse=True):
                 digest = child.parent.name
@@ -109,7 +103,7 @@ def prune_owned_checkpoints(root, definition):
                         path.unlink()
                 if not any(child.parent.glob('*.npz')):
                     child.unlink(missing_ok=True)
-            # Remove only empty directories; unidentified files are retained.
+
             for folder in sorted(manifest.parent.rglob('*'), key=lambda path: len(path.parts), reverse=True):
                 if folder.is_dir() and not any(folder.iterdir()):
                     folder.rmdir()
@@ -122,7 +116,6 @@ def prune_owned_checkpoints(root, definition):
 
 
 class Checkpoint:
-    """A unit is reusable only after its whole archive has been committed."""
     def __init__(self, folder, definition):
         identity = {'schema': 1, 'definition': definition, 'code': scientific_revision(),
                     'numpy': np.__version__, 'scipy': scipy.__version__, 'machine': platform.machine(),
@@ -135,8 +128,8 @@ class Checkpoint:
         session = _session.get()
         if session is not None:
             if not session['resume']:
-                # The identity includes the action and, for runs, exactly one L/SNR
-                # condition. Only archives carrying that identity belong to us.
+
+
                 for path in self.folder.glob('*.npz'):
                     try:
                         with np.load(path, allow_pickle=False) as archive:
@@ -152,7 +145,6 @@ class Checkpoint:
         save_json(self.folder / 'definition.json', identity)
 
     def clear(self, prune=False):
-        """Delete only archives validated, loaded or saved by this checkpoint owner."""
         for name in self.units:
             (self.folder / name).unlink(missing_ok=True)
         self.units.clear()
@@ -214,13 +206,11 @@ def completed_outputs(checkpoint, key, paths):
 
 @lru_cache(maxsize=16384)
 def _archive_digest(path, size, mtime, ctime):
-    """Reuse a byte digest only while the file identity remains unchanged."""
     with Path(path).open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').digest()
 
 
 def archive_identity(folder, count, names):
-    """Identify the actual archive bytes, not only their generating settings."""
     folder = Path(folder)
     digest = hashlib.sha256()
     for q in range(count):

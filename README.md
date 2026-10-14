@@ -118,7 +118,7 @@ and tables. It never displays saved PNG/PDF figures. Drag to pan, scroll to zoom
 hover for values and click legends to toggle traces. Activity/spatial views select
 a split and realization; communication also selects an available L/SNR condition.
 HSV matrices expose the actual magnitude, phase, real and imaginary values on
-hover. NMSE uses logarithmic axes/colors; recorded historical scope is identified.
+hover. NMSE uses logarithmic axes/colors.
 
 **Regenerate publication exports** renders fresh PNG/PDFs from the same data using
 the existing code-defined Matplotlib typography. Paper activity exports omit the
@@ -143,8 +143,7 @@ the GUI visualizations use their underlying data directly.
 ## Configuration and reproducibility
 
 `configs/experiment.yaml` defines grouped environment, activity, calibration,
-communication, evaluation and algorithm settings. Older flat setup files remain
-readable; editing saves the grouped layout without changing their effective values.
+communication, evaluation and algorithm settings.
 Kappa calibration scans ascending kappa values, brackets the target expected count, then
 refines the bracket on the configured steps. Every candidate uses identical
 geometries and Bernoulli uniforms. Independent validation reports uncertainty
@@ -158,9 +157,9 @@ H stays fixed across conditions; Theta stays fixed across SNRs at each pilot len
 Tuning and evaluation use separate data. Missing or incompatible input archives
 stop a task with instructions to regenerate the producing stage.
 
-The legacy default experiment retains its root `results/experiment/config.yaml`
-snapshot. Named GUI setups use that file as their stable input definition; tasks
-never overwrite it. Each task has a
+The default experiment writes a `results/experiment/config.yaml` snapshot.
+Named GUI setups keep their input definition in `results/<name>/config.yaml`; tasks
+do not overwrite it. Each task has a
 JSON manifest with its effective configuration and runtime metadata. Font sizes
 and figure dimensions are defined locally in plotting functions, not YAML.
 
@@ -228,9 +227,7 @@ Each `run/Lxxxx_snrXdB/` folder owns its `per_sample.csv`, `aggregate.csv`,
 `runtime_summary.csv`, `summary.json`, and condition figures. SBL and ANC also
 save condition-local gamma data. Algorithm-root sweep tables are combined views
 of compatible completed conditions; the overall card completes when every configured
-condition finishes. Compatible older combined files are split without rerunning solvers. Saved numerical outputs and figures are versioned.
-Migrated older scores are explicitly marked historical and must be rerun before
-comparison; their NMSE values are not converted or relabeled.
+sweep condition finishes. Saved numerical outputs and figures are versioned.
 
 Communication generation stores H, a and Z once, Theta once per L, and Y, W and sigma2 per unique
 condition. Overlapping sweep conditions share inputs. Spatial dependence generation saves every C;

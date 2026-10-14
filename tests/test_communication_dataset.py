@@ -13,7 +13,6 @@ from cgap_sbl_jadce.communication_dataset import load_communication_sample, vali
 from cgap_sbl_jadce.experiments import pipeline
 
 
-
 def test_archives_exactly_match_old_generation_and_share_channels_pilots(saved_data):
     cfg = saved_data
     out = cfg['run']['output_dir']
@@ -76,7 +75,6 @@ def test_selected_diagnostics_use_saved_samples(saved_data, monkeypatch):
     assert all(path.exists() for path in paths)
     assert sum('effective_channel_row_energy' in path.name for path in paths) == 2
     assert sum('received_signal_hsv_heatmap' in path.name for path in paths) == 2
-
 
 
 def test_complex_hsv_encodes_phase_and_magnitude_without_modifying_data():

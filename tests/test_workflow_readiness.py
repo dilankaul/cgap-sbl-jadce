@@ -1,4 +1,3 @@
-"""Workflow badges must agree with prerequisites on the task pages."""
 from types import SimpleNamespace
 import shutil
 
@@ -20,7 +19,7 @@ def test_fresh_setup_blocks_dependent_tasks_and_algorithm_parents(tmp_path):
         states = [numerical_state(cfg, method, action) for action in ('tune', 'run')]
         assert all(state.status == 'blocked' for state in states)
         assert combined(states).status == 'blocked'
-    # The Activity model group is available because calibration can start.
+
     assert combined([numerical_state(cfg, task) for task in ('kappa_calibration', 'activity')]).status == 'ready'
 
 

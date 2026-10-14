@@ -1,4 +1,3 @@
-"""Plan completion separately from an explicit fresh rerun, using saved condition data."""
 from dataclasses import dataclass, field
 import hashlib
 import json
@@ -75,13 +74,11 @@ def _checkpoint_issue(folder, expected):
 
 
 def completion_plan(config, method, conditions=None):
-    """Read-only preview of exactly which conditions can start, resume or be skipped."""
     cfg = load_config(config)
     requested = evaluation_conditions(cfg, conditions, method=method)
     plan = CompletionPlan(list(dict.fromkeys(value[:2] for value in requested)))
     try:
-        definition = None
-        done = {pair for pair, _, _ in completed_conditions(cfg, method, definition)}
+        done = {pair for pair, _, _ in completed_conditions(cfg, method)}
         selections = {}
         for pair in plan.pairs:
             try:
@@ -89,7 +86,7 @@ def completion_plan(config, method, conditions=None):
             except (OSError, ValueError, KeyError):
                 pass
     except (OSError, ValueError, KeyError):
-        definition, done, selections = None, set(), {}
+        done, selections = set(), {}
     recoveries = load_recoveries(config, method)
     validation = {}
     for pair in plan.pairs:
@@ -134,7 +131,6 @@ def completion_plan(config, method, conditions=None):
 
 
 def clear_finished_recoveries(config, method):
-    """An old failed request must not hide subsequently completed condition results."""
     from cgap_sbl_jadce.recovery import finish_recovery
     cfg = load_config(config)
     done = {pair for pair, _, _ in completed_conditions(cfg, method)}

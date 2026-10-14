@@ -94,7 +94,7 @@ def test_calibration_restart_restores_rng_and_running_sums(tmp_path, monkeypatch
     monkeypatch.setattr(activity, '_uniform_disk_batch', count)
     resumed = calibrate_kappa_grid(**args, checkpoint=Checkpoint(tmp_path, args))
     assert resumed == expected
-    assert len(calls) == 6  # Three remaining batches, device and event geometry each.
+    assert len(calls) == 6
 
 
 @pytest.mark.parametrize('stage,task,operation', [
@@ -113,7 +113,7 @@ def test_generation_restart_skips_committed_units_and_fresh_rerun_rebuilds_outpu
         return original(*args, **kwargs)
     monkeypatch.setattr(pipeline, operation, count)
     getattr(pipeline, stage)(saved_data, show_progress=False, resume=True)
-    # Four realizations; communication has one tuning + three evaluation conditions.
+
     assert len(calls) == (7 if task == 'communication' else 3)
     assert not list(task_dir(saved_data['run']['output_dir'], task).rglob('.checkpoints/*/*.npz'))
     calls.clear()
@@ -144,7 +144,7 @@ def test_tuning_restart_reuses_completed_solver_outputs(saved_data, monkeypatch)
         return spec.solve(*args, **kwargs)
     monkeypatch.setitem(estimators.ESTIMATORS, method, replace(spec, solve=resumed))
     selected = estimators.tune_estimator_stage(saved_data, method, show_progress=False, resume=True)
-    assert len(calls) == 6  # Eight total solves, two committed before failure.
+    assert len(calls) == 6
     scores = pd.read_csv(result_path(saved_data['run']['output_dir'], method, 'tuning/alpha_beta.csv'))
     assert len(scores) == 4
     assert selected['parameters']['tau'] in np.arange(201) / 1000

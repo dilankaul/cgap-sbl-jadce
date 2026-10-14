@@ -1,4 +1,3 @@
-"""Shared grouped settings forms for setup creation, editing and task pages."""
 from pathlib import Path
 
 from cgap_sbl_jadce.config import load_config
@@ -33,8 +32,8 @@ def _list(st, values, name, prefix, integer=False):
     return values, name, text, integer
 
 
-def _range(st, settings, name, prefix, legacy_key=None, integer=False):
-    key = legacy_key or name + '_values'
+def _range(st, settings, name, prefix, values_key=None, integer=False):
+    key = values_key or name + '_values'
     fields = [name + '_' + part for part in ('start', 'stop', 'step')]
     if all(field in settings for field in fields):
         _numbers(st, settings, fields, prefix)
@@ -47,7 +46,7 @@ def _range(st, settings, name, prefix, legacy_key=None, integer=False):
         convert = int if integer else float
         step = min(b - a for a, b in zip(ordered, ordered[1:])) if len(ordered) > 1 else 1
         proposed = dict(zip(fields, map(convert, (ordered[0], ordered[-1], step))))
-        st.caption('Existing custom values are retained until you replace this range.')
+        st.caption('Custom values')
     original = dict(proposed)
     _numbers(st, proposed, fields, prefix)
     replace_custom = custom and st.checkbox('Use a regular ' + name.replace('_', ' ') + ' range', key=prefix + '_regular_' + name)
@@ -57,7 +56,6 @@ def _range(st, settings, name, prefix, legacy_key=None, integer=False):
 
 
 def settings_fields(st, cfg, prefix, task=None, action='run'):
-    """Return edits using the same field ownership in both entry points."""
     lists = []
     if task is None or task in {'kappa_calibration', 'activity'}:
         with st.expander('Environment', expanded=True):
@@ -69,7 +67,6 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
         with st.expander('Activity model'):
             _numbers(st, cfg['activity'], ['V', 'D', 'batch_size'], prefix + '_activity')
             cfg['activity']['exact_sparsity'] = st.checkbox('Require an exact active count', value=cfg['activity'].get('exact_sparsity', False), key=prefix + '_exact_sparsity')
-            st.caption('The default uses a target mean active count, with varying realization counts.')
     if task is None or task == 'kappa_calibration':
         with st.expander('Kappa calibration', expanded=task is not None):
             cal = cfg['kappa_calibration']
@@ -91,8 +88,9 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
             _numbers(st, evaluation, ['pilot_length', 'snr_db'], prefix + '_evaluation')
             _range(st, evaluation, 'pilot_length', prefix + '_evaluation', 'pilot_lengths', integer=True)
             _range(st, evaluation, 'snr', prefix + '_evaluation', 'snr_values')
-            st.caption('Complete all runs these configured conditions. Each sweep holds its other variable fixed.')
     for method, values in cfg['algorithms'].items():
+        if not values.get('solver') and not values.get('tuning'):
+            continue
         if task is not None and task != method:
             continue
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
@@ -103,7 +101,7 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
                 _numbers(st, values['solver'], list(values['solver']), prefix + '_' + method + '_solver')
             tune = values.get('tuning')
             if tune:
-                st.caption('Tuning · belongs only to ' + name)
+                st.caption('Tuning')
                 tune['selection_mode'] = st.radio(name + ' tuning policy', ['reference', 'per_condition'],
                     index=int(tune['selection_mode'] == 'per_condition'), key=prefix + '_' + method + '_policy',
                     format_func=lambda value: 'One reference selection' if value == 'reference' else 'Separate selection per condition')
@@ -113,8 +111,6 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
                 for parameter in ('alpha', 'beta'):
                     if parameter + '_start' in tune or parameter + '_values' in tune:
                         _range(st, tune, parameter, prefix + '_' + method)
-            elif not values.get('solver'):
-                st.caption('This algorithm has no configurable tuning parameters.')
     if task is None or task in {'convergence', 'sbl', 'anc'}:
         with st.expander('Analysis and diagnostics'):
             _numbers(st, cfg['evaluation'], ['gamma_distribution_samples', 'convergence_sample_offset'], prefix + '_analysis')
@@ -139,7 +135,6 @@ def _parse(lists):
 
 
 def reset_settings_forms(st):
-    """Discard browser drafts; saved setup files are never changed by a reset."""
     for key in list(st.session_state):
         if key.startswith(('settings_form_', 'settings_draft_', 'new_setup_', 'edit_settings_')):
             del st.session_state[key]
@@ -163,7 +158,6 @@ def edit_settings(st, cfg, config, jobs=None, task=None, action='run'):
         controls = st.columns(2)
         submitted = controls[0].form_submit_button('Save changes', type='primary', icon=':material/save:')
         controls[1].form_submit_button('Reset', icon=':material/restart_alt:', on_click=reset_settings_forms, args=(st,))
-    st.caption('Changes apply only when you click Save changes. Reset restores the saved settings.')
     if submitted:
         try:
             _parse(lists)
@@ -193,7 +187,6 @@ def setup_editor(st, project, default, current, jobs=None):
         controls = st.columns(2)
         submitted = controls[0].form_submit_button('Save setup', type='primary', icon=':material/save:')
         controls[1].form_submit_button('Reset', icon=':material/restart_alt:', on_click=reset_settings_forms, args=(st,))
-    st.caption('A new setup is created only when you click Save setup.')
     if submitted:
         try:
             _parse(lists); validate_setup(cfg)

@@ -11,11 +11,7 @@ class Posterior:
 
 
 def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, sigma2: float, gamma: np.ndarray) -> Posterior:
-    """Posterior for complex MMV SBL using the L x L covariance Pi.
-
-    Pi = Theta diag(gamma) Theta^H + sigma2 I.
-    Returns mu and diag(Sigma) without explicitly inverting Pi or forming Sigma.
-    """
+    """Pi = Theta diag(gamma) Theta^H + sigma2 I; return mu and diag(Sigma)."""
     Theta = np.asarray(Theta, dtype=np.complex128)
     Y = np.asarray(Y, dtype=np.complex128)
     gamma = np.asarray(gamma, dtype=float)
@@ -36,20 +32,18 @@ def posterior_mmv(Theta: np.ndarray, Y: np.ndarray, sigma2: float, gamma: np.nda
 
     mu = gamma[:, None] * (Theta.conj().T @ Pi_inv_Y)
 
-    # If Pi=Lc Lc^H, then theta_i^H Pi^{-1} theta_i = ||Lc^{-1} theta_i||_2^2.
-    # Only one triangular solve is needed for all N pilot columns, instead of
-    # computing the full Pi^{-1}Theta with two triangular solves.
+
     Lc = factor[0]
+    # theta_i^H Pi^{-1} theta_i = ||Lc^{-1} theta_i||_2^2.
     whitened_Theta = solve_triangular(Lc, Theta, lower=True, check_finite=False)
     diag_gram = np.sum(np.abs(whitened_Theta) ** 2, axis=0)
     Sigma_diag = gamma - gamma * gamma * diag_gram
-    # Negative values here should only be roundoff-level numerical errors.
+
     Sigma_diag = np.maximum(Sigma_diag, 0.0)
     return Posterior(mu=mu, Sigma_diag=Sigma_diag)
 
 
 def posterior_mmv_full_reference(Theta: np.ndarray, Y: np.ndarray, sigma2: float, gamma: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Slow full-matrix reference implementation used only by tests."""
     Theta = np.asarray(Theta, dtype=np.complex128)
     Y = np.asarray(Y, dtype=np.complex128)
     gamma = np.asarray(gamma, dtype=float)

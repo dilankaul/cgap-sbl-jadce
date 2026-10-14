@@ -1,7 +1,6 @@
-"""Dashboard presentation: local vector icons, task cards, and a shared theme."""
 from html import escape
 
-# Small inline SVGs keep task/status symbols sharp and available offline.
+
 PATHS = {
     'activity': '<circle cx="12" cy="12" r="2"/><path d="M8 8a6 6 0 0 0 0 8m8-8a6 6 0 0 1 0 8M5 5a10 10 0 0 0 0 14m14-14a10 10 0 0 1 0 14"/>',
     'communication': '<path d="M3 12h3l3-8 6 16 3-8h3"/>',
@@ -25,7 +24,6 @@ PATHS = {
     'failed': '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v.1"/>',
     'blocked': '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
     'incompatible': '<path d="m12 3 10 18H2L12 3zM12 9v5m0 3v.1"/>',
-    'historical': '<path d="M3 11a9 9 0 1 1 3 8M3 4v7h7m2-5v6l4 2"/>',
 }
 
 

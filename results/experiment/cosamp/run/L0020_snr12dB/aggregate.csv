@@ -1,2 +1,0 @@
-algorithm,L,snr_db,sweep,precision,recall,f1,nmse,runtime_s,nmse_scope
-MMV-CoSaMP,20,12.0,pilot_sweep,0.35495911036418,0.33237599511116916,0.34230757306004084,4.6871140750297515,0.012503774591980753,true_active_support

@@ -1,4 +1,3 @@
-"""Render saved numerical outputs through the existing figure functions."""
 from copy import deepcopy
 import inspect
 import json
@@ -27,7 +26,6 @@ SAMPLE_PREVIEWS = {'activity', 'paper_activity', 'communication', 'spatial'}
 
 
 def sample_options(cfg, category, split):
-    """Return saved sample counts and actual conditions, not the current YAML counts."""
     if split not in {'tuning', 'evaluation'}:
         raise ValueError('split must be tuning or evaluation')
     group = {'communication': 'communication', 'spatial': 'spatial_dependence'}.get(category, 'activity')
@@ -37,7 +35,6 @@ def sample_options(cfg, category, split):
 
 
 def missing_preview_inputs(cfg, category):
-    """Expected absent outputs are a UI hint, rather than a failed worker job."""
     if category.endswith('_tune'):
         method = category.removesuffix('_tune')
         names = ['thresholds.csv'] + (['alpha_beta.csv'] if method == 'anc' else [])
@@ -58,7 +55,6 @@ def missing_preview_inputs(cfg, category):
 
 
 def render_preview(request, destination):
-    """Export PNG/PDF without calling a generator, tuner, or estimator."""
     from cgap_sbl_jadce.figures.common import figure_destination
     from cgap_sbl_jadce.figures.activity_realizations import plot_activity_realization
     from cgap_sbl_jadce.figures.paper_activity_realizations import plot_paper_activity_figure
@@ -115,20 +111,7 @@ def render_preview(request, destination):
         return paths
 
 
-def historical_results(cfg, task_id):
-    """Display recorded provenance when viewing older estimator scores."""
-    folder = task_dir(cfg['run']['output_dir'], task_id)
-    for name in ('run_summary.json', 'tuning/selected.json'):
-        path = folder / name
-        if path.exists():
-            data = json.loads(path.read_text())
-            if data.get('status') == 'historical' or data.get('nmse_scope') == 'full_matrix':
-                return True
-    return False
-
-
 def stored_tuning_options(cfg, method):
-    """Historical tuning remains viewable when the current policy/reference changes."""
     folder = task_dir(cfg['run']['output_dir'], method) / 'tuning'
     options = []
     for path in [folder / 'selected.json', *sorted(folder.glob('*/selected.json'))]:

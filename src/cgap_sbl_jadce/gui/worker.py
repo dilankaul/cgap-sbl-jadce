@@ -1,4 +1,3 @@
-"""Headless worker independent of the Streamlit server and browser session."""
 import json
 import os
 from pathlib import Path
@@ -13,7 +12,7 @@ from cgap_sbl_jadce.gui.jobs import config_digest
 
 def run(folder):
     folder = Path(folder)
-    # Wait for the launching controller to publish our PID before doing work.
+
     for _ in range(100):
         record = json.loads((folder / 'job.json').read_text())
         if record.get('pid') == os.getpid():
@@ -29,7 +28,7 @@ def run(folder):
     signal.signal(signal.SIGINT, stop)
     try:
         request = record['request']
-        if config_digest(request['config'], request if record.get('config_scope') == 2 else None) != record['config_digest']:
+        if config_digest(request['config'], request) != record['config_digest']:
             raise ValueError('Configuration changed before the worker started.')
         from cgap_sbl_jadce.gui.inputs import input_signature
         if request['kind'] == 'task':

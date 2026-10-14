@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 
 from cgap_sbl_jadce.models.activity import generate_activity_dataset
 from cgap_sbl_jadce.experiments.calibration import calibrate_kappa_adaptive, CalibrationBracketError
-from cgap_sbl_jadce.config import resolve_activity_kappa, activity_spatial_dependence_parameters
+from cgap_sbl_jadce.config import resolve_activity_kappa
 from cgap_sbl_jadce.settings import calibration_settings, reference_settings, evaluation_settings
 from cgap_sbl_jadce.models.spatial_dependence import build_C
 from cgap_sbl_jadce.spatial_dependence_dataset import spatial_dependence_definition
@@ -20,7 +20,7 @@ from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, atomic_path
 from cgap_sbl_jadce.models.realizations import communication_realization
 from cgap_sbl_jadce.communication_dataset import communication_definition, save_communication_sample
 from cgap_sbl_jadce.reporting import print_task_report
-from cgap_sbl_jadce.checkpoints import Checkpoint, checkpointed, is_resuming, output_hashes, completed_outputs
+from cgap_sbl_jadce.checkpoints import Checkpoint, checkpointed, output_hashes, completed_outputs
 from cgap_sbl_jadce.provenance import save_task_snapshot
 
 
@@ -30,7 +30,6 @@ def output_dir(cfg: dict[str, Any]) -> Path:
 
 @checkpointed
 def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
-    """kappa calibration: calibrate kappa, validate, and save effective run provenance."""
     cfg = deepcopy(cfg)
     sys = cfg["system"]
     act = {**cfg["activity"], **calibration_settings(cfg)}
@@ -45,7 +44,7 @@ def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> di
     caldir = ensure_dir(task_dir(out, 'kappa_calibration'))
     csv_path = caldir / "kappa_sweep.csv"
     summary_path = caldir / "summary.json"
-    # Record the effective CLI values and defaults before executing calibration.
+
     cfg["system"]["S"] = target
     cfg["activity"].update({
         "D": D, "kappa_scan": kappas, "calibration_samples": num_samples,
@@ -203,7 +202,6 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
 
 @checkpointed
 def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditions=None, methods=None) -> dict[str, Any]:
-    """communication generation owns the full tuning and evaluation communication data."""
     if conditions is not None:
         from cgap_sbl_jadce.communication_dataset import add_communication_conditions
         return add_communication_conditions(cfg, conditions, methods or [], show_progress)
@@ -246,10 +244,8 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditi
     return summary
 
 
-
 @checkpointed
 def spatial_dependence_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
-    """spatial dependence saves one CSR dependence matrix per tuning/evaluation geometry."""
     from cgap_sbl_jadce.compatibility import validate_preparation
     for split in ("tuning", "evaluation"):
         validate_preparation(cfg, "activity", split)

@@ -4,7 +4,6 @@ from scipy.linalg import lstsq
 
 
 def mmv_omp(Theta: np.ndarray, Y: np.ndarray, B_q: int) -> np.ndarray:
-    """MMV-OMP/SOMP using row-energy selection and known joint sparsity B_q."""
     L, N = Theta.shape
     if not (0 <= B_q <= min(L, N)):
         raise ValueError("B_q must satisfy 0 <= B_q <= min(L, N).")

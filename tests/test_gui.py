@@ -1,4 +1,3 @@
-"""Dashboard controls must not change scientific calculations or saved inputs."""
 import json
 import os
 from pathlib import Path
@@ -38,7 +37,7 @@ def test_worker_pause_survives_controller_restart_and_rejects_second_job(saved_d
         assert reopened.active()['id'] == record['id']
         with pytest.raises(ValueError, match='already has paused work'):
             reopened.start(request)
-        # Configuration edits cannot silently alter an in-memory continuation.
+
         original = config.read_text()
         changed = load_config(config)
         changed['system']['M'] += 1
@@ -322,7 +321,7 @@ def test_failed_worker_can_resume_with_same_request(tmp_path):
     config.write_text('{}')
     save_yaml(config, {'run': {'output_dir': str(tmp_path / 'results')}})
     jobs = Jobs(tmp_path)
-    # An invalid job kind exercises the real worker exception/status path.
+
     record = jobs.start({'kind': 'invalid', 'config': str(config)})
     try:
         failed = wait_status(jobs, {'failed'})
@@ -366,7 +365,7 @@ def test_task_controls_offer_one_resume_for_live_and_recoverable_work(tmp_path, 
     save_json(folder / 'control.json', {'command': command})
     resumed = []
     monkeypatch.setattr(Jobs, 'resume', lambda self, job_id: resumed.append(job_id))
-    # This isolated control-rendering test supplies a compatible recovery stub.
+
     monkeypatch.setattr('cgap_sbl_jadce.recovery.validate_recovery', lambda request: {})
     source = f"""
 import streamlit as st
@@ -383,3 +382,27 @@ worker_panel(st, Jobs({str(tmp_path)!r}), {str(config)!r}, 'omp', 'run')
         resume.click().run()
         assert not app.exception
         assert resumed == ['example']
+
+
+def test_empty_dashboard_discards_deleted_setup_selection(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    cfg = load_config('tests/fixtures/small_experiment.yaml')
+    cfg['run']['output_dir'] = str(tmp_path / 'results/experiment')
+    config = tmp_path / 'default.yaml'
+    save_yaml(config, cfg)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('CGAP_GUI_CONFIG', str(config))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30)
+    app.session_state['setup_path'] = tmp_path / 'results/deleted/config.yaml'
+    app.run()
+    assert not app.exception
+    assert app.sidebar.selectbox[0].value == config
+    assert not Path(cfg['run']['output_dir']).exists()
+    assert not list((tmp_path / '.gui').glob('*/job.json'))
+    captions = [item.value for item in app.caption]
+    assert not any('Pause at a checkpoint' in text or 'Prepare your data' in text for text in captions)
+    app.button(key='open_algorithm_omp').click().run()
+    assert not app.exception
+    assert app.button(key='task_action').disabled
+    assert any(info.value == 'No results yet.' for info in app.info)
+    assert not Path(cfg['run']['output_dir']).exists()

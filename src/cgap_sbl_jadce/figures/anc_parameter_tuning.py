@@ -1,11 +1,10 @@
-"""ANC parameter tuning figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
 import pandas as pd
-from cgap_sbl_jadce.paths import result_path, figure_path, tuning_path, tuning_figure_path
+from cgap_sbl_jadce.paths import tuning_path, tuning_figure_path
 from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
 
 

@@ -1,5 +1,3 @@
-"""Detect dependencies changed by another task while a worker is paused."""
-from pathlib import Path
 import hashlib
 import json
 

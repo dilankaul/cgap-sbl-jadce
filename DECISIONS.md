@@ -196,3 +196,6 @@
 
 
 94. Configure optional conditions directly in the algorithm Run page’s Condition status table: an empty L/SNR input row with Add, and Delete on each optional row. Add/Delete apply immediately, with no additional Save control. Required sweep rows remain read-only and have no Delete action. Preserve shared options, input preparation, active-worker guards, saved numerical data and sweep-only completion totals. Setup and task-settings Save/Reset forms are unchanged.
+
+
+95. Clear all saved experiment runs, named result setups, figures, checkpoints, recovery requests and local GUI job/export state for a fresh start. Retain the source experiment YAML and documentation. Remove legacy result migration, legacy preparation-metadata fallback, old combined-result eligibility, and historical-score UI handling; current condition results and strict input/settings/code compatibility remain mandatory. Saved tuning outputs from current runs remain viewable after later setting changes. Shorten the dashboard to controls, relevant settings/progress and necessary error messages. Remove narrative code comments/docstrings and keep only concise scientific notes; rationale and future work belong in project documents.

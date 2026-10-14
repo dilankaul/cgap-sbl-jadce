@@ -21,6 +21,8 @@ def calibration_config(tmp_path):
         'seed': cfg['seeds']['kappa_calibration'],
         'closest_grid_kappa': 2.75,
     }
+    from cgap_sbl_jadce.compatibility import preparation_settings
+    summary['compatibility'] = preparation_settings(cfg, 'kappa_calibration')
     path = result_path(tmp_path, 'kappa_calibration', 'summary.json')
     path.parent.mkdir(parents=True)
     path.write_text(json.dumps(summary))

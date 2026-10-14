@@ -1,4 +1,3 @@
-"""Spatial dependence selected spatial dependence heatmaps from saved CSR matrices."""
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt

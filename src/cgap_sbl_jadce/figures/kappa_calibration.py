@@ -1,4 +1,3 @@
-"""kappa calibration figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -9,7 +8,6 @@ from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
 
 
 def plot_activity_calibration(cfg: dict, formats: str = "png") -> list[Path]:
-    """Plot mean active count versus kappa from the kappa calibration calibration files."""
     import json
     out = Path(cfg["run"]["output_dir"])
     path = result_path(out, "kappa_calibration", "kappa_sweep.csv")
@@ -28,7 +26,7 @@ def plot_activity_calibration(cfg: dict, formats: str = "png") -> list[Path]:
                     "legend.fontsize": 10.5, "colorbar.labelsize": 12,
                     "colorbar.ticksize": 10}
     fig, ax = plt.subplots(figsize=(6.4, 4.4))
-    # Show every tested candidate, including all refinement stages.
+
     ax.plot(
         df["kappa"], df["mean_expected_active"],
         color="#0072B2", linewidth=1.4, marker="o", markersize=6,

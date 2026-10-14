@@ -23,13 +23,12 @@ def load_config(path: str | Path) -> dict[str, Any]:
         if len(set(values)) != len(values):
             raise ValueError("Each experimental random stream must have a distinct seed.")
     if cfg.get('experiment', {}).get('name'):
-        # Named GUI definitions live beside their results and remain portable.
+
         cfg['run']['output_dir'] = str(Path(path).resolve().parent)
     return cfg
 
 
 def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
-    """Read a compatible kappa-calibration selection without rewriting the input config."""
     import json
     import math
     from cgap_sbl_jadce.paths import result_path
@@ -68,7 +67,6 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
 
 
 def activity_spatial_dependence_parameters(cfg: dict[str, Any]) -> dict[str, float]:
-    """Paper VIII-A: rho=kappa and U=D, using the saved activity model."""
     import json
     from cgap_sbl_jadce.paths import result_path
 

@@ -1,4 +1,3 @@
-"""algorithm comparison and per-estimator performance figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -30,7 +29,6 @@ def _line_plot(df: pd.DataFrame, x: str, y: str, title: str, xlabel: str, ylabel
              else fr"Fixed $\mathrm{{SNR}}={fixed_values[0]:g}$ dB")
     ax.set_title(title + "\n" + fixed); ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.grid(True, alpha=0.25); ax.legend()
     _apply_figure_style(fig, figure_style); fig.tight_layout(); return _save(fig, stem, formats)
-
 
 
 def make_performance_figures(cfg: dict, formats: str = "png", show_progress: bool = True, method: str | None = None) -> list[Path]:

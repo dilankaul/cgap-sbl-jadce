@@ -1,4 +1,3 @@
-"""Completion skips finished solvers; only an explicit rerun replaces their data."""
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -57,7 +56,7 @@ def test_complete_all_skips_completed_files_and_preserves_measurements(saved_dat
         assert record['complete']
         assert completion_plan(config, 'omp').label() == 'Rerun all'
         assert all(path.read_bytes() == data and path.stat().st_mtime_ns == stamp for path, (data, stamp) in before.items())
-        # An idempotent completion request must also touch none of the final condition files.
+
         all_before = {path: path.stat().st_mtime_ns for path in run_path(saved_data, 'omp').rglob('*') if path.is_file()}
         record = jobs.complete(record['request'])
         assert wait(jobs, record)['status'] == 'completed', jobs.log(record['id'])[0]
@@ -98,7 +97,7 @@ def test_complete_selected_reuses_units_from_an_interrupted_all_conditions_reque
         data = pd.read_csv(folder / 'per_sample.csv')
         np.testing.assert_allclose(data[data.q.eq(0)].runtime_s, committed['runtime_s'])
         assert not run_path(saved_data, 'omp', 'summary.json', (5, 12)).exists()
-        assert load_recoveries(config, 'omp')  # The original request still has one unfinished condition.
+        assert load_recoveries(config, 'omp')
         record = jobs.complete(original_request)
         assert wait(jobs, record)['status'] == 'completed', jobs.log(record['id'])[0]
         assert not load_recoveries(config, 'omp')
@@ -194,7 +193,7 @@ def test_gui_labels_and_complete_all_option_follow_selected_scope(saved_data, tm
     selected.set_value([(5, 12)]).run()
     assert app.button(key='task_action').label == 'Start'
     assert app.button(key='complete_all')
-    # Click Complete all and capture the request, without launching production work.
+
     captured = []
     monkeypatch.setattr(Jobs, 'complete', lambda self, request: captured.append(request))
     selected = next(widget for widget in app.multiselect if widget.label == 'L / SNR conditions')

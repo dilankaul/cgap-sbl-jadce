@@ -1,4 +1,3 @@
-"""Action controls, cooperative worker management, and graphs in one task page."""
 import json
 
 from cgap_sbl_jadce.tasks import task_actions
@@ -11,7 +10,6 @@ from cgap_sbl_jadce.experiments.estimators import (ESTIMATORS, evaluation_condit
 
 
 def analysis_options(cfg, task, conditions=None, condition=None):
-    """Only completed runs can be selected; greedy methods have no SBL convergence trace."""
     return (completed_methods(cfg, conditions) if task == 'comparison'
             else convergence_methods(cfg, condition))
 
@@ -58,7 +56,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
                 jobs.control(record['id'], 'pause'); st.rerun()
             if controls[1].button('Resume', icon=':material/play_arrow:',
                                   disabled=not can_resume,
-                                  help='Continue a paused worker or recover completed calculations from checkpoints.', width='stretch'):
+                                  help='Resume saved work.', width='stretch'):
                 jobs.resume(record['id']); st.rerun()
             if controls[2].button('Stop', icon=':material/stop:', disabled=status not in ACTIVE or command == 'stop', width='stretch'):
                 jobs.control(record['id'], 'stop'); st.rerun()
@@ -85,7 +83,7 @@ def optional_input_controls(st, cfg, config, jobs, method, pairs):
                        format_func=lambda pair: f'L={pair[0]}, SNR={pair[1]:g} dB')
     reasons = input_reasons(cfg, method, pair)
     if reasons:
-        st.info('Prepare communication inputs before tuning or running this condition.')
+        st.info('Communication inputs missing.')
         base_issues = []
         for split in input_splits(cfg, [method]):
             try:
@@ -114,13 +112,11 @@ def optional_input_controls(st, cfg, config, jobs, method, pairs):
     else:
         st.success('Communication inputs are ready.')
         if ESTIMATORS[method].tuning_grid and tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
-            st.caption('Tune this condition on the algorithm’s Tune page before evaluation.')
+            st.caption('Tuning required for this condition.')
     worker_panel(st, jobs, config, 'communication', 'run', [list(pair)])
 
 
-
 def condition_status_panel(st, cfg, config, jobs, method, plan):
-    """Read-only sweep rows and optional rows with inline Add/Delete controls."""
     from cgap_sbl_jadce.additional_conditions import additional_conditions, add_condition, remove_condition
     from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
     from cgap_sbl_jadce.gui.setup_editor import reset_settings_forms
@@ -128,7 +124,6 @@ def condition_status_panel(st, cfg, config, jobs, method, plan):
     pairs = [pair for pair in additional_conditions(cfg) if pair not in plan.pairs]
     optional_plan = completion_plan(config, method, pairs) if pairs else None
     with st.expander('Condition status', expanded=True):
-        st.caption('Add or delete optional rows here. Optional rows are shared across algorithms and do not count toward sweep completion.')
         widths = [1, 1, 1, 2, 1]
         with st.container(border=True, key='condition_status_table'):
             for column, label in zip(st.columns(widths), ['Pilot length L', 'SNR (dB)', 'Type', 'Status', '']):
@@ -148,7 +143,7 @@ def condition_status_panel(st, cfg, config, jobs, method, plan):
                             (pair in {tuple(value) for value in (job['request'].get('conditions') or [])} or
                              tuple(job['request'].get('condition') or []) == pair) for job in jobs.records())
                         if columns[4].button('Delete', key=f'delete_optional_{prefix}_{pair}', icon=':material/delete:',
-                                             disabled=in_use, help='Remove this row for every algorithm. Saved data are retained.'):
+                                             disabled=in_use, help='Remove this shared option; keep saved data.'):
                             try:
                                 remove_condition(cfg, pair)
                             except (OSError, ValueError) as error:
@@ -214,8 +209,6 @@ def task_page(st, cfg, config, jobs, task, action):
                      method=task if spec else None, include_optional=True))))
         scope = st.radio('Condition scope', ['All conditions', 'Selected conditions'], horizontal=True,
                          key=f'scope_{config}_{task}_{action}')
-        if spec and action == 'run':
-            st.caption('All conditions uses only the experiment sweeps. Select an additional condition explicitly to run it.')
         if scope == 'Selected conditions':
             pair_key = f'pairs_{config}_{task}_{action}'
             if pair_key in st.session_state:
@@ -224,7 +217,6 @@ def task_page(st, cfg, config, jobs, task, action):
                                      format_func=lambda pair: f'L={pair[0]}, SNR={pair[1]:g} dB',
                                      key=f'pairs_{config}_{task}_{action}')
             conditions = [list(pair) for pair in selected]
-        st.caption('Completion skips finished conditions. Rerun explicitly recalculates the selected conditions.')
     if task == 'convergence':
         pairs = list(dict.fromkeys(pair[:2] for pair in evaluation_conditions(cfg, include_optional=True)))
         reference = (cfg['evaluation']['pilot_length'], evaluation_settings(cfg)['snr_db'])
@@ -235,23 +227,21 @@ def task_page(st, cfg, config, jobs, task, action):
             value=min(cfg['evaluation'].get('convergence_sample_offset',0),cfg['run']['num_evaluation_samples']-1), step=1))
     if task in {'comparison','convergence'}:
         available = analysis_options(cfg, task, conditions, condition) if conditions != [] else []
-        # Changing the condition removes stale selections before the widget is rendered.
+
         key = f'methods_{config}_{task}'
         if key in st.session_state:
             st.session_state[key] = [method for method in st.session_state[key] if method in available]
         methods = st.multiselect('Algorithms', available, default=available,
                                 format_func=lambda method: ESTIMATORS[method].name, key=key,
                                 disabled=not available)
-        st.caption('Only completed algorithms for the selected conditions are available.' if task == 'comparison'
-                   else 'Only completed SBL and CGAP-SBL-ANC runs are available. Convergence records their iteration histories.')
     if spec:
         if action == 'tune':
             count = len(conditions) if conditions is not None else (len(tuning_pairs(cfg, task)) if tuning_settings(cfg, task)['selection_mode'] == 'per_condition' else 1)
             candidates = len(spec.tuning_grid(cfg))
-            st.caption(f'{count} conditions × {candidates} parameter candidates × {cfg["run"]["num_tuning_samples"]} tuning realizations before checkpoint reuse.')
+            st.caption(f'{count} conditions × {candidates} parameter candidates × {cfg["run"]["num_tuning_samples"]} tuning realizations.')
         if spec.tuning_grid:
-            st.caption('Tuning policy: separate selection per condition.' if tuning_settings(cfg, task)['selection_mode'] == 'per_condition'
-                else f"Tuning policy: reference selection at L={tuning_settings(cfg, task)['reference_pilot_length']}, SNR={tuning_settings(cfg, task)['reference_snr_db']:g} dB.")
+            st.caption('Per-condition tuning' if tuning_settings(cfg, task)['selection_mode'] == 'per_condition'
+                else f"Reference tuning: L={tuning_settings(cfg, task)['reference_pilot_length']}, SNR={tuning_settings(cfg, task)['reference_snr_db']:g} dB.")
     reasons = (['Select at least one condition.'] if conditions == [] else
                blocking_reasons(cfg, task, action, conditions, methods, condition))
     for reason in reasons:
@@ -268,7 +258,7 @@ def task_page(st, cfg, config, jobs, task, action):
             label = selected_plan.label(selected=conditions is not None)
             st.caption(selected_plan.summary)
             for (L, snr), reason in selected_plan.blocked.items():
-                st.info(f'L={L}, SNR={snr:g} dB: {reason} Select this condition and Rerun to calculate it afresh.')
+                st.info(f'L={L}, SNR={snr:g} dB: {reason}')
             controls = st.columns(3)
             fresh = label.startswith('Rerun')
             disabled = bool(reasons) or busy or not selected_plan.pairs
@@ -289,20 +279,20 @@ def task_page(st, cfg, config, jobs, task, action):
                 all_reasons = blocking_reasons(cfg, task, action)
                 complete_disabled = busy or bool(all_reasons) or bool(plan.blocked) or len(plan.completed) == len(plan.pairs)
                 if controls[1].button('Complete all', key='complete_all', icon=':material/done_all:',
-                                      disabled=complete_disabled, help='Skip completed conditions, resume unfinished work and start untouched conditions.'):
+                                      disabled=complete_disabled, help='Finish remaining sweep conditions.'):
                     jobs.complete({key: value for key, value in request.items() if key != 'conditions'})
                     st.rerun()
             if not fresh and (selected_plan.completed or selected_plan.resume or selected_plan.blocked):
                 rerun_label = 'Rerun selected' if conditions is not None else 'Rerun all'
                 if controls[2].button(rerun_label, key='rerun_conditions', icon=':material/restart_alt:',
                                       disabled=bool(reasons) or busy or bool(own and own['status'] in ACTIVE),
-                                      help='Calculate every selected condition from the beginning, including completed ones.'):
+                                      help='Recalculate selected conditions.'):
                     jobs.start(request)
                     st.rerun()
         else:
             from cgap_sbl_jadce.gui.workflow import numerical_state
             status = numerical_state(cfg, task, action).status
-            label = 'Rerun' if status in {'completed', 'partial', 'historical', 'incompatible'} else 'Start'
+            label = 'Rerun' if status in {'completed', 'partial', 'incompatible'} else 'Start'
             recoverable = own and own['status'] in RECOVERABLE | {'paused'} and json.dumps(own['request'], sort_keys=True) == json.dumps(request, sort_keys=True)
             if recoverable:
                 from cgap_sbl_jadce.recovery import validate_recovery
@@ -317,7 +307,6 @@ def task_page(st, cfg, config, jobs, task, action):
                 st.rerun()
     except (OSError, ValueError) as error:
         st.error(str(error))
-    st.caption('Pause takes effect at the next checkpoint. Once paused, another task can run. Return here to Resume. The same control recovers compatible checkpoints after a failure, stop, or interruption.')
     worker_panel(st, jobs, config, task, action, conditions)
     st.divider()
     figure_panel(st, cfg, config, jobs, task, action)

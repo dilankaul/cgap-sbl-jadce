@@ -1,10 +1,8 @@
-"""Optional L/SNR conditions shared across algorithms, outside setup settings."""
 import json
 import math
 from pathlib import Path
 
 from cgap_sbl_jadce.io import save_json
-from cgap_sbl_jadce.paths import result_path
 
 
 def validate_pair(condition):
@@ -18,19 +16,13 @@ def validate_pair(condition):
     return L, float(snr)
 
 
-def _registry_paths(cfg):
-    from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-    return [Path(cfg['run']['output_dir']) / 'additional_conditions.json'] + [
-        result_path(cfg['run']['output_dir'], method, 'additional_conditions.json') for method in ESTIMATORS]
+def _registry_path(cfg):
+    return Path(cfg['run']['output_dir']) / 'additional_conditions.json'
 
 
 def additional_conditions(cfg, method=None):
-    # Read earlier method-local registrations too, without rewriting saved scientific results.
-    pairs = []
-    for path in _registry_paths(cfg):
-        if path.exists():
-            pairs.extend(validate_pair(pair) for pair in json.loads(path.read_text())['conditions'])
-    return list(dict.fromkeys(pairs))
+    path = _registry_path(cfg)
+    return [validate_pair(pair) for pair in json.loads(path.read_text())['conditions']] if path.exists() else []
 
 
 def add_condition(cfg, method, condition):
@@ -42,20 +34,14 @@ def add_condition(cfg, method, condition):
         return pair
     pairs = additional_conditions(cfg)
     if pair not in pairs:
-        save_json(_registry_paths(cfg)[0], {'conditions': [list(value) for value in pairs + [pair]]})
+        save_json(_registry_path(cfg), {'conditions': [list(value) for value in pairs + [pair]]})
     return pair
 
 
 def remove_condition(cfg, condition):
-    """Remove the shared option; preserve existing numerical inputs and result files."""
     pair = validate_pair(condition)
-    for path in _registry_paths(cfg):
-        if not path.exists():
-            continue
-        saved = json.loads(path.read_text())['conditions']
-        remaining = [value for value in saved if validate_pair(value) != pair]
-        if remaining != saved:
-            save_json(path, {'conditions': remaining})
+    remaining = [value for value in additional_conditions(cfg) if value != pair]
+    save_json(_registry_path(cfg), {'conditions': [list(value) for value in remaining]})
 
 
 def input_splits(cfg, methods):

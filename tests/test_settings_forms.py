@@ -1,4 +1,3 @@
-"""Settings drafts are temporary and require an explicit save button."""
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest

@@ -56,11 +56,15 @@ scope and are not promoted to current results.
 - GUI action labels follow saved state, and Complete all progress controls remain visible from a selected-condition view.
 
 - Grouped setup edits preserve effective values and independently owned algorithm settings.
-- Setup and task editors share one configuration, preview changes, and never launch a task when saving.
+- Setup and task editors share one configuration and never launch a task when saving.
 - Relevant edits mark results incompatible and block successors; restoring values restores eligibility.
 - ANC tuning edits leave OMP, CoSaMP and SBL results usable; tuning policies can differ per algorithm.
 - Adding L/SNR conditions preserves existing condition measurements, even after communication archives expand.
 - Figure selections, YAML formatting and unrelated settings do not invalidate scoped recovery.
 - Running tasks reject relevant edits until paused, while unrelated edits remain allowed.
 
-- Inclusive range controls retain alpha/beta, kappa and evaluation candidates, validate endpoints and steps, support negative SNRs and singleton ranges, and preserve legacy custom grids.
+- Inclusive range controls retain alpha/beta, kappa and evaluation candidates, validate endpoints and steps, support negative SNRs and singleton ranges, and preserve explicit custom grids.
+
+- Fresh runs require preparation compatibility metadata and condition-local results.
+- Old combined tables are not promoted into usable condition results.
+- The dashboard contains no historical-result migration or tutorial captions.

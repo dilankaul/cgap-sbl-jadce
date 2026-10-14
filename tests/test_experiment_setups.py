@@ -73,7 +73,7 @@ def test_incremental_conditions_preserve_scores_and_explicit_reruns_recalculate(
     after = pd.read_csv(path)
     pd.testing.assert_frame_equal(before, after[after.snr_db == 8].reset_index(drop=True))
     estimators.run_estimator_stage(saved_data, 'omp', show_progress=False, conditions=[[7, 8]])
-    assert len(calls) == 6  # A fresh rerun recalculates the selected condition.
+    assert len(calls) == 6
     final = estimators.run_estimator_stage(saved_data, 'omp', show_progress=False)
     assert final['status'] == 'complete' and len(calls) == 12
     assert not pd.read_csv(path).duplicated(['q', 'L', 'snr_db', 'sweep']).any()
@@ -113,7 +113,7 @@ def test_algorithms_and_selected_condition_comparison_have_no_order_dependency(s
     assert not blocking_reasons(saved_data, 'sbl', action='tune')
     estimators.tune_estimator_stage(saved_data, 'sbl', False)
     assert not blocking_reasons(saved_data, 'sbl', conditions=[[7, 8]])
-    # SBL finishes before either greedy algorithm; ANC is independent as well.
+
     estimators.run_estimator_stage(saved_data, 'sbl', False, conditions=[[7, 8]])
     estimators.tune_estimator_stage(saved_data, 'anc', False)
     for method in ('anc', 'cosamp', 'omp'):

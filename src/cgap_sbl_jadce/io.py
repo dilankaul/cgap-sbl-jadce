@@ -18,7 +18,6 @@ def ensure_dir(path: str | Path) -> Path:
 
 @contextmanager
 def atomic_path(path: str | Path):
-    """Keep the previous file intact until the new file is flushed and replaced."""
     target = Path(path)
     ensure_dir(target.parent)
     fd, name = tempfile.mkstemp(prefix='.tmp-', suffix=target.suffix, dir=target.parent)

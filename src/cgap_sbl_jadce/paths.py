@@ -1,4 +1,3 @@
-"""Descriptive output folders owned by independent workflow tasks."""
 from pathlib import Path
 
 TASK_FOLDERS = {

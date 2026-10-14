@@ -1,4 +1,3 @@
-"""Deterministic coarse-to-fine activity calibration."""
 from dataclasses import asdict
 import numpy as np
 from cgap_sbl_jadce.models.activity import calibrate_kappa_grid, best_kappa_for_target
@@ -31,8 +30,8 @@ def calibrate_kappa_adaptive(*, target, coarse_values, refinement_steps,
         if fresh:
             if kwargs.get('show_progress', True):
                 print(f'Kappa scan {stage}: {fresh[0]:g} to {fresh[-1]:g}, {len(fresh)} new candidates', flush=True)
-            # Same seed, sample count, and batching replay identical geometries
-            # and Bernoulli uniforms across every refinement stage.
+
+
             options = dict(kwargs)
             if checkpoint:
                 options['checkpoint'] = checkpoint.child(stage, {'values': fresh, **{key: value for key, value in kwargs.items() if key != 'show_progress'}})
@@ -52,14 +51,14 @@ def calibrate_kappa_adaptive(*, target, coarse_values, refinement_steps,
     low, high = bracket()
     stages.append({'stage': 'coarse', 'bracket': [low, high]})
     for index, step in enumerate(steps, 1):
-        # Align the final grid globally, yielding values such as 3.775, 3.780.
+
         start = int(np.floor(low / step + 1e-9))
         stop = int(np.ceil(high / step - 1e-9))
         values = [round(i * step, 12) for i in range(max(1, start), stop + 1)]
         scan(values, f'refine_{index}')
         low, high = bracket()
         stages.append({'stage': f'refine_{index}', 'step': step, 'bracket': [low, high]})
-    # Choose from the final aligned grid, rather than an off-grid coarse point.
+
     best = best_kappa_for_target([cache[x] for x in values], target)
     validation_args = {**kwargs, 'seed': validation_seed, 'num_samples': validation_samples}
     if checkpoint:

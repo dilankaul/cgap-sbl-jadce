@@ -36,7 +36,7 @@ def test_independent_tasks_use_saved_inputs_and_comparison_runs_no_solvers(saved
         else:
             assert 'B_q' not in df
             assert result_path(saved_data['run']['output_dir'], method, 'gamma_distribution.npz').exists()
-    # Identical observations must have reached every solver.
+
     assert all(count >= 4 for count in expected_inputs.values())
     estimators.convergence_stage(saved_data, show_progress=False)
     for method, spec in list(estimators.ESTIMATORS.items()):

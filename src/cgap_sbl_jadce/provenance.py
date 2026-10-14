@@ -1,4 +1,3 @@
-"""One run YAML and task-local JSON provenance."""
 from copy import deepcopy
 from pathlib import Path
 import json

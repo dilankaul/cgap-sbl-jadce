@@ -1,4 +1,3 @@
-"""Streamlit experiment dashboard. Start with the cgap-sbl-lab command."""
 import argparse
 import os
 from pathlib import Path
@@ -18,7 +17,6 @@ def main(argv=None):
                 '--browser.gatherUsageStats=false', '--server.address=127.0.0.1',
                 '--theme.base=light', '--theme.primaryColor=#0f766e', '--theme.font=sans serif']
     return cli.main()
-
 
 
 def dashboard():
@@ -49,6 +47,8 @@ def dashboard():
                         '<div><strong>CGAP-SBL Lab</strong><small>Experiment workspace</small></div></div>',
                         unsafe_allow_html=True)
     page = st.session_state.get('page', 'overview')
+    if st.session_state.get('setup_path') not in files:
+        st.session_state['setup_path'] = default
     config = st.sidebar.selectbox('Experiment setup', files, key='setup_path',
         format_func=lambda value: load_config(value).get('experiment', {}).get('name', 'Default experiment'))
     try:
@@ -60,16 +60,6 @@ def dashboard():
     if st.session_state.get('_editor_location') != editor_location:
         reset_settings_forms(st)
         st.session_state['_editor_location'] = editor_location
-
-    # Existing compatible combined files are converted once, without running solvers.
-    from cgap_sbl_jadce.condition_results import migrate_setup_results
-    @st.cache_data(show_spinner=False)
-    def migrate_existing(config, sources):
-        return migrate_setup_results(load_config(config))
-    from cgap_sbl_jadce.paths import task_dir
-    sources = tuple((str(path), path.stat().st_mtime_ns) for task in ('omp', 'cosamp', 'sbl', 'anc')
-                    for path in [task_dir(cfg['run']['output_dir'], task) / 'run_summary.json'] if path.exists())
-    migrate_existing(str(config), sources)
 
     def navigate(page, task=None, action='run'):
         reset_settings_forms(st)
@@ -110,7 +100,6 @@ def dashboard():
                     navigate('task', request['task'], request['action'])
                 else:
                     navigate('task', st.session_state.get('current_task', 'activity'))
-        st.sidebar.caption('Pause at a checkpoint, open another task, then return and Resume.')
     resident_tasks()
 
     def card(container, title, task, action='run', parent=False, key=None):
@@ -143,10 +132,9 @@ def dashboard():
     elif page == 'overview':
         st.markdown('<div class="eyebrow">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
         st.title('Experiment workflow')
-        st.caption('Prepare your data, run algorithms, and explore the results.')
         @st.fragment(run_every=2)
         def overview():
-            section_heading(st, 'Data preparation', 'Shared inputs for every algorithm')
+            section_heading(st, 'Data preparation')
             state = combined([card_state(cfg, config, task, jobs) for task in ('kappa_calibration', 'activity')])
             with st.container(key='card_activity_model'):
                 st.markdown(card_markup('Activity model', 'activity', state), unsafe_allow_html=True)
@@ -156,11 +144,11 @@ def dashboard():
                     st.progress(state.fraction)
             card(st, 'Communication dataset', 'communication')
             card(st, 'Spatial dependence matrix C', 'spatial_dependence')
-            section_heading(st, 'Algorithms', 'Run independently when inputs are ready')
+            section_heading(st, 'Algorithms')
             cols = st.columns(4)
             for col, task, title in zip(cols, ('omp','cosamp','sbl','anc'), ('OMP','CoSaMP','SBL','CGAP-SBL-ANC')):
                 card(col, title, task, parent=task in {'sbl','anc'}, key='algorithm_'+task)
-            section_heading(st, 'Analysis', 'Explore completed runs')
+            section_heading(st, 'Analysis')
             cols = st.columns(2)
             card(cols[0], 'Compare algorithms', 'comparison')
             card(cols[1], 'Analyze convergence', 'convergence')
@@ -168,7 +156,6 @@ def dashboard():
     elif page == 'activity_model':
         st.markdown('<div class="eyebrow">DATA PREPARATION / ACTIVITY</div>', unsafe_allow_html=True)
         st.title('Activity model')
-        st.caption('Calibrate κ before generating the tuning and evaluation activity datasets.')
         cols = st.columns(2)
         card(cols[0], 'Calibrate κ', 'kappa_calibration')
         card(cols[1], 'Generate activity', 'activity')
@@ -177,7 +164,6 @@ def dashboard():
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
         st.markdown('<div class="eyebrow">ALGORITHMS</div>', unsafe_allow_html=True)
         st.title(ESTIMATORS[task].name)
-        st.caption('Tune parameters first. Run evaluates saved data with the selected parameters.')
         cols = st.columns(2)
         card(cols[0], 'Tune', task, 'tune')
         card(cols[1], 'Run', task, 'run')

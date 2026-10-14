@@ -1,6 +1,6 @@
 from matplotlib.font_manager import FontProperties
 from matplotlib.mathtext import MathTextParser
-from cgap_sbl_jadce.figures import common  # applies shared typography
+from cgap_sbl_jadce.figures import common
 
 
 def glyph_fonts(label, family=None):

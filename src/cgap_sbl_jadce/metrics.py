@@ -21,13 +21,6 @@ def support_from_rows(Z_hat: np.ndarray, B_q: int) -> np.ndarray:
 
 
 def oracle_sparsity_budget(S_q: int, L: int, N: int) -> int:
-    """Feasible oracle support budget for OMP/CoSaMP.
-
-    The greedy baselines receive the realized activity count whenever it is
-    identifiable within the pilot dimension. If the natural event model
-    produces more active MTDs than measurements, cap the solver budget at L
-    (and at N defensively): B_q = min(S_q, L, N).
-    """
     S_q = int(S_q); L = int(L); N = int(N)
     if S_q < 0:
         raise ValueError("S_q must be non-negative.")
@@ -52,12 +45,7 @@ def precision_recall_f1(a_true: np.ndarray, a_hat: np.ndarray) -> tuple[float, f
 
 
 def nmse(Z_true: np.ndarray, Z_hat: np.ndarray, a_true: np.ndarray | None = None) -> float:
-    """Channel-estimation NMSE over truly active MTD rows only.
-
-    Use the saved activity mask when available; otherwise infer support from
-    nonzero rows of the true effective channel. Never use estimated support.
-    Return NaN when the active reference channel has zero energy.
-    """
+    """NMSE over true active rows; NaN for zero reference energy."""
     Z_true = np.asarray(Z_true)
     Z_hat = np.asarray(Z_hat)
     if Z_true.ndim != 2 or Z_hat.shape != Z_true.shape:

@@ -42,10 +42,10 @@ def test_activity_probability_grid_matches_event_model():
     )
     center = 50
     assert np.isclose(P[center, center], 1.0)
-    # x=12 m is inside the BS cell but outside the event cutoff D=10 m.
+
     j = int(np.argmin(np.abs(X[center] - 12.0)))
     assert np.isclose(P[center, j], 0.0)
-    # A corner is outside the circular BS cell and must be masked.
+
     assert bool(P.mask[0, 0])
 
 
@@ -132,7 +132,6 @@ def test_probability_contours_start_at_zero_and_colormap_zero_is_white(monkeypat
     assert captured["norm"].vmin == 0.0
     assert captured["norm"].vmax == 1.0
     assert np.allclose(captured["cmap"](0.0)[:3], [1.0, 1.0, 1.0])
-
 
 
 def test_selected_realization_exports_pdf_with_native_truetype_fonts(tmp_path):
@@ -248,7 +247,6 @@ def test_font_metadata_filter_keeps_other_warnings():
         assert not filt.filter(record)
     record = logging.LogRecord('fontTools', logging.WARNING, '', 0, 'Missing glyph', (), None)
     assert filt.filter(record)
-
 
 
 def test_activity_presentation_defaults_live_in_code(tmp_path):

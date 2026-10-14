@@ -1,11 +1,9 @@
-"""Reversible compatibility, based on relevant values and recorded input identities."""
-from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
 from functools import lru_cache
 
-from cgap_sbl_jadce.settings import calibration_settings, solver_settings
+from cgap_sbl_jadce.settings import calibration_settings
 from cgap_sbl_jadce.paths import result_path
 
 
@@ -51,37 +49,15 @@ def validate_preparation(cfg, task, split=None):
     if not path.exists():
         raise FileNotFoundError(f'Run {task.replace("_", " ")} first.')
     summary = json.loads(path.read_text())
-    if summary.get('compatibility'):
-        saved = summary['compatibility'][split] if split else summary['compatibility']
-        require_match(saved, preparation_settings(cfg, task, split), task.replace('_', ' ').capitalize())
-    else:
-        # Older runs retain their recorded configuration; never write invented provenance.
-        manifest = path.parent / 'manifest.json'
-        if manifest.exists():
-            old = json.loads(manifest.read_text()).get('configuration')
-            if old:
-                if task == 'kappa_calibration':
-                    saved, current = preparation_settings(old, task), preparation_settings(cfg, task)
-                    saved.pop('code', None); current.pop('code', None)
-                    require_match(saved, current, 'Kappa calibration')
-                else:
-                    current = preparation_settings(cfg, task, split)
-                    saved = {key: old['system'][key] for key in ('N', 'R', 'S')}
-                    saved.update({key: old['activity'][key] for key in ('V', 'D', 'kappa', 'exact_sparsity') if key in old['activity']})
-                    saved.update(seed=old['seeds'][f'activity_{split}'], samples=old['run'][f'num_{split}_samples'])
-                    require_match(saved, {key: current[key] for key in saved}, 'Activity')
-        # Minimal legacy fixtures/archives may have only a subset of model metadata.
-        if task == 'activity':
-            current = preparation_settings(cfg, task, split) if manifest.exists() else {
-                **{key: cfg['system'][key] for key in ('N', 'R')}, 'V': cfg['activity']['V'],
-                'D': cfg['activity']['D'], 'target_mean_S': cfg['system']['S']}
-            known = {key: summary[key] for key in current if key in summary}
-            require_match(known, {key: current[key] for key in known}, 'Activity')
+    if not summary.get('compatibility'):
+        raise IncompatibleResults(f'{task.replace("_", " ").capitalize()} metadata missing; rerun this task.')
+    saved = summary['compatibility'][split] if split else summary['compatibility']
+    require_match(saved, preparation_settings(cfg, task, split), task.replace('_', ' ').capitalize())
     if task == 'activity':
         archive = result_path(cfg['run']['output_dir'], 'activity', f'{split}_activity.npz')
         if not archive.exists():
             raise FileNotFoundError(f'Generate {split} activity first.')
-        # Cheap archive shape inspection avoids deserializing all samples on every UI render.
+
         stat = archive.stat()
         if _activity_shape(str(archive.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns) != (cfg['run'][f'num_{split}_samples'], cfg['system']['N']):
             raise IncompatibleResults(f'{split.capitalize()} activity incompatible: changed samples or N.')
@@ -108,24 +84,3 @@ def solver_revision(method):
     if method in {'sbl', 'anc'}:
         names.append('algorithms/posterior.py')
     return _source_digest(names)
-
-
-def legacy_definition_matches(saved, current, cfg, method, condition=None):
-    """Project recorded flat metadata onto the same method, without modifying it."""
-    old, new = deepcopy(saved), deepcopy(current)
-    for definition in (old, new):
-        algorithms = definition.get('algorithms', {})
-        definition['algorithms'] = solver_settings({'algorithms': algorithms}, method)
-        if 'tuning' in definition:
-            definition['tuning']['algorithms'] = solver_settings({'algorithms': definition['tuning'].get('algorithms', {})}, method)
-        if 'selection' in definition:
-            # The recorded selection retains its old definition; compare scientifically relevant tuning fields.
-            selection = definition['selection']
-            selection['definition']['algorithms'] = solver_settings({'algorithms': selection['definition'].get('algorithms', {})}, method)
-    if condition is not None:
-        for definition in (old, new):
-            if list(condition) not in definition.get('communication', {}).get('conditions', []):
-                return False
-            definition.pop('conditions', None)
-            definition['communication']['conditions'] = [list(condition)]
-    return old == new

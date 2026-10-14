@@ -1,4 +1,3 @@
-"""activity realizations figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -20,11 +19,6 @@ def activity_probability_grid(
     kappa: float,
     resolution: int = 301,
 ) -> tuple[np.ndarray, np.ndarray, np.ma.MaskedArray]:
-    """Evaluate the paper's combined activation probability over the cell.
-
-    At every spatial grid point x, the plotted field is exactly
-    P(x) = 1 - prod_v(1 - P_v(x)). Points outside the BS cell are masked.
-    """
     resolution = max(51, int(resolution))
     x = np.linspace(-float(R), float(R), resolution)
     y = np.linspace(-float(R), float(R), resolution)
@@ -33,7 +27,6 @@ def activity_probability_grid(
     P = event_activation_probabilities(points, np.asarray(event_locations), kappa=float(kappa), D=float(D)).reshape(X.shape)
     outside = X * X + Y * Y > float(R) ** 2
     return X, Y, np.ma.array(P, mask=outside)
-
 
 
 def plot_activity_sample(
@@ -53,7 +46,6 @@ def plot_activity_sample(
     figsize: tuple[float, float] = (6.8, 6.2),
     show_events: bool = True,
 ) -> list[Path]:
-    """Plot one activity sample without requiring activity generation output files."""
     loc = sample.device_locations
     active = sample.a.astype(bool)
 
@@ -70,19 +62,17 @@ def plot_activity_sample(
             sample.event_locations, R=R, D=D, kappa=kappa, resolution=probability_resolution
         )
 
-        # Plot the calculated probability field without modifying P. The only
-        # visualization mapping is the colormap: P=0 is pure white and P=1 is
-        # dark red. The mask in P applies only outside the physical BS cell.
+
         n_levels = max(8, int(probability_levels))
         levels = np.linspace(0.0, 1.0, n_levels)
         probability_cmap = LinearSegmentedColormap.from_list(
             "activation_probability_white_red",
             [
-                (0.00, "#ffffff"),  # Pure white
-                (0.25, "#f5b5b5"),  # Visible light red
-                (0.50, "#e87c7c"),  # Medium red
-                (0.75, "#d44747"),  # Strong red
-                (1.00, "#a81818"),  # Deep red
+                (0.00, "#ffffff"),
+                (0.25, "#f5b5b5"),
+                (0.50, "#e87c7c"),
+                (0.75, "#d44747"),
+                (1.00, "#a81818"),
             ],
             N=256,
         )
@@ -142,13 +132,7 @@ def plot_activity_sample(
     return _save(fig, stem, formats)
 
 
-
 def _saved_activity_parameters(cfg: dict) -> tuple[float, float, float]:
-    """Use parameters recorded by activity generation when available.
-
-    This prevents a misleading plot if the config is edited after activity data
-    were generated. Old files without a summary fall back to the config.
-    """
     out = Path(cfg["run"]["output_dir"])
     summary_path = result_path(out, "activity", "summary.json")
     if summary_path.exists():
@@ -163,14 +147,12 @@ def _saved_activity_parameters(cfg: dict) -> tuple[float, float, float]:
     return float(cfg["system"]["R"]), float(cfg["activity"]["D"]), resolve_activity_kappa(cfg)[0]
 
 
-
 def _activity_plot_options(
     cfg: dict, show_event_radius: bool | None = None,
     show_probability_field: bool | None = None,
 ) -> dict:
-    """Resolve shared model/field settings once per activity export."""
     R, D, kappa = _saved_activity_parameters(cfg)
-    # Edit activity-figure presentation here; YAML selects realizations only.
+
     return {
         "R": R, "D": D, "kappa": kappa,
         "show_event_radius": True if show_event_radius is None else show_event_radius,
@@ -179,7 +161,6 @@ def _activity_plot_options(
         "probability_alpha": 1.0,
         "probability_levels": 128,
     }
-
 
 
 def plot_activity_realization(
@@ -202,7 +183,6 @@ def plot_activity_realization(
     )
 
 
-
 def _plot_activity_realization_sample(
     cfg: dict, sample: ActivitySample, split: str, sample_index: int,
     formats: str, options: dict,
@@ -219,13 +199,11 @@ def _plot_activity_realization_sample(
     )
 
 
-
 def plot_activity_realizations(
     cfg: dict, formats: str = "png", show_progress: bool = True,
     show_probability_field: bool | None = None,
     splits: tuple[str, ...] = ("tuning", "evaluation"),
 ) -> list[Path]:
-    """Save configured tuning and evaluation figures from activity generation data."""
     if not figure_formats(formats):
         return []
     out = Path(cfg["run"]["output_dir"])

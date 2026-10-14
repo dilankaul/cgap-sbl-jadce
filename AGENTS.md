@@ -144,7 +144,7 @@ communication inputs; downstream tasks load them and never regenerate data.
 Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need no tuning or C;
 SBL tunes tau independently; ANC tunes its own alpha, beta and tau.
 Record true-active-support NMSE and solver-call runtimes. Algorithm comparison compares only
-compatible completed results. Do not relabel historical scores as current.
+compatible completed results.
 The independent estimator registry should also support a future GL solver.
 
 ## Spatial activity model
@@ -214,3 +214,14 @@ cutoff, multi-event probability, deterministic seeds, simple noiseless baseline
 support recovery, and plotting that does not modify probability values.
 
 Do not weaken tests merely to make an implementation pass.
+
+## Fresh result format
+
+Saved results and local GUI state were cleared at the user’s request. Do not
+restore them or add result migration code. New preparation results require their
+compatibility metadata; algorithm results require their condition-local files.
+Keep setting/input/code guards and recoverable checkpoints for future runs.
+The dashboard shows controls, settings, progress and necessary error messages;
+avoid tutorials and repeated explanations. Keep workflow rationale and future
+plans in these project documents rather than code comments. Scientific equations
+and short notes on non-obvious numerical behavior may remain in code.

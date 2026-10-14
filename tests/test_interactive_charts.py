@@ -28,7 +28,7 @@ def test_activity_view_preserves_actual_probability_field_and_zero_regions(saved
     assert np.any(np.asarray(figure.data[0].z) == 0)
     assert figure.data[0].zmin == 0 and figure.data[0].zmax == 1
     assert figure.layout.dragmode == 'pan'
-    assert len(figure.data[1].customdata) == 17  # Inactive device identities remain inspectable.
+    assert len(figure.data[1].customdata) == 17
     request['category'] = 'paper_activity'
     assert interactive_figures(request)[0][1].layout.title.text is None
 
@@ -64,12 +64,13 @@ def test_performance_chart_uses_true_scores_and_log_nmse(saved_data, tmp_path):
     np.testing.assert_allclose(nmse.data[0].y, expected.nmse)
 
 
-def test_full_condition_grid_and_independent_tuning_preserve_saved_data(saved_data, tmp_path):
+def test_optional_condition_heatmaps_and_independent_tuning_use_saved_data(saved_data, tmp_path):
     cfg = saved_data
-    cfg['evaluation']['condition_mode'] = 'grid'
     cfg['tuning']['selection_mode'] = 'per_condition'
-    cfg['communication'] = {'tuning_conditions': [list(pair[:2]) for pair in estimators.evaluation_conditions(cfg)]}
     pipeline.communication_stage(cfg, False)
+    from cgap_sbl_jadce.additional_conditions import add_condition
+    add_condition(cfg, 'anc', (5, 8.))
+    pipeline.communication_stage(cfg, False, conditions=[[5, 8]], methods=['anc'])
     estimators.tune_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
     estimators.run_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
     request = request_file(cfg, tmp_path, category='anc_tune', condition=[5, 8])

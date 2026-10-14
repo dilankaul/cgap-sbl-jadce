@@ -1,4 +1,3 @@
-"""Saved sparse spatial dependence matrices."""
 from pathlib import Path
 import hashlib
 import json

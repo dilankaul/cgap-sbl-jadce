@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 import numpy as np
 from tqdm.auto import tqdm
 
@@ -11,8 +11,6 @@ class ActivitySample:
     event_locations: np.ndarray
     activation_probabilities: np.ndarray
     attempts: int = 1
-
-
 
 
 @dataclass(frozen=True)
@@ -81,16 +79,6 @@ def generate_activity_sample(
     max_attempts: int = 100000,
     batch_size: int = 128,
 ) -> ActivitySample:
-    """Generate one spatial activity realization.
-
-    When ``exact_sparsity`` is false, the event model is sampled once and the
-    number of active MTDs is allowed to vary naturally. This is the mode used
-    when S denotes a *target mean* active count.
-
-    When ``exact_sparsity`` is true, batched rejection sampling is used until
-    exactly S active MTDs are observed. That mode is retained for controlled
-    experiments, but it should not be used to calibrate the average sparsity.
-    """
     if not exact_sparsity:
         device_locations = uniform_disk(rng, N, R)
         event_locations = uniform_disk(rng, V, R)
@@ -184,16 +172,6 @@ def calibrate_kappa_grid(
     show_progress: bool = True,
     checkpoint=None,
 ) -> list[ActivityCalibrationRow]:
-    """Estimate average active MTD count for a grid of kappa values.
-
-    The same geometries and the same Bernoulli uniforms are shared across all
-    kappa values. This common-random-number design makes the kappa comparison
-    much less noisy than independently regenerating every point on the curve.
-
-    ``mean_expected_active`` is the Monte-Carlo estimate of sum_i P_i and is
-    the preferred quantity for selecting kappa. ``mean_realized_active`` also
-    reports the actual Bernoulli activity count that would be observed.
-    """
     kappas = np.asarray(kappa_values, dtype=float)
     if kappas.ndim != 1 or len(kappas) == 0 or not np.all(np.isfinite(kappas)) or np.any(kappas <= 0):
         raise ValueError("kappa_values must be a non-empty sequence of positive values.")

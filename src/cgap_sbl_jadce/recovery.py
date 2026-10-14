@@ -1,4 +1,3 @@
-"""Portable action requests; local PIDs and logs remain in .gui/."""
 import hashlib
 import json
 import os
@@ -52,7 +51,7 @@ def validate_recovery(request):
     if saved is None:
         raise ValueError('No unfinished recovery data remain. Choose Start or Rerun for a fresh calculation.')
     from cgap_sbl_jadce.gui.jobs import config_digest
-    if config_digest(request['config'], request if saved.get('schema') == 2 else None) != saved['config_digest']:
+    if config_digest(request['config'], request) != saved['config_digest']:
         raise ValueError('Configuration changed. Choose a fresh rerun.')
     if input_signature(request, portable=True) != saved['input_signature']:
         raise ValueError('Checkpoint inputs or scientific code changed. Choose a fresh rerun.')
@@ -85,7 +84,6 @@ def finish_recovery(request):
 
 
 def record_completed_outputs(request, figure_paths):
-    """Commit final outputs before releasing checkpoints, closing the crash window."""
     from cgap_sbl_jadce.checkpoints import pending_checkpoint_files
     saved = load_recovery(request['config'], request['task'], request.get('action', 'run'), request)
     if saved is None:
@@ -127,7 +125,6 @@ def record_completed_outputs(request, figure_paths):
 
 
 def restore_completed_outputs(request):
-    """Finish an interrupted cleanup without repeating a completed task."""
     import numpy as np
     saved = validate_recovery(request)
     if saved.get('phase') != 'results_saved':

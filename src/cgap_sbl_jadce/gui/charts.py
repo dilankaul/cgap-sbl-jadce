@@ -1,4 +1,3 @@
-"""Interactive Plotly views computed from scientific arrays and result tables."""
 import json
 from pathlib import Path
 
@@ -14,7 +13,7 @@ from cgap_sbl_jadce.spatial_dependence_dataset import load_spatial_dependence_ma
 from cgap_sbl_jadce.paths import result_path, task_dir, tuning_path
 from cgap_sbl_jadce.figures.activity_realizations import activity_probability_grid, _activity_plot_options
 from cgap_sbl_jadce.figures.communication_diagnostics import complex_hsv
-from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, condition_config
+from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
 
 
 def _style(fig, title, x=None, y=None, log=False):
@@ -129,7 +128,6 @@ def _communication(cfg, request):
 
 
 def interactive_figures(request):
-    """No figure/image file is read here. Every trace comes from numerical data."""
     cfg = load_config(request['config'])
     category = request['category']
     out = cfg['run']['output_dir']
@@ -213,7 +211,7 @@ def interactive_figures(request):
             return figures
         df = pd.read_csv(result_path(out, method, 'aggregate.csv'))
         figures = []
-        nmse_label = 'NMSE (true active support)' if 'nmse_scope' in df and df.nmse_scope.eq('true_active_support').all() else 'NMSE (recorded scope)'
+        nmse_label = 'NMSE (true active support)'
         for algorithm, data in df[df.sweep == 'condition'].groupby('algorithm'):
             for metric, label, cmap in [('f1', 'F₁', 'Viridis'), ('nmse', nmse_label, 'Magma'), ('runtime_s', 'Mean solver runtime (s)', 'Cividis')]:
                 pivot = data.pivot(index='L', columns='snr_db', values=metric).sort_index().sort_index(axis=1)
@@ -258,7 +256,6 @@ def interactive_figures(request):
 
 
 def source_version(request):
-    """Identify the numerical inputs used by an export, without scanning images."""
     import hashlib
     cfg = load_config(request['config'])
     category, out = request['category'], cfg['run']['output_dir']

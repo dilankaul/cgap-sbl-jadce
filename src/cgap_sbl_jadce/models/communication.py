@@ -19,7 +19,7 @@ def generate_H(rng: np.random.Generator, M: int, N: int) -> np.ndarray:
 
 
 def generate_Theta(rng: np.random.Generator, L: int, N: int) -> np.ndarray:
-    """L x N unit-norm QPSK pilot matrix."""
+    """L x N unit-norm QPSK pilots."""
     symbols = rng.integers(0, 4, size=(L, N))
     Theta = np.exp(1j * (np.pi / 2.0) * (symbols + 0.5))
     Theta /= np.sqrt(L)

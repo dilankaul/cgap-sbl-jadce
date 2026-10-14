@@ -1,4 +1,3 @@
-"""Optional GUI controls checked between completed calculations, never inside a solver."""
 import json
 import os
 from pathlib import Path
@@ -8,7 +7,7 @@ from cgap_sbl_jadce.io import save_json
 
 
 class TaskStopped(BaseException):
-    """Leave the current worker without discarding committed checkpoints."""
+    pass
 
 
 def update_status(folder: Path, **changes):

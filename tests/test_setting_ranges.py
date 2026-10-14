@@ -1,4 +1,3 @@
-"""Inclusive range controls preserve candidate values and independent workflow inputs."""
 from copy import deepcopy
 from pathlib import Path
 
@@ -63,7 +62,7 @@ def test_old_explicit_grids_remain_readable_and_regular_grids_migrate_exactly(sa
     assert calibration_settings(cfg) == calibration_settings(saved_data)
     assert 'alpha_values' not in cfg['algorithms']['anc']['tuning']
     assert 'pilot_lengths' not in cfg['evaluation']
-    # The historical small fixture has nonuniform kappa spacing; retain that grid.
+
     assert cfg['kappa_calibration']['kappa_scan'] == saved_data['activity']['kappa_scan']
     original = deepcopy(saved_data)
     original['tuning']['alpha_values'] = [0., 2., 7.]
@@ -73,7 +72,7 @@ def test_old_explicit_grids_remain_readable_and_regular_grids_migrate_exactly(sa
 def test_gui_exposes_all_range_controls_and_saves_edited_grid(saved_data, tmp_path, monkeypatch):
     from streamlit.testing.v1 import AppTest
     cfg = grouped_config(saved_data)
-    # Use a regular initial kappa scan to exercise the normal range-only UI.
+
     cfg['kappa_calibration'].pop('kappa_scan', None)
     cfg['kappa_calibration'].update(kappa_start=.5, kappa_stop=8., kappa_step=.5)
     config = tmp_path / 'settings.yaml'; save_yaml(config, cfg)

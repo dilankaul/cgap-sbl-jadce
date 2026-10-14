@@ -45,8 +45,8 @@ algorithms:
       K: 500
       delta: 0.0001
     tuning:
-      reference_pilot_length: 25  # L for alpha-beta-tau tuning
-      reference_snr_db: 12  # SNR for alpha-beta-tau tuning
+      reference_pilot_length: 25
+      reference_snr_db: 12
       selection_mode: reference
       tau_start: 0.0
       tau_stop: 0.2
@@ -58,8 +58,8 @@ algorithms:
       beta_stop: 0.1
       beta_step: 0.01
 evaluation:
-  snr_db: 12  # Fixed SNR for the pilot-length sweep
-  pilot_length: 30  # Fixed L for the SNR sweep
+  snr_db: 12
+  pilot_length: 30
   gamma_distribution_samples: 100
   convergence_sample_offset: 0
   pilot_length_start: 20

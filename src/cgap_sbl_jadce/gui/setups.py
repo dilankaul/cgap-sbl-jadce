@@ -1,12 +1,10 @@
-"""Editable experiment definitions, isolated by folder."""
-from copy import deepcopy
 import math
 from pathlib import Path
 import re
 
 from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.io import save_yaml
-from cgap_sbl_jadce.settings import grouped_config, tuning_pairs, request_settings, calibration_settings, evaluation_settings, range_values
+from cgap_sbl_jadce.settings import grouped_config, request_settings, calibration_settings, evaluation_settings, range_values
 from cgap_sbl_jadce.compatibility import differences
 
 
@@ -66,20 +64,9 @@ def validate_setup(cfg):
     positive(evaluation['pilot_length'], 'Evaluation fixed pilot length', integer=True)
     if not math.isfinite(evaluation['snr_db']):
         raise ValueError('Evaluation fixed SNR must be finite')
-    if evaluation.get('condition_mode', 'sweeps') == 'sweeps':
-        sequence(evaluation['pilot_lengths'], 'Pilot lengths', integer=True)
-        if not evaluation['snr_values'] or len(evaluation['snr_values']) != len(set(evaluation['snr_values'])) or any(not math.isfinite(v) for v in evaluation['snr_values']):
-            raise ValueError('SNR values need distinct finite values')
-    elif evaluation.get('condition_mode', 'sweeps') == 'selected':
-        pairs = evaluation.get('conditions', [])
-        if not pairs or len({tuple(pair) for pair in pairs}) != len(pairs):
-            raise ValueError('Choose distinct L/SNR conditions')
-        for L, snr in pairs:
-            positive(L, 'Pilot length', integer=True)
-            if not math.isfinite(snr):
-                raise ValueError('SNR must be finite')
-    else:
-        raise ValueError('Choose sweeps or selected evaluation conditions')
+    sequence(evaluation['pilot_lengths'], 'Pilot lengths', integer=True)
+    if not evaluation['snr_values'] or len(evaluation['snr_values']) != len(set(evaluation['snr_values'])) or any(not math.isfinite(v) for v in evaluation['snr_values']):
+        raise ValueError('SNR values need distinct finite values')
     seeds = list(cfg['seeds'].values())
     if len(seeds) != 6 or any(type(v) is not int or v < 0 for v in seeds) or len(set(seeds)) != len(seeds):
         raise ValueError('Use six distinct non-negative integer seeds')
@@ -140,7 +127,6 @@ def setup_changes(before, after):
 
 
 def update_setup(path, candidate, jobs=None):
-    """Atomically save settings without touching any data, results or recovery files."""
     path = Path(path).resolve()
     before = load_config(path)
     cfg = grouped_config(candidate)
@@ -160,7 +146,6 @@ def update_setup(path, candidate, jobs=None):
 
 
 def change_impact(before, after):
-    """Describe dependency-specific effects before saving; no scientific task is run."""
     from cgap_sbl_jadce.tasks import TASKS, task_actions
     from cgap_sbl_jadce.gui.workflow import numerical_state
     impacts = []

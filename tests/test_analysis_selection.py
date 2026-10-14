@@ -1,4 +1,3 @@
-"""Analysis eligibility follows completed algorithm runs, not an ordinal sequence."""
 import json
 import shutil
 from dataclasses import replace

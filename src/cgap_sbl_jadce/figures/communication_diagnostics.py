@@ -1,4 +1,3 @@
-"""Selected-sample diagnostics for the saved Communication communication datasets."""
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt
@@ -10,9 +9,7 @@ from cgap_sbl_jadce.communication_dataset import load_communication_sample
 from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, selected_realizations
 
 
-
 def complex_hsv(matrix, magnitude_max):
-    """Phase maps cyclically to hue; magnitude maps linearly to brightness."""
     magnitude = np.abs(matrix)
     hue = np.mod((np.angle(matrix) + np.pi) / (2 * np.pi), 1.)
     value = magnitude / magnitude_max if magnitude_max > 0 else np.zeros_like(magnitude)
@@ -47,7 +44,7 @@ def _complex_heatmap(matrix, title, xlabel, ylabel, stem, formats, style,
         key.set_ylabel('Phase (rad)')
         key.set_title('')
     else:
-        # A two-dimensional key explains the joint phase/magnitude encoding.
+
         phase = np.linspace(-np.pi, np.pi, 257)
         scale = maximum if maximum > 0 else 1.
         magnitude = np.linspace(0, scale, 128)
@@ -61,7 +58,6 @@ def _complex_heatmap(matrix, title, xlabel, ylabel, stem, formats, style,
     fig.suptitle(title, math_fontfamily='stix' if qpsk else None)
     _apply_figure_style(fig, style)
     return _save(fig, stem, formats)
-
 
 
 def plot_communication_preview(cfg: dict, formats: str = 'png', show_progress: bool = True,

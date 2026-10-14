@@ -1,4 +1,3 @@
-"""Persistent task-card state derived from numerical results and worker records."""
 from dataclasses import dataclass
 import json
 from textwrap import shorten
@@ -11,7 +10,7 @@ from cgap_sbl_jadce.compatibility import validate_preparation, require_match
 from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, evaluation_conditions, load_selection, completed_methods
 
 ICONS = {'completed': '✓', 'partial': '◐', 'running': '▶', 'queued': '…', 'paused': 'Ⅱ',
-         'failed': '!', 'interrupted': '!', 'stopped': '■', 'ready': '○', 'blocked': '×', 'historical': '◇', 'incompatible': '!'}
+         'failed': '!', 'interrupted': '!', 'stopped': '■', 'ready': '○', 'blocked': '×', 'incompatible': '!'}
 
 
 @dataclass
@@ -37,7 +36,6 @@ class CardState:
 
 
 def ready_state(cfg, task, action):
-    """Ready means the default action can run with its current required inputs."""
     reasons = blocking_reasons(cfg, task, action)
     if reasons:
         return CardState('blocked', reasons[0])
@@ -97,8 +95,6 @@ def numerical_state(cfg, task, action='run'):
             if path.exists():
                 stored = True
                 data = json.loads(path.read_text())
-                if data.get('status') == 'historical' or data.get('nmse_scope') not in {None, 'true_active_support'}:
-                    return CardState('historical', 'Historical results retained')
                 if task in completed_methods(cfg):
                     return CardState('completed', 'Evaluation data saved', 1.)
                 return CardState('incompatible', 'Saved algorithm results do not match this setup')
@@ -156,7 +152,7 @@ def card_state(cfg, config, task, jobs, action='run'):
     if job and job['status'] in {'paused', 'failed', 'interrupted', 'stopped'}:
         from cgap_sbl_jadce.gui.jobs import config_digest
         try:
-            if config_digest(config, job['request'] if job.get('config_scope') == 2 else None) != job['config_digest']:
+            if config_digest(config, job['request']) != job['config_digest']:
                 return CardState('incompatible', 'Unfinished work uses different settings; restore them to Resume.')
         except (OSError, ValueError, KeyError):
             return CardState('incompatible', 'Unfinished work does not match this setup.')
@@ -182,7 +178,7 @@ def combined(states):
         return CardState('completed', 'All actions completed', 1.)
     if complete or any(state.status == 'partial' for state in states):
         return CardState('partial', f'{complete}/{len(states)} actions complete', sum(state.fraction for state in states) / len(states))
-    for status in ('ready', 'blocked', 'historical'):
+    for status in ('ready', 'blocked'):
         for state in states:
             if state.status == status:
                 return state

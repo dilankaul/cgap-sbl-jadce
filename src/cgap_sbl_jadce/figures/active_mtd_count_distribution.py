@@ -1,4 +1,3 @@
-"""active mtd count distribution figures."""
 from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -10,7 +9,6 @@ from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
 
 
 def plot_activity_s_distribution(cfg: dict, formats: str = "png") -> list[Path]:
-    """Plot the realized support-size distribution using saved activity generation data."""
     out = Path(cfg["run"]["output_dir"])
     tuning_path = result_path(out, "activity", "tuning_activity.npz")
     evaluation_path = result_path(out, "activity", "evaluation_activity.npz")
