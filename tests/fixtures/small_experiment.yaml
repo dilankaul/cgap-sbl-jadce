@@ -40,7 +40,7 @@ algorithms:
   K: 75
   delta: 0.0001
   cosamp_max_iter: 20
-  cosamp_tol: 1.0e-06
+  cosamp_tol: 0.0001
 tuning:
   reference_snr_db: 12
   reference_pilot_length: 20

@@ -101,21 +101,27 @@ def test_calibration_restart_restores_rng_and_running_sums(tmp_path, monkeypatch
     ('communication_stage', 'communication', 'communication_realization'),
     ('spatial_dependence_stage', 'spatial_dependence', 'build_C'),
 ])
-def test_generation_restart_skips_completed_units_and_repairs_changed_outputs(saved_data, monkeypatch, stage, task, operation):
-    # The fixture completed these stages already, so all units should be cached.
+def test_generation_restart_skips_committed_units_and_fresh_rerun_rebuilds_outputs(saved_data, monkeypatch, stage, task, operation):
+    original_save = fail_after_commits(monkeypatch, 1)
+    with pytest.raises(Crash):
+        getattr(pipeline, stage)(saved_data, show_progress=False)
+    monkeypatch.setattr(Checkpoint, 'save', original_save)
     original = getattr(pipeline, operation)
     calls = []
     def count(*args, **kwargs):
         calls.append(1)
         return original(*args, **kwargs)
     monkeypatch.setattr(pipeline, operation, count)
-    getattr(pipeline, stage)(saved_data, show_progress=False)
-    assert calls == []
+    getattr(pipeline, stage)(saved_data, show_progress=False, resume=True)
+    # Four realizations; communication has one tuning + three evaluation conditions.
+    assert len(calls) == (7 if task == 'communication' else 3)
+    assert not list(task_dir(saved_data['run']['output_dir'], task).rglob('.checkpoints/*/*.npz'))
+    calls.clear()
     folder = task_dir(saved_data['run']['output_dir'], task) / 'tuning'
     path = folder / '0000' / 'channels.npz' if task == 'communication' else folder / '0000.npz'
     path.write_bytes(b'interrupted or replaced archive')
     getattr(pipeline, stage)(saved_data, show_progress=False)
-    assert len(calls) == 1
+    assert len(calls) == (8 if task == 'communication' else 4)
     assert path.stat().st_size > 100
 
 
@@ -137,7 +143,7 @@ def test_tuning_restart_reuses_completed_solver_outputs(saved_data, monkeypatch)
         calls.append(1)
         return spec.solve(*args, **kwargs)
     monkeypatch.setitem(estimators.ESTIMATORS, method, replace(spec, solve=resumed))
-    selected = estimators.tune_estimator_stage(saved_data, method, show_progress=False)
+    selected = estimators.tune_estimator_stage(saved_data, method, show_progress=False, resume=True)
     assert len(calls) == 6  # Eight total solves, two committed before failure.
     scores = pd.read_csv(result_path(saved_data['run']['output_dir'], method, 'tuning/alpha_beta.csv'))
     assert len(scores) == 4
@@ -149,23 +155,24 @@ def test_evaluation_continues_in_fresh_process_with_identical_scores(saved_data,
     calls = []
     def solve(*args, **kwargs):
         calls.append(1)
-        if len(calls) == 3:
+        if len(calls) == 4:
             raise Crash()
         return spec.solve(*args, **kwargs)
     monkeypatch.setitem(estimators.ESTIMATORS, 'omp', replace(spec, solve=solve))
     with pytest.raises(Crash):
         estimators.run_estimator_stage(saved_data, 'omp', show_progress=False)
-    cp_folder = task_dir(saved_data['run']['output_dir'], 'omp') / 'evaluation'
-    checkpoint = next(cp_folder.glob('.checkpoints/*/0000.npz'))
+    cp_folder = task_dir(saved_data['run']['output_dir'], 'omp') / 'run'
+    checkpoint = next(cp_folder.glob('*/.checkpoints/*/0000.npz'))
     with np.load(checkpoint) as data:
-        committed = json.loads(str(data['_metadata']))['rows']
-    assert len(committed) == 2
+        committed = json.loads(str(data['_metadata']))['row']
+    assert committed['q'] == 0
     input_path = tmp_path / 'resume.yaml'
     save_yaml(input_path, saved_data)
-    code = "from cgap_sbl_jadce.config import load_config; from cgap_sbl_jadce.experiments.estimators import run_estimator_stage; import sys; run_estimator_stage(load_config(sys.argv[1]),'omp',show_progress=False)"
+    code = "from cgap_sbl_jadce.config import load_config; from cgap_sbl_jadce.experiments.estimators import run_estimator_stage; import sys; run_estimator_stage(load_config(sys.argv[1]),'omp',show_progress=False,resume=True)"
     subprocess.run([sys.executable, '-c', code, str(input_path)], check=True, capture_output=True, text=True)
     resumed = pd.read_csv(result_path(saved_data['run']['output_dir'], 'omp', 'per_sample.csv'))
-    np.testing.assert_allclose(resumed.runtime_s[:2], [row['runtime_s'] for row in committed])
+    unit = resumed[(resumed.q == committed['q']) & (resumed.L == committed['L']) & (resumed.snr_db == committed['snr_db'])]
+    np.testing.assert_allclose(unit.runtime_s, committed['runtime_s'])
     assert len(resumed) == 8
     assert not resumed.duplicated(['q', 'L', 'snr_db', 'sweep']).any()
     cfg = {**saved_data, 'run': {**saved_data['run'], 'output_dir': str(tmp_path / 'uninterrupted')}}
@@ -188,7 +195,7 @@ def test_convergence_reuses_completed_trace_after_failure(saved_data, monkeypatc
     monkeypatch.setitem(estimators.ESTIMATORS, 'anc', spec)
     sb = estimators.ESTIMATORS['sbl']
     monkeypatch.setitem(estimators.ESTIMATORS, 'sbl', replace(sb, solve=lambda *a, **k: pytest.fail('Repeated completed trace')))
-    summary = estimators.convergence_stage(saved_data, show_progress=False)
+    summary = estimators.convergence_stage(saved_data, show_progress=False, resume=True)
     assert set(summary['scores']) == {'sbl', 'anc'}
 
 

@@ -1,0 +1,61 @@
+{
+  "D": 20.0,
+  "N": 400,
+  "R": 50.0,
+  "V": 2,
+  "absolute_expected_gap": 0.005819191772658883,
+  "calibration_samples": 5000,
+  "closest_grid_kappa": 9.27,
+  "closest_grid_mean_expected_active": 19.99418080822734,
+  "closest_grid_mean_realized_active": 19.9604,
+  "final_step": 0.01,
+  "method": "coarse_to_fine",
+  "seed": 1379,
+  "selection_within_tolerance": true,
+  "stages": [
+    {
+      "bracket": [
+        9.0,
+        9.5
+      ],
+      "stage": "coarse"
+    },
+    {
+      "bracket": [
+        9.2,
+        9.3
+      ],
+      "stage": "refine_1",
+      "step": 0.1
+    },
+    {
+      "bracket": [
+        9.27,
+        9.28
+      ],
+      "stage": "refine_2",
+      "step": 0.01
+    }
+  ],
+  "status": "success",
+  "target_mean_active": 20.0,
+  "tolerance": 0.1,
+  "validation": {
+    "expected_gap": -0.023384928766553514,
+    "expected_mean_ci95": [
+      19.878620173913266,
+      20.074609968553627
+    ],
+    "kappa": 9.27,
+    "max_realized_active": 38,
+    "mean_expected_active": 19.976615071233446,
+    "mean_realized_active": 19.9842,
+    "min_realized_active": 4,
+    "samples": 5000,
+    "se_expected_active": 0.04999739659192983,
+    "seed": 8641,
+    "std_expected_active": 3.5353498171826767,
+    "std_realized_active": 4.942229809215413,
+    "within_tolerance": true
+  }
+}

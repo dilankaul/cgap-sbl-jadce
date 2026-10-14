@@ -1,0 +1,208 @@
+{
+  "Q": 1000,
+  "condition": [
+    30,
+    12.0
+  ],
+  "definition": {
+    "algorithms": {
+      "K": 500,
+      "cosamp_max_iter": 50,
+      "cosamp_tol": 1e-06,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    },
+    "archive_sha256": "d7f1ee2e22b24baebcd9df1de8641ab17acc5d870e85a08785ae2394347ec7ef",
+    "communication": {
+      "M": 4,
+      "N": 500,
+      "activity_sha256": {
+        "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c"
+      },
+      "conditions": [
+        [
+          20,
+          12.0
+        ],
+        [
+          25,
+          12.0
+        ],
+        [
+          30,
+          4.0
+        ],
+        [
+          30,
+          8.0
+        ],
+        [
+          30,
+          12.0
+        ],
+        [
+          30,
+          16.0
+        ],
+        [
+          30,
+          20.0
+        ],
+        [
+          30,
+          24.0
+        ],
+        [
+          35,
+          12.0
+        ],
+        [
+          40,
+          12.0
+        ],
+        [
+          45,
+          12.0
+        ]
+      ],
+      "schema": 2,
+      "seed": 9517
+    },
+    "conditions": [
+      [
+        30,
+        4.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        8.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        12.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        16.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        20.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        24.0,
+        "snr_sweep"
+      ],
+      [
+        20,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        25,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        30,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        35,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        40,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        45,
+        12.0,
+        "pilot_sweep"
+      ]
+    ],
+    "method": "SBL",
+    "nmse_scope": "true_active_support",
+    "revision": 1,
+    "samples": 1000,
+    "selection": {
+      "definition": {
+        "algorithms": {
+          "K": 500,
+          "cosamp_max_iter": 50,
+          "cosamp_tol": 1e-06,
+          "delta": 0.0001,
+          "gamma_init": 0.1
+        },
+        "archive_sha256": "e983a1ac326793a2d6ffc0f2b3de56336a8edf3b4beb8f410a5d6fc5255310ea",
+        "communication": {
+          "M": 4,
+          "N": 500,
+          "activity_sha256": {
+            "tuning": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542"
+          },
+          "conditions": [
+            [
+              25,
+              12.0
+            ]
+          ],
+          "schema": 2,
+          "seed": 4283
+        },
+        "condition": [
+          25,
+          12
+        ],
+        "method": "SBL",
+        "nmse_scope": "true_active_support",
+        "parameters": [
+          {}
+        ],
+        "revision": 1,
+        "samples": 100,
+        "tau_grid": {
+          "start": 0.0,
+          "step": 0.001,
+          "stop": 0.2
+        }
+      },
+      "parameters": {
+        "tau": 0.191
+      },
+      "reference_pilot_length": 25,
+      "reference_snr_db": 12,
+      "tuning_scores": {
+        "f1": 0.6332572253283403,
+        "iterations": 494.21,
+        "nmse": 0.48933658372048827,
+        "precision": 0.6645833881241674,
+        "recall": 0.6085041401891529,
+        "tau": 0.191
+      }
+    }
+  },
+  "gamma_samples": 100,
+  "nmse_scope": "true_active_support",
+  "outputs": {
+    "aggregate.csv": "0cd2a5a4728ab6a4167aeb0cd7fdb17752e4494dd2c5439d3b02127c83e18f49",
+    "figures/realization_scores.png": "ce2e2eb2b338987bbd88e03320c540523e5c47f505fe4e4750e0b5169720cabb",
+    "gamma_distribution.npz": "0e9e1c30d0d41b596b8f51aa7e36484ff657b9df3f5937c036236908a0637999",
+    "per_sample.csv": "1df365509fdc8302c0ef8ad259fa59a3aaf665c6fb6a52bea30de7b61d994198",
+    "runtime_summary.csv": "36ae730e6be7cc742f649bf6972b649de2ce57c782397c798efc132597f490be"
+  },
+  "parameters": {
+    "tau": 0.191
+  },
+  "selection_digest": "4921769bc78ea6adc6f7a4ccf48069f31ca7db318fecc3c8ab6fe92e8cfeefda",
+  "status": "complete"
+}

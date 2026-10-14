@@ -133,8 +133,9 @@ def interactive_figures(request):
     cfg = load_config(request['config'])
     category = request['category']
     out = cfg['run']['output_dir']
-    if request.get('condition') and category.endswith('_tune'):
-        cfg = condition_config(cfg, request['condition'])
+    if category.endswith('_tune'):
+        from cgap_sbl_jadce.gui.previews import tuning_preview_config
+        cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
     if category in {'activity', 'paper_activity'}:
         return _activity(cfg, request)
     if category == 'communication':
@@ -151,7 +152,8 @@ def interactive_figures(request):
             counts = np.asarray([sample.a.sum() for sample in samples])
             fig.add_trace(go.Histogram(x=counts, histnorm='probability', xbins={'size': 1}, opacity=.55,
                                       name=f'{split.capitalize()} (mean={counts.mean():.2f})'))
-        fig.add_vline(x=cfg['system']['S'], line_dash='dash', annotation_text='Target mean S')
+        summary = json.loads(result_path(out, 'activity', 'summary.json').read_text())
+        fig.add_vline(x=summary.get('target_mean_S', cfg['system']['S']), line_dash='dash', annotation_text='Saved target mean S')
         fig.update_layout(barmode='overlay')
         return [('Active count distribution', _style(fig, 'Distribution of Active MTD Count S', 'Realized active count S', 'Relative frequency'))]
     if category == 'kappa':
@@ -189,6 +191,26 @@ def interactive_figures(request):
         return figures
     if category.endswith('_run') or category == 'comparison':
         method = category.removesuffix('_run') if category != 'comparison' else 'comparison'
+        if category.endswith('_run') and request.get('condition'):
+            from cgap_sbl_jadce.paths import run_path
+            pair = tuple(request['condition'])
+            folder = run_path(cfg, method, condition=pair)
+            data = pd.read_csv(folder / 'per_sample.csv').drop_duplicates('q').sort_values('q')
+            figures = []
+            for metric, label in [('f1', 'F₁'), ('nmse', 'NMSE (true active support)'), ('runtime_s', 'Solver runtime (s)')]:
+                fig = go.Figure(go.Scatter(x=data.q, y=data[metric], mode='lines', name=ESTIMATORS[method].name))
+                title = f'{ESTIMATORS[method].name} {label}<br>L={pair[0]}, SNR={pair[1]:g} dB'
+                figures.append((label, _style(fig, title, 'Evaluation realization index', label, log=metric == 'nmse')))
+            gamma_path = folder / 'gamma_distribution.npz'
+            if gamma_path.exists() and json.loads((folder / 'summary.json').read_text()).get('gamma_samples', 0):
+                with np.load(gamma_path) as archive:
+                    a, gamma = archive['a'].astype(bool), archive['gamma']
+                fig = go.Figure()
+                for mask, name in [(~a, 'Inactive MTD'), (a, 'Active MTD')]:
+                    fig.add_trace(go.Histogram(x=gamma[mask], histnorm='probability density', opacity=.55, nbinsx=50, name=name))
+                fig.update_layout(barmode='overlay')
+                figures.append(('Gamma distribution', _style(fig, f'{ESTIMATORS[method].name} γ Distribution<br>L={pair[0]}, SNR={pair[1]:g} dB', 'γᵢ', 'Density')))
+            return figures
         df = pd.read_csv(result_path(out, method, 'aggregate.csv'))
         figures = []
         nmse_label = 'NMSE (true active support)' if 'nmse_scope' in df and df.nmse_scope.eq('true_active_support').all() else 'NMSE (recorded scope)'
@@ -240,6 +262,9 @@ def source_version(request):
     import hashlib
     cfg = load_config(request['config'])
     category, out = request['category'], cfg['run']['output_dir']
+    if category.endswith('_tune'):
+        from cgap_sbl_jadce.gui.previews import tuning_preview_config
+        cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
     paths = [Path(request['config'])]
     if category in {'activity', 'paper_activity', 'active_counts'}:
         splits = (request['split'],) if category != 'active_counts' else ('tuning', 'evaluation')
@@ -250,11 +275,19 @@ def source_version(request):
         folder = task_dir(out, task_id) / request['split']
         paths += ([folder / f"{request['index']:04d}" / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')]
                   if task_id == 'communication' else [folder / f"{request['index']:04d}.npz"])
+    elif category.endswith('_run') and request.get('condition'):
+        from cgap_sbl_jadce.paths import run_path
+        paths += [run_path(cfg, category.removesuffix('_run'), name, request['condition'])
+                  for name in ('per_sample.csv', 'summary.json', 'gamma_distribution.npz')]
     elif category.endswith('_tune'):
         method = category.removesuffix('_tune')
         paths += [tuning_path(cfg, method, name, request.get('condition')) for name in ('selected.json', 'thresholds.csv', 'alpha_beta.csv')]
     else:
         group = {'kappa': 'kappa_calibration', 'convergence': 'convergence'}.get(category, category.removesuffix('_run'))
         paths += [result_path(out, group, name) for name in ('aggregate.csv', 'summary.json', 'run_summary.json', 'gamma_distribution.npz', 'convergence.npz', 'kappa_sweep.csv')]
+    if request['category'] == 'communication' and request.get('condition') is not None:
+        from cgap_sbl_jadce.paths import condition_name
+        paths.append(task_dir(cfg['run']['output_dir'], 'communication') / request['split'] / 'additional' /
+                     condition_name(request['condition']) / f"{request['index']:04d}" / 'inputs.npz')
     identity = [(str(path), path.stat().st_size, path.stat().st_mtime_ns) for path in paths if path.exists()]
     return hashlib.sha256(json.dumps(identity).encode()).hexdigest()

@@ -35,22 +35,37 @@ The GUI overview contains preparation, algorithm and analysis boxes.
 
 Tasks automatically save PNG artifacts; the GUI always constructs interactive
 Plotly figures directly from saved numerical data. Publication exports regenerate
-native-font PDF figures from data. Launch through cgap-sbl-gui (or python -m
+native-font PDF figures from data. Launch through cgap-sbl-lab (or python -m
 cgap_sbl_jadce); the old curses menu, task_cli module and cgap-sbl command are removed.
 The tasks.py registry owns orchestration. Dependencies determine availability,
 not an ordinal sequence. Algorithm runs support independent L/SNR selections and merge
 completed conditions. SBL/ANC have separate Tune/Run actions and support either
 reference tuning or condition-specific selections, chosen in a setup definition.
 New GUI setups copy default/current settings into isolated results/<name>/config.yaml
-before work starts. That one source config stays stable; effective settings live
-in task manifests. Keep all setup datasets, results and checkpoints separate.
+before work starts. That one source config can be edited centrally or within
+its task page; task manifests retain the effective settings that produced results.
+Compatibility is recomputed from relevant values and inputs, and restoring matching
+settings restores eligibility. Preserve incompatible results and block their
+downstream use. Algorithm solver/tuning settings belong to that algorithm only.
+Setup editors expose only fixed-reference sweeps. Algorithm Run pages manage shared optional
+additional L/SNR pairs in the Condition status table, using an empty input row
+with Add and per-row Delete controls, without a separate Save step. They require saved communication inputs and independent
+per-condition tuning when selected. All/Complete all includes only setup sweeps.
+Settings forms require explicit Save, disable Enter submission, and discard drafts
+on Reset or navigation. Keep all setup datasets, results and checkpoints separate.
 Detached GUI workers pause between completed units so timing excludes paused time;
 private job records and generated exports live in ignored .gui/.
 
 After each task inspect saved outputs before continuing. Long-running tasks must
 show progress. Figures must remain regenerable from saved data without rerunning
 expensive tasks. New scientific work must checkpoint completed units and use
-atomic output writes. Rerunning the same action resumes compatible checkpoints;
+atomic output writes. Label fresh actions Start or Rerun according to saved state.
+Resume restores compatible checkpoints. Algorithm Complete all/selected skips
+completed conditions, restores compatible unfinished work and starts untouched
+conditions; only an explicit Rerun replaces completed numerical results.
+Track unfinished checkpoints and portable recovery
+requests in Git; clear owned checkpoints after saving final results and figures.
+Algorithm runs own separate L/SNR folders and accumulate overall completion;
 never reuse work after incompatible settings, inputs or mathematical code changes.
 
 ## Reproducibility

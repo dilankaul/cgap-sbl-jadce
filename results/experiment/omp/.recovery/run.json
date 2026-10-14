@@ -1,0 +1,13 @@
+{
+  "config_digest": "26c80dea24bfd4febf65e479285d80a9b95d0a8d5c1d4b922e2c5dbbcb359147",
+  "created": 1791967254.3973866,
+  "input_signature": "2d74839b7773cfc039cd6867e1a93368afbdb76186fe3c4d2c356f83de21734d",
+  "job_id": "20261014T084053-2cc7be71",
+  "request": {
+    "action": "run",
+    "config": "../../../../configs/experiment.yaml",
+    "kind": "task",
+    "task": "omp"
+  },
+  "schema": 1
+}

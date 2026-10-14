@@ -15,7 +15,7 @@ python -m pip install -e '.[dev]'
 Launch from the repository root:
 
 ```bash
-cgap-sbl-gui
+cgap-sbl-lab
 ```
 
 Open `http://localhost:8501`; forward port 8501 in VS Code/Codespaces when working
@@ -38,22 +38,60 @@ are excluded from convergence analysis.
 Choose **All conditions** or **Selected conditions** to run an algorithm or compare
 specific L/SNR pairs. Completed scores and measured runtimes accumulate without
 duplication. The reference pair shared by two sweep plots is solved once and
-uses the same recorded runtime in both views. Later runs reuse compatible completed units; partial evaluation does
-not require finishing unrelated conditions. A setup can use the default fixed-value
-SNR/pilot sweeps, or a full pilot-length × SNR grid.
+uses the same recorded runtime in both views. **Complete all** skips finished
+conditions, resumes compatible unfinished work and starts untouched conditions.
+**Complete selected** does the same for the chosen subset. The primary action
+shows **Start** for untouched work, **Resume** for unfinished work, or
+**Rerun selected/all** when the chosen conditions are already finished. Explicit
+reruns recalculate the chosen conditions from the beginning. Partial evaluation
+does not require finishing unrelated conditions. Experiment setups define fixed-reference SNR and pilot-length sweeps.
+Additional conditions are optional and shared across algorithm Run pages.
 
 ### Experiment setups
 
-In **Experiment setups**, choose **Default settings** (or copy the current setup),
-edit the environment, sample counts, sweep ranges, solver settings, seeds and
-figure selections, and create a named setup. New setups have isolated folders at
-`results/<setup-name>/`, with one stable `config.yaml`. Task manifests record
-effective parameters separately. The default settings and existing results stay
-available through the sidebar setup selector. Changing an existing experiment is
-handled by creating a new setup from it, which preserves earlier datasets/results.
-There is no need to edit YAML or enter file paths in the GUI.
+In **Experiment setups**, edit the current setup or create one from default/current
+settings. Settings are grouped by environment, activity, kappa calibration,
+communication, evaluation conditions and individual algorithms. ANC owns its
+alpha/beta/tau ranges; SBL owns its threshold range. Alpha, beta, tau, the
+initial kappa scan, and evaluation pilot-length/SNR sweeps use inclusive
+**Start / Stop / Step** controls. Kappa bracket-refinement steps remain separate. Each algorithm has its own
+solver settings, reference condition and tuning policy. New setups have isolated
+folders at `results/<setup-name>/`, with one editable `config.yaml`. Task manifests
+record the settings that produced each result.
 
-Choose either SBL/ANC tuning policy when creating a setup:
+Each task also exposes its corresponding **Task settings**, using the same form
+and source configuration. Click **Save changes** to apply edits, or **Save setup**
+to create a setup. Enter does not submit these forms. **Reset** restores the saved
+values (or the selected defaults for a new setup); leaving a page discards its
+unsaved draft. Saving updates settings atomically without deleting results or checkpoints. Incompatible
+results show an indicator and cannot feed downstream tasks. Restoring matching
+values restores compatibility if the original input data and results remain.
+Adding conditions preserves compatible completed conditions. Changing figure
+selections does not invalidate scientific results. Pause an active task before
+editing settings it uses; unrelated settings remain editable. Resume requires its
+original relevant settings, inputs, code and numerical environment. YAML formatting
+and unrelated edits do not affect recovery.
+
+Evaluation settings separately specify **SNR for the pilot-length sweep** and
+**Pilot length for the SNR sweep**. ANC has its own **Alpha-beta tuning pilot length L**
+and **Alpha-beta tuning SNR (dB)**; these do not change either sweep's fixed value.
+SBL likewise owns its threshold-tuning reference. With per-condition tuning,
+each selected condition is tuned independently.
+
+On an algorithm's **Run** page, open **Condition status**, enter L/SNR in the empty
+table row and click **Add**. Each saved optional row has a **Delete** button;
+these controls apply changes directly without an additional Save step. **Prepare inputs** saves deterministic
+communication inputs without altering base archives or running an estimator.
+The fields start blank. Adding or deleting a condition updates every algorithm’s
+condition table, which labels it Optional. Then select the added pair explicitly to run it. **All conditions** and
+**Complete all** cover only setup sweeps; optional results do not affect sweep
+completion. Additional input archives live under
+`communication/<split>/additional/Lxxxx_snrXdB/<index>/inputs.npz` and reuse saved
+shared channels/activity. Condition-specific SBL/ANC policies require tuning
+the added pair on their **Tune** page first; reference policies reuse the reference
+selection. Completed optional conditions are available for comparison and SBL/ANC convergence.
+
+Choose either tuning policy independently for SBL and ANC:
 
 - **One reference selection:** tune at the reference L/SNR and reuse its selection
   across all selected evaluation conditions (the default).
@@ -69,8 +107,9 @@ compatible selections before an evaluation run.
 
 A detached worker shows progress, live logs and recent jobs. Pause waits for the
 current completed calculation/checkpoint, keeping pause time out of solver
-runtimes. Once paused, another task can run. Return to the original task to Continue; Stop interrupts the unfinished unit.
-**Restart from checkpoints** reuses compatible work after failure. Browser/server
+runtimes. Once paused, another task can run. Return to the original task and
+select **Resume**. It continues a live paused worker or starts a replacement
+worker using compatible checkpoints after a failure, stop, or interruption. Stop interrupts the unfinished unit. Browser/server
 restarts reconnect to a live worker; after machine restart, recovery is manual.
 Private worker records, logs and export files live in ignored `.gui/`.
 
@@ -103,7 +142,9 @@ the GUI visualizations use their underlying data directly.
 
 ## Configuration and reproducibility
 
-`configs/experiment.yaml` defines dimensions, activity, sweeps and tuning grids.
+`configs/experiment.yaml` defines grouped environment, activity, calibration,
+communication, evaluation and algorithm settings. Older flat setup files remain
+readable; editing saves the grouped layout without changing their effective values.
 Kappa calibration scans ascending kappa values, brackets the target expected count, then
 refines the bracket on the configured steps. Every candidate uses identical
 geometries and Bernoulli uniforms. Independent validation reports uncertainty
@@ -171,19 +212,23 @@ results/experiment/
   spatial_dependence/
     tuning/0000.npz          # compressed sparse CSR C
     evaluation/0000.npz
-  omp/
-  cosamp/
+  omp/run/L0025_snr8dB/
+  cosamp/run/L0025_snr8dB/
   sbl/
+    run/L0025_snr8dB/       # scores, timing, gamma data and condition figures
     tuning/                 # threshold curve and selection
   cgap_sbl_anc/
+    run/L0025_snr8dB/
     tuning/                 # alpha/beta/tau grid, threshold curve and selection
   comparison/
   convergence/
 ```
 
-Each algorithm folder contains `per_sample.csv`, `aggregate.csv`,
-`runtime_summary.csv`, `run_summary.json`, and its own figures. SBL and ANC also
-save gamma-distribution data. Saved numerical outputs and figures are versioned.
+Each `run/Lxxxx_snrXdB/` folder owns its `per_sample.csv`, `aggregate.csv`,
+`runtime_summary.csv`, `summary.json`, and condition figures. SBL and ANC also
+save condition-local gamma data. Algorithm-root sweep tables are combined views
+of compatible completed conditions; the overall card completes when every configured
+condition finishes. Compatible older combined files are split without rerunning solvers. Saved numerical outputs and figures are versioned.
 Migrated older scores are explicitly marked historical and must be rerun before
 comparison; their NMSE values are not converted or relabeled.
 
@@ -191,11 +236,11 @@ Communication generation stores H, a and Z once, Theta once per L, and Y, W and 
 condition. Overlapping sweep conditions share inputs. Spatial dependence generation saves every C;
 ANC loads those matrices and never constructs them during evaluation.
 
-## Restart after interruption
+## Resume after interruption
 
-Restart the same GUI action with the same setup and condition selection. New
-runs automatically save private checkpoints under the producing task's
-`.checkpoints/` directories. Finished work is reused after a crash or process
+Select **Resume** on the interrupted action. It preserves the original setup and
+condition selection. Unfinished work saves Git-trackable checkpoints under its task/action or
+condition folder, with portable requests in the task's `.recovery/` directory. Finished work is reused after a crash or process
 restart; the unfinished calculation unit is repeated.
 
 Recovery boundaries are calibration batches, activity/communication/spatial
@@ -208,17 +253,20 @@ not duplicate rows or rerun completed solvers. Aggregate outputs and figures
 can be rebuilt from that committed numerical work.
 
 Checkpoints are isolated by settings, input data identities, scientific code,
-numerical library versions and thread settings. Changed settings use a different
-checkpoint set. Generated communication and spatial files are checked against
+numerical library versions and thread settings. Resume rejects incompatible work;
+Explicit Start or Rerun begins a fresh calculation; completion actions reuse compatible progress. Generated communication and spatial files are checked against
 saved hashes before reuse; missing or changed files are rebuilt. Unreadable
 checkpoint units are recomputed. Old results produced before this feature are
 not retroactively checkpointed.
 
 JSON, YAML, CSV, NPZ, sparse matrices and figures are written through temporary
 files, flushed, and atomically replaced. A failure before replacement leaves
-the previous complete file intact. Checkpoints and unfinished temporary files
-are excluded from Git; final experiment outputs remain versioned. Keep the
-results directory to retain restart progress.
+the previous complete file intact. Checkpoints and portable recovery metadata are versioned while work is unfinished.
+Each successful algorithm condition removes its checkpoints after saving results
+and figures; other tasks clear theirs after full success. Pause, Stop and failure
+retain unfinished progress. Local `.gui/` records and temporary files remain ignored.
+Resume can recover after pulling the setup without its local GUI records.
+Checkpoint additions and deletions are published only when you commit and push.
 
 ## Figures and publication PDFs
 

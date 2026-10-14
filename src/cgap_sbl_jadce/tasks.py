@@ -17,6 +17,7 @@ from cgap_sbl_jadce.figures.estimator_gamma_distribution import plot_gamma_distr
 from cgap_sbl_jadce.figures.algorithm_convergence import plot_convergence
 from cgap_sbl_jadce.figures.algorithm_performance import make_performance_figures
 from cgap_sbl_jadce.paths import task_dir
+from cgap_sbl_jadce.checkpoints import checkpointed, is_resuming
 
 
 @dataclass(frozen=True)
@@ -63,20 +64,33 @@ def task_actions(task_id: str) -> dict[str, Task]:
 
 
 
+@checkpointed
 def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool = True,
              conditions: list | None = None, methods: list | None = None,
              realization_index: int | None = None, condition: tuple | None = None) -> list:
     """Run only this action, then regenerate its standard PNG outputs from data."""
+    request = None
+    if cfg.get('task_runtime', {}).get('input_config'):
+        request = {'kind': 'task', 'config': cfg['task_runtime']['input_config'], 'task': task_id, 'action': action}
+        for key, value in [('conditions', conditions), ('methods', methods),
+                           ('realization_index', realization_index), ('condition', condition)]:
+            if value is not None:
+                request[key] = value
+        if is_resuming():
+            from cgap_sbl_jadce.recovery import restore_completed_outputs
+            restored = restore_completed_outputs(request)
+            if restored is not None:
+                return restored
     actions = task_actions(task_id)
     if action not in actions:
         raise ValueError(f"{TASKS[task_id].description.capitalize()} has no {action} action.")
     task = actions[action]
     kwargs = {"show_progress": show_progress} if task.progress else {}
     if conditions is not None:
-        if task_id not in {spec.task for spec in estimators.ESTIMATORS.values()} | {'comparison'}:
+        if task_id not in {spec.task for spec in estimators.ESTIMATORS.values()} | {'comparison', 'communication'}:
             raise ValueError('Condition selection applies to algorithm evaluation and comparison.')
         kwargs['conditions'] = conditions
-    if task_id in {'comparison', 'convergence'} and methods is not None:
+    if task_id in {'comparison', 'convergence', 'communication'} and methods is not None:
         kwargs['methods'] = methods
     if task_id == 'convergence':
         if realization_index is not None:
@@ -85,10 +99,10 @@ def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool =
             kwargs['condition'] = condition
     task.stage(cfg, **kwargs)
     paths = []
-    render_configs = ([estimators.condition_config(cfg, pair) for pair in estimators.tuning_conditions(cfg, conditions)]
+    render_configs = ([estimators.condition_config(cfg, pair, task_id) for pair in estimators.tuning_conditions(cfg, conditions, task_id)]
                       if action == 'tune' else [cfg])
     for render_cfg in render_configs:
-        for render in task.plots:
+        for render in (() if task_id == 'communication' and conditions is not None else task.plots):
             kwargs = {"formats": "png"}
             if (render.func if isinstance(render, partial) else render) in (plot_activity_realizations, plot_communication_preview, plot_spatial_dependence, make_performance_figures):
                 kwargs["show_progress"] = show_progress
@@ -96,4 +110,7 @@ def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool =
     print(f"{TASKS[task_id].description.capitalize()} figures: {len(set(paths))} files")
     if paths:
         print(f"  - {task_dir(cfg['run']['output_dir'], task_id) / 'figures'}")
+    if request:
+        from cgap_sbl_jadce.recovery import record_completed_outputs
+        record_completed_outputs(request, paths)
     return paths

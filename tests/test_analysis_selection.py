@@ -55,7 +55,8 @@ def test_partial_run_is_available_only_for_its_completed_condition(saved_data):
     assert analysis_options(saved_data,'comparison',conditions=[[7,8]]) == ['cosamp']
     assert analysis_options(saved_data,'comparison',conditions=[[5,12]]) == []
     assert analysis_options(saved_data,'comparison') == []
-    path = result_path(saved_data['run']['output_dir'],'cosamp','run_summary.json')
+    from cgap_sbl_jadce.paths import run_path
+    path = run_path(saved_data, 'cosamp', 'summary.json', (7, 8))
     summary = json.loads(path.read_text())
     summary['definition']['revision'] = -1
     path.write_text(json.dumps(summary))

@@ -17,8 +17,7 @@ figures/*
 data/generated/*
 !data/generated/README.md
 
-# Private restart checkpoints are regenerated locally; final results remain versioned.
-.checkpoints/
+# Unfinished checkpoints and portable recovery metadata are versioned.
 # Uncommitted atomic-write files left by process termination.
 .tmp-*
 

@@ -164,3 +164,35 @@
 81. Allow one computing worker and multiple cooperatively paused workers. Wait for confirmed pause before starting another task, return to the original action to Continue, and reject continuation if required inputs, configuration or scientific code changed while paused. Restart uses compatible checkpoints after interruption.
 
 82. Compare selects any subset of algorithms with compatible completed results for the requested conditions, including one algorithm. Convergence selects only completed SBL/CGAP-SBL-ANC runs at the chosen evaluation condition, requires their tuning selections, and requires C only for spatial methods. OMP/CoSaMP are excluded. Analysis no longer requires all algorithms or comparison before convergence.
+
+
+83. Unify Continue and Restart as Resume: continue a live paused worker or recover a stopped, failed or interrupted action using compatible checkpoints. Keep Pause and Stop, input guards, and one computing worker.
+
+84. Split algorithm evaluation results by L/SNR under `<method>/run/Lxxxx_snrXdB/`; retain algorithm-root sweep tables as derived combined views. Individual completed conditions accumulate to full algorithm completion. Keep All conditions and Selected conditions. Start/Rerun calculates requested conditions afresh; only Resume reuses unfinished units and skips conditions already completed by its request. Preserve unrelated completed data, reference/per-condition tuning choices, true-active-support NMSE, solver timing, numerical definitions and seeds.
+
+85. Version unfinished checkpoints and portable recovery requests, excluding local PIDs/logs/exports and atomic temporary files. Clear only verified checkpoint owners after numerical results and required figures commit; preserve unfinished recovery after pause, stop, failure and interruption. Commit final-output metadata before cleanup so a shutdown during cleanup can recover without recalculation. Disjoint algorithm conditions may run while another condition is paused. Compatible legacy combined results migrate without running solvers; historical scores remain historical.
+
+
+86. Distinguish Start, Resume and explicit Rerun labels using saved state. Algorithm Run offers Complete all and Complete selected, which skip compatible finished conditions, restore unfinished checkpoints and start untouched conditions; show counts before launching and reject incompatible progress rather than silently rerun it. Keep separate explicit Rerun selected/all actions and shared Pause/Resume/Stop controls. A broader completion request adopts confirmed paused work at its durable boundary; an exact Resume continues its live worker. Retain condition selection, one computing worker, numerical definitions and existing checkpoint identities.
+
+
+87. Group editable setup settings by task and algorithm. ANC owns alpha/beta/tau tuning, SBL owns tau tuning, and each algorithm has independent solver options, tuning policy and reference condition. Preserve flat-config reading and migrate layouts only when saving an edit or creating a setup. Use fixed-reference sweeps or explicit L/SNR pairs; omit the GUI Cartesian-grid option. Central and task-local editors share one source config, preview dependency-specific effects and save atomically without deleting outputs.
+
+88. Recompute compatibility from relevant settings, actual condition input arrays, scientific method identities and recorded selections. Ignore YAML formatting, unrelated algorithm options, figure selections and other condition lists when validating a condition. Restore eligibility when matching values and original data return. Show incompatible results while preventing downstream scientific use; retain historical figures from recorded data. Protect active worker settings, permit edits at confirmed pause boundaries, and validate scoped semantic identities before Resume. No publication experiments are run by the setup restructuring.
+
+
+89. At the user’s request, use 1e-4 as the default stopping tolerance for SBL, CGAP-SBL-ANC and CoSaMP. CoSaMP retains its relative-residual criterion, with its default iteration limit increased to 500; SBL-family methods retain their relative-gamma-change criterion and configured iteration limits. Existing named setups and recorded result provenance retain their explicitly saved values.
+
+
+90. Use inclusive start/stop/step controls for ANC alpha/beta, the initial kappa scan, evaluation pilot lengths and evaluation SNRs, matching tau. Preserve existing default candidate values exactly; retain separate kappa bracket-refinement steps and explicit L/SNR condition selection. Read legacy explicit grids without changing their values; convert regular grids exactly, and retain nonuniform grids until the user explicitly replaces their range. Decimal-step expansion avoids floating endpoint drift; pilot-length ranges require integers.
+
+
+91. Experiment setup and task settings editors expose only fixed-reference pilot-length/SNR sweeps. Optional additional L/SNR pairs are registered on an algorithm Run page, outside the source YAML. Explicit Prepare inputs extends compatible saved communication data using condition-local archives, preserves base arrays and bytes, and checkpoints each realization. Reference tuning reuses its selection; per-condition tuning separately tunes the added pair before evaluation. All/Complete all and parent completion count only setup sweeps; optional runs require explicit selection and remain available to comparison/convergence. Supersedes selected-pair setup controls in decision 87; retain legacy config reading.
+
+92. Setup creation/editing and task settings require explicit Save buttons with Enter submission disabled. Reset restores saved/source values without writing configuration or launching tasks. Discard unsaved form drafts when navigating away, changing setup or changing editor context. Preserve active-worker settings guards and reversible result compatibility. Clearly label ANC alpha-beta tuning L/SNR independently of the SNR held fixed during the pilot-length sweep and the L held fixed during the SNR sweep; scientific values and solver equations are unchanged.
+
+
+93. Optional-condition entry fields start empty. Save/delete on any algorithm Run page updates one shared optional-condition registry and all algorithms’ condition options/status tables. Label these rows Optional and exclude them from parent sweep completion and All/Complete all. Keep algorithm outputs independently owned. Removing an option retains existing numerical data and results; prevent removal while a live/paused task uses it. Read earlier method-local registrations as shared options.
+
+
+94. Configure optional conditions directly in the algorithm Run page’s Condition status table: an empty L/SNR input row with Add, and Delete on each optional row. Add/Delete apply immediately, with no additional Save control. Required sweep rows remain read-only and have no Delete action. Preserve shared options, input preparation, active-worker guards, saved numerical data and sweep-only completion totals. Setup and task-settings Save/Reset forms are unchanged.

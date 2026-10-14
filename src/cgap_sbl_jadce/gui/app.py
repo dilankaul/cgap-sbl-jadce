@@ -1,4 +1,4 @@
-"""Streamlit experiment dashboard. Start with the cgap-sbl-gui command."""
+"""Streamlit experiment dashboard. Start with the cgap-sbl-lab command."""
 import argparse
 import os
 from pathlib import Path
@@ -27,7 +27,7 @@ def dashboard():
     from cgap_sbl_jadce.config import load_config
     from cgap_sbl_jadce.gui.jobs import Jobs, ACTIVE
     from cgap_sbl_jadce.gui.setups import setup_files
-    from cgap_sbl_jadce.gui.setup_editor import setup_editor
+    from cgap_sbl_jadce.gui.setup_editor import setup_editor, reset_settings_forms
     from cgap_sbl_jadce.gui.workflow import card_state, combined
     from cgap_sbl_jadce.gui.task_page import task_page
     from cgap_sbl_jadce.tasks import task_actions
@@ -56,7 +56,23 @@ def dashboard():
     except (OSError, ValueError, YAMLError) as error:
         st.error(str(error)); st.stop()
 
+    editor_location = (str(config), page, st.session_state.get('current_task'), st.session_state.get('current_action'))
+    if st.session_state.get('_editor_location') != editor_location:
+        reset_settings_forms(st)
+        st.session_state['_editor_location'] = editor_location
+
+    # Existing compatible combined files are converted once, without running solvers.
+    from cgap_sbl_jadce.condition_results import migrate_setup_results
+    @st.cache_data(show_spinner=False)
+    def migrate_existing(config, sources):
+        return migrate_setup_results(load_config(config))
+    from cgap_sbl_jadce.paths import task_dir
+    sources = tuple((str(path), path.stat().st_mtime_ns) for task in ('omp', 'cosamp', 'sbl', 'anc')
+                    for path in [task_dir(cfg['run']['output_dir'], task) / 'run_summary.json'] if path.exists())
+    migrate_existing(str(config), sources)
+
     def navigate(page, task=None, action='run'):
+        reset_settings_forms(st)
         st.session_state.update(page=page, current_task=task, current_action=action)
         st.rerun()
 
@@ -94,7 +110,7 @@ def dashboard():
                     navigate('task', request['task'], request['action'])
                 else:
                     navigate('task', st.session_state.get('current_task', 'activity'))
-        st.sidebar.caption('Pause at a checkpoint, open another task, then return and Continue.')
+        st.sidebar.caption('Pause at a checkpoint, open another task, then return and Resume.')
     resident_tasks()
 
     def card(container, title, task, action='run', parent=False, key=None):
@@ -102,7 +118,7 @@ def dashboard():
                  if parent else card_state(cfg, config, task, jobs, action))
         with container.container(key='card_' + (key or task + '_' + action)):
             st.markdown(card_markup(title, task, state, action, compact=bool(key and key.startswith('algorithm_'))), unsafe_allow_html=True)
-            if st.button(f"{title}\n{state.label}\n{state.detail}", key='open_' + (key or task+'_'+action), width='stretch'):
+            if st.button(f"{title}\n{state.label}\n{state.summary}", key='open_' + (key or task+'_'+action), width='stretch'):
                 navigate('algorithm' if parent else 'task', task, action)
             if state.status in {'running', 'queued', 'paused', 'partial'}:
                 st.progress(state.fraction)
@@ -123,7 +139,7 @@ def dashboard():
         st.title('Experiment setups')
         with st.expander('Current setup settings'):
             st.json({key: value for key, value in cfg.items() if key != 'task_runtime'})
-        setup_editor(st, project, default, config)
+        setup_editor(st, project, default, config, jobs)
     elif page == 'overview':
         st.markdown('<div class="eyebrow">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
         st.title('Experiment workflow')
@@ -134,7 +150,7 @@ def dashboard():
             state = combined([card_state(cfg, config, task, jobs) for task in ('kappa_calibration', 'activity')])
             with st.container(key='card_activity_model'):
                 st.markdown(card_markup('Activity model', 'activity', state), unsafe_allow_html=True)
-                if st.button(f'Activity model\n{state.label}\n{state.detail}', key='open_activity_model', width='stretch'):
+                if st.button(f'Activity model\n{state.label}\n{state.summary}', key='open_activity_model', width='stretch'):
                     navigate('activity_model')
                 if state.status in {'running', 'paused', 'partial'}:
                     st.progress(state.fraction)

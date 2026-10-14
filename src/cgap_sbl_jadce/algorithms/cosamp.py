@@ -3,7 +3,7 @@ import numpy as np
 from scipy.linalg import lstsq
 
 
-def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 50, tol: float = 1e-6) -> np.ndarray:
+def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 500, tol: float = 1e-4) -> np.ndarray:
     """MMV CoSaMP with unregularized SVD least-squares support estimation."""
     L, N = Theta.shape
     if not (0 <= B_q <= min(L, N)):

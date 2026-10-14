@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 from cgap_sbl_jadce.dataset import load_activity_samples
 from cgap_sbl_jadce.paths import result_path, figure_path
 from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
@@ -22,7 +23,9 @@ def plot_activity_s_distribution(cfg: dict, formats: str = "png") -> list[Path]:
     all_counts = np.concatenate((tuning_s, evaluation_s))
     lo = int(np.min(all_counts)); hi = int(np.max(all_counts))
     bins = np.arange(lo - 0.5, hi + 1.5, 1.0)
-    target = float(cfg["system"]["S"])
+    summary_path = result_path(out, "activity", "summary.json")
+    summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+    target = float(summary.get("target_mean_S", cfg["system"]["S"]))
 
     figure_style = {"axes.titlesize": 12, "axes.labelsize": 12,
                     "xtick.labelsize": 10, "ytick.labelsize": 10,

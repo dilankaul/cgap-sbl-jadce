@@ -44,10 +44,11 @@ def test_condition_policy_generates_matching_tuning_conditions(tmp_path):
     path = create_setup(tmp_path, 'Condition tuning', cfg)
     saved = load_config(path)
     expected = {tuple(pair[:2]) for pair in estimators.evaluation_conditions(saved)}
-    actual = {tuple(pair) for pair in saved['communication']['tuning_conditions']}
+    from cgap_sbl_jadce.settings import tuning_pairs
+    actual = set(tuning_pairs(saved))
     assert expected <= actual
     for mutation in [lambda c: c['system'].update(S=c['system']['N'] + 1),
-                     lambda c: c['system'].update(pilot_lengths=[20, -5]),
+                     lambda c: c['evaluation'].update(pilot_length_stop=-5),
                      lambda c: c['seeds'].update(activity_tuning=c['seeds']['activity_evaluation']),
                      lambda c: c['figures'].update(evaluation_indices=[999])]:
         bad = deepcopy(saved)
@@ -56,7 +57,7 @@ def test_condition_policy_generates_matching_tuning_conditions(tmp_path):
             validate_setup(bad)
 
 
-def test_incremental_conditions_preserve_scores_and_skip_previous_solves(saved_data, monkeypatch):
+def test_incremental_conditions_preserve_scores_and_explicit_reruns_recalculate(saved_data, monkeypatch):
     spec = estimators.ESTIMATORS['omp']
     calls = []
     def solve(r, *args, **kwargs):
@@ -72,9 +73,9 @@ def test_incremental_conditions_preserve_scores_and_skip_previous_solves(saved_d
     after = pd.read_csv(path)
     pd.testing.assert_frame_equal(before, after[after.snr_db == 8].reset_index(drop=True))
     estimators.run_estimator_stage(saved_data, 'omp', show_progress=False, conditions=[[7, 8]])
-    assert len(calls) == 4
+    assert len(calls) == 6  # A fresh rerun recalculates the selected condition.
     final = estimators.run_estimator_stage(saved_data, 'omp', show_progress=False)
-    assert final['status'] == 'complete' and len(calls) == 6
+    assert final['status'] == 'complete' and len(calls) == 12
     assert not pd.read_csv(path).duplicated(['q', 'L', 'snr_db', 'sweep']).any()
 
 
@@ -103,7 +104,7 @@ def test_per_condition_tuning_and_runs_need_only_requested_selections(saved_data
     after = pd.read_csv(result_path(cfg['run']['output_dir'], method, 'per_sample.csv'))
     pd.testing.assert_frame_equal(before, after[after.snr_db == 8].reset_index(drop=True))
     monkeypatch.setitem(estimators.ESTIMATORS, method, replace(spec, solve=lambda *a, **k: pytest.fail('Repeated finished solve')))
-    estimators.run_estimator_stage(cfg, method, False, conditions=[[7, 8]])
+    estimators.run_estimator_stage(cfg, method, False, conditions=[[7, 8]], resume=True)
 
 
 def test_algorithms_and_selected_condition_comparison_have_no_order_dependency(saved_data):

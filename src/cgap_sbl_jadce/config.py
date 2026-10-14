@@ -56,6 +56,8 @@ def resolve_activity_kappa(cfg: dict[str, Any]) -> tuple[float, str]:
         mismatches = [key for key, value in expected.items() if summary.get(key) != value]
         if mismatches:
             raise ValueError(f"kappa calibration calibration differs in {', '.join(mismatches)}; rerun kappa calibration in the GUI for this setup.")
+        from cgap_sbl_jadce.compatibility import validate_preparation
+        validate_preparation(cfg, "kappa_calibration")
         kappa = float(summary["closest_grid_kappa"])
         origin = str(path)
     else:

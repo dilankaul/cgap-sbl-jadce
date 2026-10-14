@@ -18,3 +18,18 @@ true-active-support NMSE. The existing event-driven inputs remain reusable.
 A single root config YAML records the activity setup; task-local JSON manifests
 record the effective task configuration and execution environment. New estimator
 results record runtime and `nmse_scope: true_active_support`.
+
+Algorithm evaluation data are separated under `<algorithm>/run/Lxxxx_snrXdB/`,
+including per-realization scores, timing summaries, gamma data where applicable,
+and condition figures. Algorithm-root tables combine compatible completed conditions.
+Unfinished `.checkpoints/` and `.recovery/` data are tracked in Git and removed
+after successful completion. Complete all/selected skips finished conditions and
+recovers compatible unfinished work. Explicit Rerun recalculates selected conditions.
+
+Optional evaluation conditions are shared in `additional_conditions.json` at the
+setup result root, outside `config.yaml`. Their communication inputs are stored
+under `communication/<split>/additional/Lxxxx_snrXdB/<index>/inputs.npz`, preserving
+base archive bytes and shared H/a/Z. Each algorithm owns its optional condition
+results under its usual run folder. Deleting an option removes it from all
+algorithm tables while retaining existing data and results. Sweep completion
+ignores optional rows.

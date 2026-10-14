@@ -24,6 +24,7 @@ PATHS = {
     'partial': '<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/>',
     'failed': '<circle cx="12" cy="12" r="9"/><path d="M12 7v6m0 3v.1"/>',
     'blocked': '<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+    'incompatible': '<path d="m12 3 10 18H2L12 3zM12 9v5m0 3v.1"/>',
     'historical': '<path d="M3 11a9 9 0 1 1 3 8M3 4v7h7m2-5v6l4 2"/>',
 }
 
@@ -39,7 +40,7 @@ def card_markup(title, task, state, action='run', compact=False):
     return (f'<div class="workflow-card {"compact" if compact else "wide"}">'
             f'<div class="card-icon">{icon(task_icon)}</div>'
             f'<div class="card-copy"><div class="card-title">{escape(title)}</div>'
-            f'<div class="card-detail">{escape(state.detail)}</div></div>'
+            f'<div class="card-detail">{escape(state.summary)}</div></div>'
             f'<span class="status-badge status-{state.status}">{icon(state.status)}{escape(state.status.capitalize())}</span>'
             f'<span class="card-arrow">{icon("arrow")}</span></div>')
 
@@ -102,6 +103,7 @@ h2 { font-size:1.2rem!important; } h3 { font-size:1.1rem!important; }
 .status-running,.status-queued { color:#0369a1; background:#e0f2fe; }
 .status-paused,.status-partial { color:#a16207; background:#fef9c3; }
 .status-failed,.status-interrupted { color:#be123c; background:#fff1f2; }
+.status-incompatible { color:#9a3412; background:#ffedd5; }
 .status-blocked { color:#b45309; background:#fff7ed; }
 .compact { flex-wrap:wrap; }
 .compact .card-copy { flex-basis:100%; order:2; }

@@ -12,6 +12,7 @@ from tqdm.auto import tqdm
 from cgap_sbl_jadce.models.activity import generate_activity_dataset
 from cgap_sbl_jadce.experiments.calibration import calibrate_kappa_adaptive, CalibrationBracketError
 from cgap_sbl_jadce.config import resolve_activity_kappa, activity_spatial_dependence_parameters
+from cgap_sbl_jadce.settings import calibration_settings, reference_settings, evaluation_settings
 from cgap_sbl_jadce.models.spatial_dependence import build_C
 from cgap_sbl_jadce.spatial_dependence_dataset import spatial_dependence_definition
 from cgap_sbl_jadce.dataset import load_activity_samples, save_activity_samples
@@ -19,7 +20,7 @@ from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, atomic_path
 from cgap_sbl_jadce.models.realizations import communication_realization
 from cgap_sbl_jadce.communication_dataset import communication_definition, save_communication_sample
 from cgap_sbl_jadce.reporting import print_task_report
-from cgap_sbl_jadce.checkpoints import Checkpoint, output_hashes, completed_outputs
+from cgap_sbl_jadce.checkpoints import Checkpoint, checkpointed, is_resuming, output_hashes, completed_outputs
 from cgap_sbl_jadce.provenance import save_task_snapshot
 
 
@@ -27,11 +28,12 @@ def output_dir(cfg: dict[str, Any]) -> Path:
     return ensure_dir(cfg["run"]["output_dir"])
 
 
+@checkpointed
 def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
     """kappa calibration: calibrate kappa, validate, and save effective run provenance."""
     cfg = deepcopy(cfg)
     sys = cfg["system"]
-    act = cfg["activity"]
+    act = {**cfg["activity"], **calibration_settings(cfg)}
     run = cfg["run"]
     D = float(act["D"])
     kappas = [float(value) for value in act.get("kappa_scan", [])]
@@ -51,7 +53,9 @@ def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> di
         "calibration_validation_samples": int(act.get("calibration_validation_samples", num_samples)),
         "calibration_tolerance": float(act.get("calibration_tolerance", 0.1)),
     })
-    checkpoint = Checkpoint(caldir, {'task': 'kappa_calibration', 'system': sys, 'activity': cfg['activity'], 'seeds': cfg['seeds']})
+    act = cfg["activity"]
+    from cgap_sbl_jadce.compatibility import preparation_settings
+    checkpoint = Checkpoint(caldir, {'task': 'kappa_calibration', 'settings': preparation_settings(cfg, 'kappa_calibration')})
     save_task_snapshot(cfg, 'kappa_calibration', status="started", calibration_seed=seed)
     try:
         _, best, records, details = calibrate_kappa_adaptive(
@@ -87,6 +91,8 @@ def calibrate_kappa_stage(cfg: dict[str, Any], show_progress: bool = True) -> di
         "closest_grid_mean_realized_active": best.mean_realized_active,
         "absolute_expected_gap": abs(best.mean_expected_active - target),
     }
+    from cgap_sbl_jadce.compatibility import preparation_settings
+    summary["compatibility"] = preparation_settings(cfg, "kappa_calibration")
     save_json(summary_path, summary)
 
     print_task_report("KAPPA CALIBRATION — KAPPA CALIBRATION", {
@@ -127,6 +133,7 @@ def _activity_stats(samples: list[Any]) -> dict[str, float]:
     }
 
 
+@checkpointed
 def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
     kappa, kappa_source = resolve_activity_kappa(cfg)
     cfg = {**cfg, "activity": {**cfg["activity"], "kappa": kappa}}
@@ -177,6 +184,8 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
     for split in datasets:
         summary[split]["mean_minus_target"] = summary[split]["mean_active"] - float(sys["S"])
     summary_path = result_path(out, "activity", "summary.json")
+    from cgap_sbl_jadce.compatibility import preparation_settings
+    summary["compatibility"] = {split: preparation_settings(cfg, "activity", split) for split in ("tuning", "evaluation")}
     save_json(summary_path, summary)
     save_task_snapshot(cfg, 'activity', show_progress=show_progress)
     print_task_report("ACTIVITY GENERATION — ACTIVITY MODEL", {
@@ -192,8 +201,15 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
     return summary
 
 
-def communication_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
+@checkpointed
+def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditions=None, methods=None) -> dict[str, Any]:
     """communication generation owns the full tuning and evaluation communication data."""
+    if conditions is not None:
+        from cgap_sbl_jadce.communication_dataset import add_communication_conditions
+        return add_communication_conditions(cfg, conditions, methods or [], show_progress)
+    from cgap_sbl_jadce.compatibility import validate_preparation
+    for split in ("tuning", "evaluation"):
+        validate_preparation(cfg, "activity", split)
     out = output_dir(cfg)
     summary = {"status": "started"}
     summary_path = result_path(out, "communication", "summary.json")
@@ -218,7 +234,7 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict
             save_communication_sample(folder, q, realizations)
             checkpoint.save(f'{q:04d}', {'outputs': output_hashes(files)})
         summary[split] = {"samples": len(activities), "definition": definition,
-                          "preview_condition": [int(cfg["tuning"]["reference_pilot_length"] if split == "tuning" else cfg["evaluation"]["pilot_length"]), float(cfg["tuning"]["reference_snr_db"])]}
+                          "preview_condition": [int(reference_settings(cfg)["reference_pilot_length"] if split == "tuning" else cfg["evaluation"]["pilot_length"]), float(reference_settings(cfg)["reference_snr_db"] if split == "tuning" else evaluation_settings(cfg)["snr_db"])]}
     summary["status"] = "complete"
     save_json(summary_path, summary)
     save_task_snapshot(cfg, 'communication', status="complete", communication_datasets=summary)
@@ -231,8 +247,12 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict
 
 
 
+@checkpointed
 def spatial_dependence_stage(cfg: dict[str, Any], show_progress: bool = True) -> dict[str, Any]:
     """spatial dependence saves one CSR dependence matrix per tuning/evaluation geometry."""
+    from cgap_sbl_jadce.compatibility import validate_preparation
+    for split in ("tuning", "evaluation"):
+        validate_preparation(cfg, "activity", split)
     out = output_dir(cfg)
     summary = {"status": "started"}
     summary_path = result_path(out, "spatial_dependence", "summary.json")

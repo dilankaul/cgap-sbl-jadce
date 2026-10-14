@@ -70,9 +70,8 @@ def render_preview(request, destination):
 
     cfg = load_config(request['config'])
     category = request['category']
-    if category.endswith('_tune') and request.get('condition'):
-        from cgap_sbl_jadce.experiments.estimators import condition_config
-        cfg = condition_config(cfg, request['condition'])
+    if category.endswith('_tune'):
+        cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
     if category not in PREVIEWS:
         raise ValueError('Unknown preview category')
     split, index = request.get('split', 'evaluation'), request.get('index', 0)
@@ -99,6 +98,9 @@ def render_preview(request, destination):
             cfg = deepcopy(cfg)
             cfg['figures'] = {'tuning_indices': [], 'evaluation_indices': [], f'{split}_indices': [index]}
             return plot_spatial_dependence(cfg, formats='both', show_progress=False)
+        if category.endswith('_run') and request.get('condition'):
+            from cgap_sbl_jadce.figures.estimator_condition import plot_condition_scores
+            return plot_condition_scores(cfg, category.removesuffix('_run'), tuple(request['condition']), formats='both')
         if category in {'comparison', 'convergence'}:
             task_id, action = category, 'run'
         else:
@@ -123,3 +125,28 @@ def historical_results(cfg, task_id):
             if data.get('status') == 'historical' or data.get('nmse_scope') == 'full_matrix':
                 return True
     return False
+
+
+def stored_tuning_options(cfg, method):
+    """Historical tuning remains viewable when the current policy/reference changes."""
+    folder = task_dir(cfg['run']['output_dir'], method) / 'tuning'
+    options = []
+    for path in [folder / 'selected.json', *sorted(folder.glob('*/selected.json'))]:
+        if not path.exists():
+            continue
+        selected = json.loads(path.read_text())
+        condition = selected.get('definition', {}).get('condition')
+        if condition:
+            options.append(('reference' if path.parent == folder else 'per_condition', int(condition[0]), float(condition[1])))
+    return options
+
+
+def tuning_preview_config(cfg, method, request):
+    from cgap_sbl_jadce.settings import grouped_config
+    from cgap_sbl_jadce.experiments.estimators import condition_config
+    if request.get('tuning_layout'):
+        if request['tuning_layout'] not in {'reference', 'per_condition'}:
+            raise ValueError('Unknown saved tuning layout')
+        cfg = grouped_config(cfg)
+        cfg['algorithms'][method]['tuning']['selection_mode'] = request['tuning_layout']
+    return condition_config(cfg, request['condition'], method) if request.get('condition') else cfg

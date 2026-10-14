@@ -1,0 +1,148 @@
+{
+  "condition": [
+    30,
+    24.0
+  ],
+  "definition": {
+    "algorithms": {
+      "K": 500,
+      "cosamp_max_iter": 50,
+      "cosamp_tol": 1e-06,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    },
+    "archive_sha256": "d7f1ee2e22b24baebcd9df1de8641ab17acc5d870e85a08785ae2394347ec7ef",
+    "communication": {
+      "M": 4,
+      "N": 500,
+      "activity_sha256": {
+        "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c"
+      },
+      "conditions": [
+        [
+          20,
+          12.0
+        ],
+        [
+          25,
+          12.0
+        ],
+        [
+          30,
+          4.0
+        ],
+        [
+          30,
+          8.0
+        ],
+        [
+          30,
+          12.0
+        ],
+        [
+          30,
+          16.0
+        ],
+        [
+          30,
+          20.0
+        ],
+        [
+          30,
+          24.0
+        ],
+        [
+          35,
+          12.0
+        ],
+        [
+          40,
+          12.0
+        ],
+        [
+          45,
+          12.0
+        ]
+      ],
+      "schema": 2,
+      "seed": 9517
+    },
+    "conditions": [
+      [
+        30,
+        4.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        8.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        12.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        16.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        20.0,
+        "snr_sweep"
+      ],
+      [
+        30,
+        24.0,
+        "snr_sweep"
+      ],
+      [
+        20,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        25,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        30,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        35,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        40,
+        12.0,
+        "pilot_sweep"
+      ],
+      [
+        45,
+        12.0,
+        "pilot_sweep"
+      ]
+    ],
+    "method": "MMV-CoSaMP",
+    "nmse_scope": "true_active_support",
+    "revision": 1,
+    "samples": 1000
+  },
+  "gamma_samples": 0,
+  "migrated_from": "per_sample.csv",
+  "nmse_scope": "true_active_support",
+  "outputs": {
+    "aggregate.csv": "e182a3cf98b1fc43992a43b398d5cbb212742c8ec0806e15ddaa5f109fc03184",
+    "figures/realization_scores.png": "7a9fc9500aae9539c3add72ebee01968011e961f44d754bc533eb85de5d1931d",
+    "per_sample.csv": "ca7b54b96e7056f101a34f57b7b353e93ae4cb84ba8a3b5fbf0166ba46d7898f",
+    "runtime_summary.csv": "65ef906a8b2a85d6aa09ed3e5616a641e44502ba095ce45c3dbef83bbc9ad706"
+  },
+  "selection_digest": null,
+  "status": "complete"
+}

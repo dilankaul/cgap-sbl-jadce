@@ -17,15 +17,23 @@ def figure_panel(st, cfg, config, jobs, task, action):
     from cgap_sbl_jadce.gui.theme import section_heading
     section_heading(st, 'Graph generator', 'Interactive views from your data')
     st.caption('Every chart is built from numerical data. Drag to pan, scroll to zoom, hover for values, and click legend entries to show or hide series.')
+    from cgap_sbl_jadce.gui.workflow import numerical_state
+    state = numerical_state(cfg, task, action)
+    if state.status == 'incompatible':
+        st.warning('Viewing stored results from their original settings.')
     category = st.selectbox('Figure type', categories, format_func=PREVIEWS.get)
     request = {'kind': 'preview', 'category': category, 'config': str(config)}
     ready = True
     plot_cfg = cfg
-    if category.endswith('_tune') and cfg['tuning'].get('selection_mode') == 'per_condition':
-        pairs = [tuple(pair) for pair in cfg.get('communication', {}).get('tuning_conditions', [])]
-        pair = st.selectbox('Tuning condition', pairs, format_func=lambda pair: f'L={pair[0]}, SNR={pair[1]:g} dB')
-        request['condition'] = list(pair)
-        plot_cfg = condition_config(cfg, pair)
+    if category.endswith('_tune'):
+        from cgap_sbl_jadce.gui.previews import stored_tuning_options, tuning_preview_config
+        method = category.removesuffix('_tune')
+        options = stored_tuning_options(cfg, method)
+        if options:
+            layout, L, snr = st.selectbox('Saved tuning results', options,
+                format_func=lambda item: f'{"Reference" if item[0] == "reference" else "Condition"} tuning: L={item[1]}, SNR={item[2]:g} dB')
+            request.update(tuning_layout=layout, condition=[L, snr])
+            plot_cfg = tuning_preview_config(cfg, method, request)
     missing = missing_preview_inputs(plot_cfg, category)
     if missing:
         st.info('Numerical data unavailable. Run the corresponding action first: ' + ', '.join(str(path) for path in missing))
@@ -48,6 +56,18 @@ def figure_panel(st, cfg, config, jobs, task, action):
         except (OSError, ValueError, KeyError) as error:
             st.info(f'Data unavailable: {error}')
             ready = False
+    if category.endswith('_run'):
+        from cgap_sbl_jadce.paths import result_path
+        import json
+        method = category.removesuffix('_run')
+        summary_path = result_path(cfg['run']['output_dir'], method, 'run_summary.json')
+        if summary_path.exists():
+            summary = json.loads(summary_path.read_text())
+            pairs = list(dict.fromkeys(tuple(value[:2]) for value in summary.get('completed_conditions', [])))
+            view = st.selectbox('Result condition', [None] + pairs,
+                                format_func=lambda pair: 'All completed conditions' if pair is None else f'L={pair[0]}, SNR={pair[1]:g} dB')
+            if view is not None:
+                request['condition'] = list(view)
     if category.endswith('_run') or category == 'comparison':
         task_id = ESTIMATORS[category.removesuffix('_run')].task if category.endswith('_run') else 'comparison'
         if historical_results(cfg, task_id):

@@ -14,7 +14,7 @@ from cgap_sbl_jadce.spatial_dependence_dataset import validate_spatial_dependenc
 @pytest.fixture
 def saved_spatial_dependence(tmp_path):
     cfg = load_config('tests/fixtures/small_experiment.yaml')
-    cfg['run']['output_dir'] = str(tmp_path)
+    cfg['run'].update(output_dir=str(tmp_path), num_tuning_samples=2, num_evaluation_samples=2)
     cfg['system']['N'] = 20
     sample = ActivitySample(np.arange(20) < 3, np.arange(40).reshape(20, 2), np.zeros((2, 2)), np.full(20, .15))
     for split in ['tuning', 'evaluation']:

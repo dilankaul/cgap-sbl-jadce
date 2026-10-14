@@ -104,7 +104,6 @@
       "action": "run",
       "calibration_seed": 1379,
       "input_config": "/workspaces/cgap-sbl-jadce/configs/experiment.yaml",
-      "no_progress": false,
       "selected_kappa": 7.0,
       "status": "success",
       "task": "kappa_calibration",

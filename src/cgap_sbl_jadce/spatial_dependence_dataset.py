@@ -8,6 +8,8 @@ from cgap_sbl_jadce.paths import result_path, task_dir
 
 
 def spatial_dependence_definition(cfg, split):
+    from cgap_sbl_jadce.compatibility import validate_preparation
+    validate_preparation(cfg, 'activity', split)
     path = result_path(cfg['run']['output_dir'], 'activity', f'{split}_activity.npz')
     if not path.exists():
         raise FileNotFoundError(f'Run activity generation first: {path}')

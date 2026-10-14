@@ -17,13 +17,13 @@ def threshold_candidates() -> np.ndarray:
     return np.arange(201, dtype=float) / 1000
 
 
-def threshold_curve(a_true: np.ndarray, gammas: np.ndarray) -> list[dict[str, float]]:
+def threshold_curve(a_true: np.ndarray, gammas: np.ndarray, tau_values=None) -> list[dict[str, float]]:
     a_true = np.asarray(a_true, dtype=bool)
     gammas = np.asarray(gammas, dtype=float)
     if a_true.shape != gammas.shape:
         raise ValueError("a_true and gammas must have matching (samples, N) shapes.")
     rows: list[dict[str, float]] = []
-    for tau in threshold_candidates():
+    for tau in threshold_candidates() if tau_values is None else tau_values:
         metrics = [precision_recall_f1(a_true[i], support_from_gamma(gammas[i], float(tau))) for i in range(len(a_true))]
         p, r, f = np.mean(metrics, axis=0)
         rows.append({"tau": float(tau), "precision": float(p), "recall": float(r), "f1": float(f)})

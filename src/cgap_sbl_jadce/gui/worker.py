@@ -29,9 +29,17 @@ def run(folder):
     signal.signal(signal.SIGINT, stop)
     try:
         request = record['request']
-        if config_digest(request['config']) != record['config_digest']:
+        if config_digest(request['config'], request if record.get('config_scope') == 2 else None) != record['config_digest']:
             raise ValueError('Configuration changed before the worker started.')
         from cgap_sbl_jadce.gui.inputs import input_signature
+        if request['kind'] == 'task':
+            if record.get('complete'):
+                from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
+                plan = completion_plan(request['config'], request['task'], request.get('conditions'))
+                if plan.blocked:
+                    raise ValueError('Some saved conditions are incompatible. Select them and explicitly Rerun.')
+            from cgap_sbl_jadce.recovery import begin_recovery
+            begin_recovery(request, resume=record.get('resume', False))
         update_status(folder, status='running', input_signature=input_signature(request))
         pause_point()
         if request['kind'] == 'task':
@@ -42,19 +50,25 @@ def run(folder):
             cfg = load_config(request['config'])
             cfg['task_runtime'] = {'input_config': request['config'], 'action': action}
             paths = run_task(task_id, cfg, action=action, conditions=request.get('conditions'), methods=request.get('methods'),
-                             realization_index=request.get('realization_index'), condition=request.get('condition'))
+                             realization_index=request.get('realization_index'), condition=request.get('condition'),
+                             resume=record.get('resume', False) or record.get('complete', False))
         elif request['kind'] == 'preview':
             from cgap_sbl_jadce.gui.previews import render_preview
             paths = render_preview(request, folder / 'figures')
         else:
             raise ValueError('Unknown job type')
-        pause_point()
+        if request['kind'] == 'task':
+            from cgap_sbl_jadce.recovery import finish_recovery
+            finish_recovery(request)
+            if record.get('complete'):
+                from cgap_sbl_jadce.gui.algorithm_actions import clear_finished_recoveries
+                clear_finished_recoveries(request['config'], request['task'])
         update_status(folder, status='completed', paths=[str(Path(path).resolve()) for path in paths])
         print('Completed.', flush=True)
         return 0
     except TaskStopped:
         update_status(folder, status='stopped')
-        print('Stopped. Restart this action to reuse compatible checkpoints.', flush=True)
+        print('Stopped. Use Resume to reuse compatible checkpoints.', flush=True)
         return 0
     except Exception as error:
         traceback.print_exc()

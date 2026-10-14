@@ -46,12 +46,13 @@ def test_independent_tasks_use_saved_inputs_and_comparison_runs_no_solvers(saved
     from cgap_sbl_jadce.figures.algorithm_performance import make_performance_figures
     paths = make_performance_figures(saved_data, show_progress=False)
     assert len(paths) == 6 and all(path.exists() for path in paths)
-    raw = result_path(saved_data['run']['output_dir'], 'sbl', 'per_sample.csv')
+    from cgap_sbl_jadce.paths import run_path
+    raw = run_path(saved_data, 'sbl', 'per_sample.csv', (7, 8))
     old = pd.read_csv(raw)
     old['nmse_scope'] = 'full_matrix'
     old.to_csv(raw, index=False)
     with pytest.raises(ValueError, match='SBL'):
-        estimators.comparison_stage(saved_data, show_progress=False)
+        estimators.comparison_stage(saved_data, show_progress=False, methods=['sbl'])
 
 
 @pytest.mark.parametrize('method', ['omp', 'cosamp'])

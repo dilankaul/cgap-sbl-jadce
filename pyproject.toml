@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-cgap-sbl-gui = "cgap_sbl_jadce.gui.app:main"
+cgap-sbl-lab = "cgap_sbl_jadce.gui.app:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

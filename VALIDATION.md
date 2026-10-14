@@ -33,7 +33,7 @@ Workflow checks cover:
 - Partial-condition comparisons validate all requested algorithms without solver execution.
 - Interactive charts read arrays/tables rather than image files, expose exact HSV values,
   preserve zero activation probabilities and maintain log NMSE scales.
-- Condition-grid views and publication exports regenerate from matching numerical inputs.
+- Selected-condition views and publication exports regenerate from matching numerical inputs.
 - Analysis selectors include only compatible completed conditions; single-algorithm comparison works.
 - Convergence needs completed SBL/ANC evaluation, excludes greedy algorithms, and supports SBL alone without C.
 - Paused tasks allow another independent worker to run before continuation.
@@ -44,3 +44,23 @@ Workflow checks cover:
 Tests use small temporary datasets. The full publication experiment is not run
 as part of this restructuring; historical measured results retain their metric
 scope and are not promoted to current results.
+
+- Individual condition folders retain scores and runtimes; completing conditions separately completes the algorithm.
+- Explicit fresh reruns recalculate selected conditions and preserve other completed results.
+- Successful condition data and figure saves clear only owned checkpoints; figure failure retains numerical progress.
+- Portable recovery succeeds from a copied setup without `.gui/`, and a cleanup interruption repeats no calculations.
+- Disjoint conditions of one algorithm can run while another condition is paused.
+
+- Completion actions leave completed condition files and measured runtimes untouched, including when requested repeatedly.
+- Complete selected restores a partial condition from an interrupted wider request; incompatible saved work requires explicit Rerun.
+- GUI action labels follow saved state, and Complete all progress controls remain visible from a selected-condition view.
+
+- Grouped setup edits preserve effective values and independently owned algorithm settings.
+- Setup and task editors share one configuration, preview changes, and never launch a task when saving.
+- Relevant edits mark results incompatible and block successors; restoring values restores eligibility.
+- ANC tuning edits leave OMP, CoSaMP and SBL results usable; tuning policies can differ per algorithm.
+- Adding L/SNR conditions preserves existing condition measurements, even after communication archives expand.
+- Figure selections, YAML formatting and unrelated settings do not invalidate scoped recovery.
+- Running tasks reject relevant edits until paused, while unrelated edits remain allowed.
+
+- Inclusive range controls retain alpha/beta, kappa and evaluation candidates, validate endpoints and steps, support negative SNRs and singleton ranges, and preserve legacy custom grids.

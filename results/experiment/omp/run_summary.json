@@ -62,6 +62,52 @@
       "pilot_sweep"
     ]
   ],
+  "completed_pairs": [
+    [
+      20,
+      12.0
+    ],
+    [
+      25,
+      12.0
+    ],
+    [
+      30,
+      4.0
+    ],
+    [
+      30,
+      8.0
+    ],
+    [
+      30,
+      12.0
+    ],
+    [
+      30,
+      16.0
+    ],
+    [
+      30,
+      20.0
+    ],
+    [
+      30,
+      24.0
+    ],
+    [
+      35,
+      12.0
+    ],
+    [
+      40,
+      12.0
+    ],
+    [
+      45,
+      12.0
+    ]
+  ],
   "definition": {
     "algorithms": {
       "K": 500,
@@ -194,6 +240,7 @@
     "samples": 1000
   },
   "gamma_samples": 0,
+  "layout": "condition_results",
   "metric_rows": 12000,
   "nmse_scope": "true_active_support",
   "oracle_capped_conditions": 730,
@@ -270,5 +317,6 @@
     "includes": "initialization, solver validation, all iterations, final channel estimate",
     "scope": "one solver call",
     "unit": "seconds"
-  }
+  },
+  "total_conditions": 11
 }
