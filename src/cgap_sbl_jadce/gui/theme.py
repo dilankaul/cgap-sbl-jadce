@@ -75,14 +75,19 @@ h2 { font-size:1.2rem!important; } h3 { font-size:1.1rem!important; }
 .setup-summary strong { display:block; font-size:18px; font-weight:650; }
 .setup-summary span { color:var(--lab-muted); font-size:11px; }
 .eyebrow { color:var(--lab-accent); letter-spacing:.13em; font-size:11px; font-weight:700; margin-bottom:6px; }
-.section-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:14px 0 0; }
+.section-heading { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:24px 0 16px; }
 .section-heading h2 { margin:0; padding:0; font-weight:650; }
 .section-heading > span { color:var(--lab-muted); font-size:12px; text-align:right; }
 [class*="st-key-card_"] { position:relative; border:1px solid var(--lab-border); border-radius:16px;
     background:#fff; box-shadow:0 2px 4px rgba(15,23,42,.025); overflow:hidden; gap:0!important;
     transition:box-shadow .18s,border-color .18s,transform .18s; }
+/* Stretch each card to the height of its column's row. */
+[data-testid="stColumn"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(> [class*="st-key-card_"]) { flex:1; }
+[data-testid="stColumn"] [class*="st-key-card_"] { justify-content:center; }
+/* Keep the card's visible bounds aligned with its markdown content. */
+[class*="st-key-card_"] [data-testid="stMarkdownContainer"] { margin-bottom:0!important; }
 [class*="st-key-card_"]:hover { border-color:#7bb8b0; box-shadow:0 6px 22px rgba(15,23,42,.07); transform:translateY(-2px); }
-.workflow-card { display:flex; align-items:center; gap:18px; padding:22px 24px; min-height:96px; pointer-events:none; }
+.workflow-card { display:flex; align-items:center; align-content:center; gap:18px; padding:22px 24px; min-height:96px; pointer-events:none; }
 .card-icon { display:flex; align-items:center; justify-content:center; width:46px; height:46px; flex-shrink:0;
     background:#edf6f5; color:var(--lab-accent); border-radius:13px; }
 .card-icon svg { width:25px; height:25px; }
@@ -98,9 +103,9 @@ h2 { font-size:1.2rem!important; } h3 { font-size:1.1rem!important; }
 .status-paused,.status-partial { color:#a16207; background:#fef9c3; }
 .status-failed,.status-interrupted { color:#be123c; background:#fff1f2; }
 .status-blocked { color:#b45309; background:#fff7ed; }
-.compact { min-height:220px; align-items:flex-start; flex-wrap:wrap; gap:12px; padding:22px; }
+.compact { flex-wrap:wrap; }
 .compact .card-copy { flex-basis:100%; order:2; }
-.compact .status-badge { margin-left:auto; padding:4px 8px; }
+.compact .status-badge { margin-left:auto; }
 .compact .card-arrow { display:none; }
 [class*="st-key-card_"] [data-testid="stElementContainer"]:has([data-testid="stButton"]) {
     position:absolute; inset:0; z-index:2; height:100%; }
@@ -127,11 +132,41 @@ button { border-radius:10px!important; transition:background .15s,border-color .
 hr { border-color:var(--lab-border)!important; }
 @media (max-width:800px) {
     .block-container { padding:4rem 1rem 1.3rem; }
-    .workflow-card { flex-wrap:wrap; gap:12px; padding:18px; }
-    .wide .card-copy { min-width:130px; }
-    .wide .status-badge { margin-left:64px; }
-    .card-arrow { display:none; }
+}
+/* Respond to the workspace left after the sidebar and page padding. */
+.block-container { container:workspace / inline-size; }
+[class*="st-key-card_"] { container:taskcard / inline-size; }
+.card-title { overflow-wrap:normal; word-break:normal; }
+@container workspace (max-width:960px) {
+    [data-testid="stHorizontalBlock"]:has(.compact) > [data-testid="stColumn"] {
+        flex:1 1 calc(50% - 16px)!important; min-width:0!important; width:auto!important;
+    }
+}
+@container workspace (max-width:760px) {
+    [data-testid="stHorizontalBlock"]:has(.wide) > [data-testid="stColumn"] {
+        flex:1 1 100%!important; min-width:0!important; width:auto!important;
+    }
     .section-heading > span { display:none; }
+}
+@container workspace (max-width:480px) {
+    [data-testid="stHorizontalBlock"]:has(.compact) > [data-testid="stColumn"] {
+        flex:1 1 100%!important;
+    }
+    /* Single-column algorithms use the same row layout as preparation cards. */
+    .compact { flex-wrap:nowrap; }
+    .compact .card-copy { flex-basis:auto; order:0; }
+    .compact .status-badge { margin-left:0; }
+    .compact .card-arrow { display:block; }
+    @container taskcard (max-width:450px) {
+        .compact { display:grid; grid-template-columns:46px minmax(0,1fr); gap:12px; padding:18px; }
+        .compact .status-badge { grid-column:2; justify-self:start; }
+        .compact .card-arrow { display:none; }
+    }
+}
+@container taskcard (max-width:450px) {
+    .wide { display:grid; grid-template-columns:46px minmax(0,1fr); gap:12px; padding:18px; }
+    .wide .status-badge { grid-column:2; justify-self:start; }
+    .wide .card-arrow { display:none; }
 }
 @media (prefers-reduced-motion:reduce) {
     [class*="st-key-card_"] { transition:none; }

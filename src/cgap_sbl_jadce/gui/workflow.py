@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import json
 
+from cgap_sbl_jadce.experiments.readiness import blocking_reasons
 from cgap_sbl_jadce.config import resolve_activity_kappa
 from cgap_sbl_jadce.paths import result_path
 from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, evaluation_conditions, load_selection, completed_methods
@@ -21,6 +22,14 @@ class CardState:
         return f'{ICONS[self.status]} {self.status.capitalize()}'
 
 
+def ready_state(cfg, task, action):
+    """Ready means the default action can run with its current required inputs."""
+    reasons = blocking_reasons(cfg, task, action)
+    if reasons:
+        return CardState('blocked', reasons[0])
+    return CardState('ready', 'Required inputs available')
+
+
 def numerical_state(cfg, task, action='run'):
     out = cfg['run']['output_dir']
     try:
@@ -36,7 +45,7 @@ def numerical_state(cfg, task, action='run'):
                         pass
                 if done:
                     return CardState('completed' if done == len(pairs) else 'partial', f'{done}/{len(pairs)} conditions tuned', done / len(pairs))
-                return CardState('ready', 'Tune parameters first')
+                return ready_state(cfg, task, action)
             path = result_path(out, task, 'run_summary.json')
             if path.exists():
                 data = json.loads(path.read_text())
@@ -70,7 +79,7 @@ def numerical_state(cfg, task, action='run'):
                     return CardState('completed', ', '.join(data.get('algorithms', data.get('methods', []))), 1.)
     except (OSError, ValueError, KeyError):
         return CardState('blocked', 'Inputs or results differ from this setup')
-    return CardState('ready', 'Open task to check required inputs')
+    return ready_state(cfg, task, action)
 
 
 def card_state(cfg, config, task, jobs, action='run'):
@@ -94,4 +103,8 @@ def combined(states):
         return CardState('completed', 'All actions completed', 1.)
     if complete or any(state.status == 'partial' for state in states):
         return CardState('partial', f'{complete}/{len(states)} actions complete', sum(state.fraction for state in states) / len(states))
-    return CardState('ready', 'Open to prepare and run')
+    for status in ('ready', 'blocked', 'historical'):
+        for state in states:
+            if state.status == status:
+                return state
+    return CardState('blocked', 'No available actions')

@@ -51,10 +51,6 @@ def worker_panel(st, jobs, config, task, action):
 
 def task_page(st, cfg, config, jobs, task, action):
     spec = ESTIMATORS.get(task)
-    if st.button('Back', icon=':material/arrow_back:', type='tertiary'):
-        st.session_state['page'] = ('algorithm' if task in {'sbl','anc'} else
-                                    'activity_model' if task in {'activity','kappa_calibration'} else 'overview')
-        st.rerun()
     group = 'Analysis' if task in {'comparison','convergence'} else 'Algorithms' if spec else 'Data preparation'
     st.caption(f'{group} / {action.capitalize()}')
     description = task_actions(task)[action].description

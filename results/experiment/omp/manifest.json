@@ -113,8 +113,8 @@
       "input_config": "/workspaces/cgap-sbl-jadce/configs/experiment.yaml",
       "method": "MMV-OMP",
       "nmse_scope": "true_active_support",
-      "no_progress": false,
-      "status": "started",
+      "selected_parameters": null,
+      "status": "complete",
       "task": "omp"
     },
     "tuning": {

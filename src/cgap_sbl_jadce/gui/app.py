@@ -108,6 +108,16 @@ def dashboard():
                 st.progress(state.fraction)
 
     page = st.session_state.get('page', 'overview')
+    if page != 'overview':
+        task = st.session_state.get('current_task')
+        parent = 'overview'
+        if page == 'task':
+            if len(task_actions(task)) > 1:
+                parent = 'algorithm'
+            elif task in {'activity', 'kappa_calibration'}:
+                parent = 'activity_model'
+        if st.button('Back', key='go_back', icon=':material/arrow_back:', type='tertiary'):
+            navigate(parent, task)
     if page == 'setups':
         st.markdown('<div class="eyebrow">ENVIRONMENTS</div>', unsafe_allow_html=True)
         st.title('Experiment setups')

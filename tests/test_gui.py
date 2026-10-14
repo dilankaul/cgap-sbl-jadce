@@ -251,3 +251,46 @@ def test_completed_results_unlock_only_eligible_analysis_widgets(saved_data, tmp
     assert selector.options == ['SBL'] and not selector.disabled
     assert not next(button for button in app.button if button.label == 'Start run').disabled
     assert not Jobs(tmp_path).records()
+
+
+def test_back_button_returns_from_every_page_to_its_parent(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    from cgap_sbl_jadce.config import load_config
+    cfg = load_config('tests/fixtures/small_experiment.yaml')
+    cfg['run']['output_dir'] = str(tmp_path / 'results')
+    config = tmp_path / 'experiment.yaml'
+    save_yaml(config, cfg)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('CGAP_GUI_CONFIG', str(config))
+    app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30).run()
+    assert not app.exception
+    assert not [button for button in app.button if button.label == 'Back']
+    for method in ('sbl', 'anc'):
+        app.button(key=f'open_algorithm_{method}').click().run()
+        for action in ('tune', 'run'):
+            app.button(key=f'open_{method}_{action}').click().run()
+            assert not app.exception
+            assert len([button for button in app.button if button.label == 'Back']) == 1
+            app.button(key='go_back').click().run()
+            assert app.session_state['page'] == 'algorithm'
+        app.button(key='go_back').click().run()
+        assert app.session_state['page'] == 'overview'
+    app.button(key='open_activity_model').click().run()
+    for task in ('kappa_calibration', 'activity'):
+        app.button(key=f'open_{task}_run').click().run()
+        assert not app.exception
+        app.button(key='go_back').click().run()
+        assert app.session_state['page'] == 'activity_model'
+    app.button(key='go_back').click().run()
+    for key in ('open_communication_run', 'open_spatial_dependence_run',
+                'open_algorithm_omp', 'open_algorithm_cosamp',
+                'open_comparison_run', 'open_convergence_run'):
+        app.button(key=key).click().run()
+        assert not app.exception
+        app.button(key='go_back').click().run()
+        assert app.session_state['page'] == 'overview'
+    next(button for button in app.sidebar.button if button.label == 'Experiment setups').click().run()
+    app.button(key='go_back').click().run()
+    assert app.session_state['page'] == 'overview'
+    assert not app.exception
+    assert not Jobs(tmp_path).records()
