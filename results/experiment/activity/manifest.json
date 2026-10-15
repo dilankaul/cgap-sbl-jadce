@@ -1,0 +1,136 @@
+{
+  "configuration": {
+    "activity": {
+      "D": 20.0,
+      "V": 2,
+      "batch_size": 256,
+      "exact_sparsity": false,
+      "kappa": 7.0,
+      "kappa_source": "calibration"
+    },
+    "algorithms": {
+      "anc": {
+        "solver": {
+          "K": 500,
+          "delta": 0.0001,
+          "gamma_init": 0.1
+        },
+        "tuning": {
+          "alpha_start": 0.0,
+          "alpha_step": 1.0,
+          "alpha_stop": 10.0,
+          "beta_start": 0.0,
+          "beta_step": 0.01,
+          "beta_stop": 0.1,
+          "reference_pilot_length": 25,
+          "reference_snr_db": 12,
+          "selection_mode": "reference",
+          "tau_start": 0.0,
+          "tau_step": 0.001,
+          "tau_stop": 0.2
+        }
+      },
+      "cosamp": {
+        "solver": {
+          "cosamp_max_iter": 500,
+          "cosamp_tol": 0.0001
+        }
+      },
+      "omp": {
+        "solver": {}
+      },
+      "sbl": {
+        "solver": {
+          "K": 500,
+          "delta": 0.0001,
+          "gamma_init": 0.1
+        },
+        "tuning": {
+          "reference_pilot_length": 25,
+          "reference_snr_db": 12,
+          "selection_mode": "reference",
+          "tau_start": 0.0,
+          "tau_step": 0.001,
+          "tau_stop": 0.2
+        }
+      }
+    },
+    "communication": {
+      "reference": {
+        "reference_pilot_length": 25,
+        "reference_snr_db": 12
+      }
+    },
+    "evaluation": {
+      "convergence_sample_offset": 0,
+      "gamma_distribution_samples": 100,
+      "pilot_length": 30,
+      "pilot_length_start": 20,
+      "pilot_length_step": 5,
+      "pilot_length_stop": 45,
+      "snr_db": 12,
+      "snr_start": 4.0,
+      "snr_step": 4.0,
+      "snr_stop": 24.0
+    },
+    "figures": {
+      "evaluation_indices": [
+        855,
+        188,
+        398,
+        896,
+        311,
+        118,
+        355
+      ],
+      "tuning_indices": [
+        51,
+        86,
+        78
+      ]
+    },
+    "kappa_calibration": {
+      "batch_size": 256,
+      "calibration_samples": 5000,
+      "calibration_tolerance": 0.1,
+      "kappa_refinement_steps": [
+        0.1,
+        0.01
+      ],
+      "kappa_start": 0.5,
+      "kappa_step": 0.5,
+      "kappa_stop": 10.0
+    },
+    "run": {
+      "num_evaluation_samples": 1000,
+      "num_tuning_samples": 100,
+      "output_dir": "results/experiment"
+    },
+    "seeds": {
+      "activity_evaluation": 7069,
+      "activity_tuning": 2953,
+      "communication_evaluation": 9517,
+      "communication_tuning": 4283,
+      "kappa_calibration": 1379,
+      "kappa_validation": 8641
+    },
+    "system": {
+      "M": 4,
+      "N": 500,
+      "R": 50.0,
+      "S": 20
+    },
+    "task_runtime": {
+      "action": "run",
+      "input_config": "/workspaces/cgap-sbl-jadce/configs/experiment.yaml",
+      "kappa_source": "results/experiment/kappa_calibration/summary.json",
+      "show_progress": true,
+      "task": "activity"
+    }
+  },
+  "numpy": "2.4.6",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.36",
+  "python": "3.11.13",
+  "scipy": "1.17.1",
+  "task": "activity"
+}
