@@ -10,12 +10,13 @@ CATEGORIES = {
 }
 
 
-def figure_panel(st, cfg, config, jobs, task, action):
+def figure_panel(st, cfg, config, jobs, task, action, state=None):
     categories = CATEGORIES.get(task, [f'{task}_{action}'])
     from cgap_sbl_jadce.gui.theme import section_heading
     section_heading(st, 'Graph generator')
     from cgap_sbl_jadce.gui.workflow import numerical_state
-    state = numerical_state(cfg, task, action)
+    if state is None:
+        state = numerical_state(cfg, task, action)
     if state.status == 'incompatible':
         st.warning('Viewing stored results from their original settings.')
     category = st.selectbox('Figure type', categories, format_func=PREVIEWS.get)

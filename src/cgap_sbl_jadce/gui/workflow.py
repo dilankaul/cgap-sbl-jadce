@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 import json
+from pathlib import Path
 from textwrap import shorten
 
 from cgap_sbl_jadce.experiments.readiness import blocking_reasons
+from cgap_sbl_jadce.file_cache import validation_snapshot, file_version
 from cgap_sbl_jadce.config import resolve_activity_kappa
 from cgap_sbl_jadce.paths import result_path, run_path, tuning_path
 from cgap_sbl_jadce.settings import tuning_pairs
@@ -35,6 +37,29 @@ class CardState:
         return f'{ICONS[self.status]} {self.status.capitalize()}'
 
 
+def refresh_results(st, cfg, records, rerun=True):
+    from cgap_sbl_jadce.paths import TASK_FOLDERS, task_dir
+    paths = [Path(cfg['run']['output_dir']) / 'additional_conditions.json']
+    for task in TASK_FOLDERS:
+        folder = task_dir(cfg['run']['output_dir'], task)
+        paths.extend(folder / name for name in ('summary.json', 'run_summary.json'))
+        paths.append(folder / 'tuning' / 'selected.json')
+        paths.extend(folder.glob('tuning/L*_snr*dB/selected.json'))
+        paths.extend(folder.glob('run/L*_snr*dB/summary.json'))
+        paths.extend(folder.glob('run/.resets/[0-9a-f]*.json'))
+    versions = []
+    for path in paths:
+        try:
+            versions.append(file_version(path))
+        except FileNotFoundError:
+            continue
+    identity = (tuple((job['id'], job['status']) for job in records), tuple(sorted(versions)))
+    previous = st.session_state.get('_workflow_revision')
+    st.session_state['_workflow_revision'] = identity
+    if rerun and previous is not None and previous != identity:
+        st.rerun()
+
+
 def ready_state(cfg, task, action):
     reasons = blocking_reasons(cfg, task, action)
     if reasons:
@@ -42,6 +67,7 @@ def ready_state(cfg, task, action):
     return CardState('ready', 'Required inputs available')
 
 
+@validation_snapshot()
 def numerical_state(cfg, task, action='run'):
     out = cfg['run']['output_dir']
     stored = False
@@ -65,13 +91,14 @@ def numerical_state(cfg, task, action='run'):
                 if done:
                     return CardState('completed' if done == len(pairs) else 'partial', f'{done}/{len(pairs)} conditions tuned', done / len(pairs))
                 return ready_state(cfg, task, action)
-            from cgap_sbl_jadce.condition_results import completed_conditions, condition_issue
+            from cgap_sbl_jadce.condition_results import completed_conditions, condition_issue, pending_reset_pairs
             pairs = {value[:2] for value in evaluation_conditions(cfg)}
             records = completed_conditions(cfg, task)
             done = {pair for pair, _, _ in records} & pairs
             from cgap_sbl_jadce.experiments.estimators import evaluation_matches
             incompatible = []
-            for pair in pairs - done:
+            resetting = pending_reset_pairs(cfg, task)
+            for pair in pairs - done - resetting:
                 path = run_path(cfg, task, 'summary.json', pair)
                 if not path.exists():
                     continue
@@ -87,6 +114,8 @@ def numerical_state(cfg, task, action='run'):
             if incompatible:
                 names = ', '.join(f'L={L}, SNR={snr:g} dB' for L, snr in sorted(incompatible))
                 return CardState('incompatible', names + ': ' + condition_issue(cfg, task, sorted(incompatible)[0]), len(done) / max(1, len(pairs)))
+            if resetting:
+                return CardState('partial', 'Resetting conditions', len(done) / max(1, len(pairs)))
             if done:
                 return CardState('completed' if done == pairs else 'partial', f'{len(done)}/{len(pairs)} conditions completed', len(done) / len(pairs))
             if records:
@@ -95,6 +124,8 @@ def numerical_state(cfg, task, action='run'):
             if path.exists():
                 stored = True
                 data = json.loads(path.read_text())
+                if data.get('status') == 'partial' and not data.get('completed_pairs'):
+                    return ready_state(cfg, task, action)
                 if task in completed_methods(cfg):
                     return CardState('completed', 'Evaluation data saved', 1.)
                 return CardState('incompatible', 'Saved algorithm results do not match this setup')

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from cgap_sbl_jadce.config import load_config
+from cgap_sbl_jadce.settings import evaluation_settings
+from cgap_sbl_jadce.figures.common import sweep_limits
 from cgap_sbl_jadce.dataset import load_activity_samples
 from cgap_sbl_jadce.communication_dataset import load_communication_sample
 from cgap_sbl_jadce.spatial_dependence_dataset import load_spatial_dependence_matrix
@@ -32,6 +35,24 @@ def _style(fig, title, x=None, y=None, log=False):
         fig.update_yaxes(title=y)
     if log:
         fig.update_yaxes(type='log')
+    return fig
+
+
+def _line_style(fig, title, x, y, log=False, xlim=None):
+    _style(fig, title, x, y, log)
+    if xlim is None:
+        xlim = sweep_limits([value for trace in fig.data for value in trace.x])
+    fig.update_xaxes(range=xlim, autorange=False)
+    revision = hashlib.sha256(fig.to_json().encode()).hexdigest()
+    fig.update_layout(uirevision=revision)
+    return fig
+
+
+def _square_matrix(fig, shape):
+    rows, columns = shape
+    fig.layout.xaxis.update(range=[-.5, columns - .5], autorange=False, constrain='domain')
+    fig.layout.yaxis.update(range=[rows - .5, -.5], autorange=False, constrain='domain',
+                            scaleanchor='x', scaleratio=1)
     return fig
 
 
@@ -112,7 +133,8 @@ def _communication(cfg, request):
     np.fill_diagonal(gram, 0)
     fig = go.Figure(go.Heatmap(z=gram, colorscale='Viridis', colorbar={'title': '|θᵢᴴθⱼ|'},
                              hovertemplate='i=%{y}, j=%{x}<br>|θᵢᴴθⱼ|=%{z:.4g}<extra></extra>'))
-    figures.append(('Pilot cross-correlation', _style(fig, 'Pilot Cross-Correlation Magnitude<br>' + context, 'Pilot index j', 'Pilot index i')))
+    _style(fig, 'Pilot Cross-Correlation Magnitude<br>' + context, 'Pilot index j', 'Pilot index i')
+    figures.append(('Pilot cross-correlation', _square_matrix(fig, gram.shape)))
     for name, matrix, title, x, y, qpsk in [
             ('H', data.H, 'Physical Channel Matrix <b>H</b>', 'Device index i', 'BS antenna index m', False),
             ('Theta', data.Theta, 'QPSK Pilot Matrix <b>Θ</b>', 'Device index i', 'Pilot symbol index ℓ', True),
@@ -123,7 +145,7 @@ def _communication(cfg, request):
     energy = np.sum(np.abs(data.Z)**2, axis=1)
     fig = go.Figure(go.Scatter(x=np.arange(len(energy)), y=energy, mode='lines', name='Row energy', line={'color': '#333333'}))
     fig.add_trace(go.Scatter(x=np.flatnonzero(data.a), y=energy[data.a.astype(bool)], mode='markers', name='Active MTD', marker={'color': 'forestgreen'}))
-    figures.append(('Effective-channel row energy', _style(fig, 'Effective Channel Energy by MTD<br>' + context, 'Device index i', '‖zᵢ‖₂²')))
+    figures.append(('Effective-channel row energy', _line_style(fig, 'Effective Channel Energy by MTD<br>' + context, 'Device index i', '‖zᵢ‖₂²')))
     return figures
 
 
@@ -142,7 +164,8 @@ def interactive_figures(request):
         C = load_spatial_dependence_matrix(task_dir(out, 'spatial_dependence') / request['split'], request['index']).toarray()
         fig = go.Figure(go.Heatmap(z=C, zmin=0, zmax=1, colorscale='Viridis',
                                   hovertemplate='i=%{y}, j=%{x}<br>Cᵢⱼ=%{z:.5g}<extra></extra>'))
-        return [('Spatial dependence', _style(fig, f"Spatial Dependence Matrix <b>C</b><br>{request['split'].capitalize()} Realization {request['index']}", 'MTD index j', 'MTD index i'))]
+        _style(fig, f"Spatial Dependence Matrix <b>C</b><br>{request['split'].capitalize()} Realization {request['index']}", 'MTD index j', 'MTD index i')
+        return [('Spatial dependence', _square_matrix(fig, C.shape))]
     if category == 'active_counts':
         fig = go.Figure()
         for split in ('tuning', 'evaluation'):
@@ -162,7 +185,7 @@ def interactive_figures(request):
             fig.add_trace(go.Scatter(x=df.kappa, y=df[column], mode='lines+markers', name=name, marker={'symbol': symbol, 'size': size}))
         fig.add_hline(y=summary['target_mean_active'], line_dash='dash', annotation_text='Target mean S')
         fig.add_vline(x=summary['closest_grid_kappa'], line_dash='dot', annotation_text='Selected κ')
-        return [('Kappa calibration', _style(fig, f"Mean Active Count vs κ<br>D={summary['D']:g} m", 'Decay parameter κ', 'Average active count S'))]
+        return [('Kappa calibration', _line_style(fig, f"Mean Active Count vs κ<br>D={summary['D']:g} m", 'Decay parameter κ', 'Average active count S'))]
     if category.endswith('_tune'):
         method = category.removesuffix('_tune')
         figures = []
@@ -185,7 +208,7 @@ def interactive_figures(request):
             fig.add_trace(go.Scatter(x=[best.tau], y=[best[metric]], mode='markers', showlegend=False,
                                     marker={'size': 9, 'line': {'color': 'black', 'width': 1}}))
         fig.add_vline(x=best.tau, line_dash='dash', annotation_text=f'Selected τ={best.tau:g}')
-        figures.append(('Threshold scores', _style(fig, label + ' Detection Scores vs Threshold τ', 'Threshold τ', 'Score')))
+        figures.append(('Threshold scores', _line_style(fig, label + ' Detection Scores vs Threshold τ', 'Threshold τ', 'Score')))
         return figures
     if category.endswith('_run') or category == 'comparison':
         method = category.removesuffix('_run') if category != 'comparison' else 'comparison'
@@ -198,7 +221,7 @@ def interactive_figures(request):
             for metric, label in [('f1', 'F₁'), ('nmse', 'NMSE (true active support)'), ('runtime_s', 'Solver runtime (s)')]:
                 fig = go.Figure(go.Scatter(x=data.q, y=data[metric], mode='lines', name=ESTIMATORS[method].name))
                 title = f'{ESTIMATORS[method].name} {label}<br>L={pair[0]}, SNR={pair[1]:g} dB'
-                figures.append((label, _style(fig, title, 'Evaluation realization index', label, log=metric == 'nmse')))
+                figures.append((label, _line_style(fig, title, 'Evaluation realization index', label, log=metric == 'nmse')))
             gamma_path = folder / 'gamma_distribution.npz'
             if gamma_path.exists() and json.loads((folder / 'summary.json').read_text()).get('gamma_samples', 0):
                 with np.load(gamma_path) as archive:
@@ -221,6 +244,9 @@ def interactive_figures(request):
                     colorscale=cmap, colorbar={'title': 'log₁₀ NMSE' if metric == 'nmse' else label},
                     hovertemplate='L=%{y}, SNR=%{x} dB<br>Value=%{customdata:.5g}<extra></extra>'))
                 figures.append((algorithm + ' ' + label, _style(fig, algorithm + ' ' + label + ' by Condition', 'SNR (dB)', 'Pilot length L')))
+        settings = evaluation_settings(cfg)
+        limits = {'snr_db': sweep_limits(settings['snr_values']),
+                  'L': sweep_limits(settings['pilot_lengths'])}
         for sweep, x, xlabel in [('snr_sweep', 'snr_db', 'SNR (dB)'), ('pilot_sweep', 'L', 'Pilot length L')]:
             data = df[df.sweep == sweep]
             if data.empty:
@@ -232,7 +258,7 @@ def interactive_figures(request):
                     values = values.sort_values(x)
                     fig.add_trace(go.Scatter(x=values[x], y=values[metric], mode='lines+markers', name=algorithm))
                 title = label + ' vs ' + xlabel + '<br>Fixed ' + fixed
-                figures.append((title, _style(fig, title, xlabel, label, log=metric == 'nmse')))
+                figures.append((title, _line_style(fig, title, xlabel, label, log=metric == 'nmse', xlim=limits[x])))
         gamma_path = result_path(out, method, 'gamma_distribution.npz') if method != 'comparison' else None
         if gamma_path and gamma_path.exists() and json.loads(result_path(out, method, 'run_summary.json').read_text()).get('gamma_samples', 0):
             with np.load(gamma_path, allow_pickle=False) as archive:
@@ -251,7 +277,7 @@ def interactive_figures(request):
                     values = archive[f'{method}_nmse_history']
                     iterations = archive[f'{method}_iteration_history'] if f'{method}_iteration_history' in archive else np.arange(1, len(values) + 1)
                     fig.add_trace(go.Scatter(x=iterations, y=values, mode='lines+markers', name=spec.name))
-        return [('Convergence', _style(fig, 'Convergence at Reference Condition', 'Iteration', 'NMSE (true active support)', log=True))]
+        return [('Convergence', _line_style(fig, 'Convergence at Reference Condition', 'Iteration', 'NMSE (true active support)', log=True))]
     raise ValueError('Unknown figure type')
 
 

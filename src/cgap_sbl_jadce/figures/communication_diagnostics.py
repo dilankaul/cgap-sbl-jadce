@@ -6,7 +6,7 @@ import numpy as np
 from tqdm.auto import tqdm
 from cgap_sbl_jadce.paths import result_path, figure_path, task_dir
 from cgap_sbl_jadce.communication_dataset import load_communication_sample
-from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, selected_realizations
+from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits, selected_realizations
 
 
 def complex_hsv(matrix, magnitude_max):
@@ -122,6 +122,7 @@ def plot_communication_preview(cfg: dict, formats: str = 'png', show_progress: b
             fig, ax = plt.subplots(figsize=(6.4, 4.2))
             energy = np.sum(np.abs(r.Z)**2, axis=1)
             ax.plot(np.arange(len(energy)), energy, linewidth=.8, color='#333333')
+            ax.set_xlim(sweep_limits(range(len(energy))))
             ax.scatter(np.flatnonzero(r.a), energy[r.a], s=22, color='forestgreen', label='Active MTD')
             maximum_energy = float(np.sum(np.abs(r.Z)**2, axis=1).max())
             ax.set_ylim(0, maximum_energy * 1.05 if maximum_energy > 0 else 1.)

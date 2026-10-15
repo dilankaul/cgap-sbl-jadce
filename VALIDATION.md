@@ -68,3 +68,25 @@ scope and are not promoted to current results.
 - Fresh runs require preparation compatibility metadata and condition-local results.
 - Old combined tables are not promoted into usable condition results.
 - The dashboard contains no historical-result migration or tutorial captions.
+
+- Cached communication identities exactly match direct hashing of the saved arrays.
+- Each refresh shares file checks across conditions and restats inputs on the next refresh.
+- Edited input/output files invalidate cached validation even when their modification time is restored.
+- Restoring original arrays restores compatibility; unrelated conditions remain eligible.
+
+On the existing 1,000-realization evaluation dataset, repeated checks for the
+algorithm and analysis workflow cards took 0.75–0.93 s after the initial cache
+fill, while an evaluation worker was running. The initial pass still hashes the
+saved arrays. This measures status validation, not browser or graph rendering.
+
+- Live logs handle nested tqdm cursor codes, partial writes and truncated UTF-8 tails without displaying broken bars; appended pause messages, warnings and errors remain visible.
+
+- Run-all completion counts and table rows advance after each saved condition while the worker remains running; unchanged polls do not trigger a page rerun or read array/checkpoint contents. Result changes during a normal page render preserve navigation clicks.
+
+- Fresh Run/Rerun retires all scoped condition results and old checkpoint units before the first solver call; optional/unselected results, inputs, tuning and unrelated files remain unchanged.
+- Resume after a reset or mid-reset interruption uses only newly calculated units, including interruption before cleanup starts.
+- Invalid prerequisites and linked condition paths prevent cleanup; combined numerical views exclude reset data immediately.
+
+- Saved and interactive sweep lines use their sweep endpoints, including incomplete evaluation sweeps. GUI lines retain Plotly's default y-autorange and allow unrestricted zooming/panning; Reset restores the sweep view on linear and log axes. Optional Chromium tests exercise the actual toolbar.
+
+- GUI spatial dependence and pilot cross-correlation matrices have square cells at responsive widths; complex communication matrices retain their existing proportions and color keys.

@@ -136,3 +136,8 @@ def selected_realizations(cfg: dict, split: str, count: int) -> list[int]:
     if any(index < 0 or index >= count for index in indices):
         raise ValueError(f'figures.{split}_indices must be within 0..{count - 1}.')
     return list(dict.fromkeys(indices))
+
+
+def sweep_limits(values):
+    low, high = float(min(values)), float(max(values))
+    return (low, high) if low < high else (low - .5, high + .5)

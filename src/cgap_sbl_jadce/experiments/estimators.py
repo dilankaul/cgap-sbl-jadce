@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 
+from cgap_sbl_jadce.file_cache import snapshot_cached
 from cgap_sbl_jadce.settings import (solver_settings, tuning_settings, reference_settings, evaluation_settings, tuning_pairs, method_config, range_values)
 from cgap_sbl_jadce.algorithms.omp import mmv_omp
 from cgap_sbl_jadce.algorithms.cosamp import mmv_cosamp
@@ -122,6 +123,7 @@ def tuning_conditions(cfg, requested=None, method="anc"):
     return selected
 
 
+@snapshot_cached
 def load_selection(cfg, method, condition=None):
     if condition is not None and tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
         cfg = condition_config(cfg, condition, method)
@@ -312,7 +314,7 @@ def _aggregate(df):
 
 @checkpointed
 def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume=False):
-    from cgap_sbl_jadce.condition_results import (completed_conditions, rebuild_algorithm_results)
+    from cgap_sbl_jadce.condition_results import (completed_conditions, rebuild_algorithm_results, reset_run_results)
     from cgap_sbl_jadce.figures.estimator_condition import plot_condition_scores
     from cgap_sbl_jadce.checkpoints import output_hashes
     resume = is_resuming()
@@ -327,12 +329,13 @@ def run_estimator_stage(cfg, method, show_progress=True, conditions=None, resume
     count = int(cfg['run']['num_evaluation_samples'])
     gamma_count = min(int(cfg['evaluation'].get('gamma_distribution_samples', 0)), count)
     pairs = list(dict.fromkeys(value[:2] for value in requested))
+    definitions = [evaluation_definition(cfg, method, condition=pair) for pair in pairs]
+    reset_run_results(cfg, method, pairs, definitions, resume)
     done = {pair for pair, _, _ in completed_conditions(cfg, method, selections)}
-    for pair in tqdm(pairs, desc=f'{spec.name} conditions', unit='condition', disable=not show_progress):
+    for pair, definition in zip(tqdm(pairs, desc=f'{spec.name} conditions', unit='condition', disable=not show_progress), definitions):
         if resume and pair in done:
             continue
         L, snr = pair
-        definition = evaluation_definition(cfg, method, condition=pair)
         folder = run_path(cfg, method, condition=pair)
         parameters = selections[pair]['parameters'] if spec.tuning_grid else {}
         signature = selection_digest(selections[pair]) if pair in selections else None

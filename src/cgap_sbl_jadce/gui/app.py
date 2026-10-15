@@ -22,11 +22,12 @@ def main(argv=None):
 def dashboard():
     import streamlit as st
     from yaml import YAMLError
+    from cgap_sbl_jadce.file_cache import validation_snapshot
     from cgap_sbl_jadce.config import load_config
     from cgap_sbl_jadce.gui.jobs import Jobs, ACTIVE
     from cgap_sbl_jadce.gui.setups import setup_files
     from cgap_sbl_jadce.gui.setup_editor import setup_editor, reset_settings_forms
-    from cgap_sbl_jadce.gui.workflow import card_state, combined
+    from cgap_sbl_jadce.gui.workflow import card_state, combined, refresh_results
     from cgap_sbl_jadce.gui.task_page import task_page
     from cgap_sbl_jadce.tasks import task_actions
     from cgap_sbl_jadce.gui.theme import apply_theme, icon, card_markup, section_heading
@@ -78,14 +79,11 @@ def dashboard():
     with st.sidebar.expander('Results location', icon=':material/folder_open:'):
         st.caption(str(cfg['run']['output_dir']))
 
+    initial_render = True
     @st.fragment(run_every=2)
     def resident_tasks():
         records = jobs.records()
-        identity = tuple((job['id'], job['status']) for job in records)
-        previous = st.session_state.get('_worker_states')
-        st.session_state['_worker_states'] = identity
-        if previous is not None and previous != identity:
-            st.rerun()
+        refresh_results(st, cfg, records, rerun=not initial_render)
         active = [job for job in records if job['status'] in ACTIVE]
         if active:
             st.sidebar.divider()
@@ -101,6 +99,7 @@ def dashboard():
                 else:
                     navigate('task', st.session_state.get('current_task', 'activity'))
     resident_tasks()
+    initial_render = False
 
     def card(container, title, task, action='run', parent=False, key=None):
         state = (combined([card_state(cfg, config, task, jobs, part) for part in task_actions(task)])
@@ -133,6 +132,7 @@ def dashboard():
         st.markdown('<div class="eyebrow">RESEARCH WORKSPACE</div>', unsafe_allow_html=True)
         st.title('Experiment workflow')
         @st.fragment(run_every=2)
+        @validation_snapshot()
         def overview():
             section_heading(st, 'Data preparation')
             state = combined([card_state(cfg, config, task, jobs) for task in ('kappa_calibration', 'activity')])

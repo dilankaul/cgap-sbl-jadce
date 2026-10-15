@@ -33,6 +33,8 @@ def load_recoveries(config, task, action='run'):
     result = []
     for path in folder.glob(f'{action}*.json'):
         saved = json.loads(path.read_text())
+        if saved.get('superseded'):
+            continue
         request = dict(saved['request'], config=str(Path(config).resolve()))
         result.append({**saved, 'request': request, 'path': path})
     return sorted(result, key=lambda saved: saved['created'], reverse=True)
@@ -61,7 +63,7 @@ def validate_recovery(request):
     return saved
 
 
-def begin_recovery(request, resume=False):
+def begin_recovery(request, resume=False, reset=False):
     from cgap_sbl_jadce.gui.inputs import input_signature
     path = recovery_path(request['config'], request['task'], request.get('action', 'run'), request)
     if resume:
@@ -73,7 +75,8 @@ def begin_recovery(request, resume=False):
     save_json(path, {'schema': 2, 'request': portable, 'created': time.time(),
                      'job_id': Path(os.environ.get('CGAP_JOB_DIRECTORY', '')).name,
                      'config_digest': config_digest(request['config'], request),
-                     'input_signature': input_signature(request, portable=True)})
+                     'input_signature': input_signature(request, portable=True),
+                     **({'phase': 'reset_pending'} if reset else {})})
 
 
 def finish_recovery(request):

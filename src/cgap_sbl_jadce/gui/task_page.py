@@ -69,7 +69,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
         if record.get('error'):
             st.error(record['error'])
         with st.expander('Live log', expanded=status in ACTIVE):
-            st.code(logs or 'Starting worker…', language=None)
+            st.code(logs or 'No recent log messages.', language=None)
     panel()
 
 
@@ -186,17 +186,20 @@ def task_page(st, cfg, config, jobs, task, action):
     st.title(f'{action.capitalize()} {spec.name}' if spec else description[0].upper()+description[1:])
     from cgap_sbl_jadce.gui.setup_editor import edit_settings
     from cgap_sbl_jadce.gui.workflow import numerical_state
-    state = numerical_state(cfg, task, action)
+    from cgap_sbl_jadce.file_cache import validation_snapshot
+    plan = None
+    with validation_snapshot():
+        state = numerical_state(cfg, task, action)
+        if spec and action == 'run':
+            from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
+            plan = completion_plan(config, task)
     if state.status == 'incompatible':
         st.warning('Saved results are incompatible with this setup.')
         with st.expander('Compatibility details'):
             st.write(state.detail)
     with st.expander('Task settings'):
         edit_settings(st, cfg, config, jobs, task, action)
-    plan = None
-    if spec and action == 'run':
-        from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
-        plan = completion_plan(config, task)
+    if plan is not None:
         st.progress(len(plan.completed) / max(1, len(plan.pairs)),
                     text=f'{len(plan.completed)}/{len(plan.pairs)} conditions completed')
         condition_status_panel(st, cfg, config, jobs, task, plan)
@@ -254,7 +257,8 @@ def task_page(st, cfg, config, jobs, task, action):
     busy = jobs.busy() is not None
     try:
         if plan is not None:
-            selected_plan = completion_plan(config, task, conditions) if conditions is not None else plan
+            selected_plan = (completion_plan(config, task, conditions) if conditions is not None and
+                             not {tuple(pair) for pair in conditions} <= set(plan.pairs) else plan.selected(conditions))
             label = selected_plan.label(selected=conditions is not None)
             st.caption(selected_plan.summary)
             for (L, snr), reason in selected_plan.blocked.items():
@@ -290,8 +294,7 @@ def task_page(st, cfg, config, jobs, task, action):
                     jobs.start(request)
                     st.rerun()
         else:
-            from cgap_sbl_jadce.gui.workflow import numerical_state
-            status = numerical_state(cfg, task, action).status
+            status = state.status
             label = 'Rerun' if status in {'completed', 'partial', 'incompatible'} else 'Start'
             recoverable = own and own['status'] in RECOVERABLE | {'paused'} and json.dumps(own['request'], sort_keys=True) == json.dumps(request, sort_keys=True)
             if recoverable:
@@ -309,4 +312,4 @@ def task_page(st, cfg, config, jobs, task, action):
         st.error(str(error))
     worker_panel(st, jobs, config, task, action, conditions)
     st.divider()
-    figure_panel(st, cfg, config, jobs, task, action)
+    figure_panel(st, cfg, config, jobs, task, action, state=state)

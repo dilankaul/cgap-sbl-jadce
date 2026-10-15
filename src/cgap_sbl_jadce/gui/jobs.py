@@ -18,6 +18,11 @@ ACTIVE = {'queued', 'running', 'paused'}
 BUSY = {'queued', 'running'}
 RECOVERABLE = {'failed', 'stopped', 'interrupted'}
 
+_ANSI_ESCAPE = re.compile(r'\x1b\[[0-?]*[ -/]*[@-~]')
+_PROGRESS_FRAME = re.compile(
+    r'([^\r\n]+?):\s*\d+(?:\.\d+)?%\|[^\r\n]*?\|\s*(\d+)/(\d+)\s*\[[^\]\r\n]*\]')
+_PARTIAL_PROGRESS = re.compile(r'^.*?:\s*\d+(?:\.\d+)?%\|')
+
 
 def config_digest(path, request=None):
     request = request or {}
@@ -235,15 +240,23 @@ class Jobs:
         if not path.exists():
             return '', None
         with path.open('rb') as stream:
-            stream.seek(max(0, path.stat().st_size - 64000))
-            lines = stream.read().decode('utf-8', errors='replace').replace('\r', '\n').splitlines()
+            offset = max(0, path.stat().st_size - 64000)
+            stream.seek(offset)
+            text = stream.read().decode('utf-8', errors='replace')
+        if offset:
+            boundary = re.search(r'[\r\n]', text)
+            text = text[boundary.end():] if boundary else ''
+        text = _ANSI_ESCAPE.sub('', text)
+        text = re.sub(r'\x1b(?:\[[0-?]*[ -/]*)?$', '', text)
         progress = None
         visible = []
-        for line in lines:
-            line = re.sub(r'Task[ -]?0?\d+\s*', '', line)
-            match = re.search(r'(.+?):\s*(\d+)%.*?\s(\d+)/(\d+)\s*\[', line)
+        for line in text.replace('\r', '\n').splitlines():
+            match = _PROGRESS_FRAME.match(line)
             if match:
-                progress = {'label': match[1], 'done': int(match[3]), 'total': int(match[4])}
-            elif line.strip():
-                visible.append(line)
+                progress = {'label': match[1].strip(), 'done': int(match[2]), 'total': int(match[3])}
+                line = line[:match.start()] + line[match.end():]
+            elif _PARTIAL_PROGRESS.match(line):
+                continue
+            if line.strip():
+                visible.append(line.rstrip())
         return '\n'.join(visible[-100:]), progress

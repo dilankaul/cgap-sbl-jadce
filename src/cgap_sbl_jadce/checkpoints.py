@@ -12,6 +12,7 @@ from zipfile import BadZipFile
 import numpy as np
 import scipy
 
+from cgap_sbl_jadce.file_cache import file_version
 from cgap_sbl_jadce.io import save_json, save_npz
 from cgap_sbl_jadce.execution_control import pause_point
 
@@ -186,8 +187,7 @@ def output_hashes(paths):
     hashes = {}
     for path in paths:
         path = Path(path)
-        with path.open('rb') as stream:
-            hashes[path.name] = hashlib.file_digest(stream, 'sha256').hexdigest()
+        hashes[path.name] = _archive_digest(*file_version(path.resolve())).hex()
     return hashes
 
 
@@ -211,13 +211,12 @@ def _archive_digest(path, size, mtime, ctime):
 
 
 def archive_identity(folder, count, names):
-    folder = Path(folder)
+    folder = Path(folder).resolve()
     digest = hashlib.sha256()
     for q in range(count):
         for name in names:
             relative = f'{q:04d}/{name}' if name != 'matrix' else f'{q:04d}.npz'
             digest.update(relative.encode())
             path = folder / relative
-            info = path.stat()
-            digest.update(_archive_digest(str(path.resolve()), info.st_size, info.st_mtime_ns, info.st_ctime_ns))
+            digest.update(_archive_digest(*file_version(path)))
     return digest.hexdigest()

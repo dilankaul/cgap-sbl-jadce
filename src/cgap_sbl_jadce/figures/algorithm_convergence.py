@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from cgap_sbl_jadce.paths import result_path, figure_path
 from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
+from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits
 
 
 def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
@@ -20,6 +20,8 @@ def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
             history = conv[f'{method}_nmse_history']
             iterations = conv[f'{method}_iteration_history'] if f'{method}_iteration_history' in conv else np.arange(1, len(history) + 1)
             ax.plot(iterations, history, label=spec.name)
+    if ax.lines:
+        ax.set_xlim(sweep_limits([value for line in ax.lines for value in line.get_xdata()]))
     ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$"); ax.set_yscale("log")
     ax.grid(True, alpha=0.2); ax.legend(); ax.set_title("Convergence at reference condition")
     _apply_figure_style(fig, figure_style); fig.tight_layout()

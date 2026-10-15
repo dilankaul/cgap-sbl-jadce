@@ -7,8 +7,9 @@ import platform
 import numpy as np
 import scipy
 
+from cgap_sbl_jadce.file_cache import validation_snapshot
 from cgap_sbl_jadce.checkpoints import scientific_revision
-from cgap_sbl_jadce.condition_results import completed_conditions, condition_issue
+from cgap_sbl_jadce.condition_results import completed_conditions, condition_issue, pending_reset_pairs
 from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.experiments.estimators import (evaluation_conditions, evaluation_definition,
                                                  evaluation_selections, selection_digest)
@@ -73,6 +74,7 @@ def _checkpoint_issue(folder, expected):
     return 'Stored progress uses different settings, inputs, code or numerical environment.'
 
 
+@validation_snapshot()
 def completion_plan(config, method, conditions=None):
     cfg = load_config(config)
     requested = evaluation_conditions(cfg, conditions, method=method)
@@ -89,7 +91,11 @@ def completion_plan(config, method, conditions=None):
         done, selections = set(), {}
     recoveries = load_recoveries(config, method)
     validation = {}
+    resetting = pending_reset_pairs(cfg, method)
     for pair in plan.pairs:
+        if pair in resetting:
+            plan.blocked[pair] = 'An interrupted reset must finish through Resume on its original run.'
+            continue
         if pair in done:
             plan.completed.append(pair)
             continue
@@ -121,7 +127,7 @@ def completion_plan(config, method, conditions=None):
                 plan.blocked[pair] = issue
                 continue
             plan.resume.append(pair)
-        elif pending is not None:
+        elif pending is not None and summary_path.exists():
             plan.resume.append(pair)
         elif (folder / 'summary.json').exists():
             plan.blocked[pair] = 'Saved results are incomplete or differ from the current inputs or parameters.'

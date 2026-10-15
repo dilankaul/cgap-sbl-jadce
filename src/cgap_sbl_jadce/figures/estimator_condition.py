@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from cgap_sbl_jadce.paths import run_path
-from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
+from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits
 
 
 def plot_condition_scores(cfg, method, condition, formats='png'):
@@ -15,6 +15,7 @@ def plot_condition_scores(cfg, method, condition, formats='png'):
     for ax, metric, label in zip(axes, ('f1', 'nmse', 'runtime_s'),
                                 ('$F_1$ score', 'NMSE (true active support)', 'Solver runtime (s)')):
         ax.plot(data.q, data[metric], linewidth=1.2)
+        ax.set_xlim(sweep_limits(data.q))
         ax.set_ylabel(label)
         ax.grid(True, alpha=.25)
         if metric == 'nmse' and data.nmse.gt(0).any():

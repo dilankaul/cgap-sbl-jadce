@@ -1,10 +1,12 @@
 from pathlib import Path
 import hashlib
 import json
+from functools import lru_cache
 
 import numpy as np
 
 from cgap_sbl_jadce.paths import result_path, task_dir, condition_name
+from cgap_sbl_jadce.file_cache import file_version, snapshot_cached
 from cgap_sbl_jadce.io import save_npz
 from cgap_sbl_jadce.models.realizations import Realization
 from cgap_sbl_jadce.settings import reference_settings, tuning_pairs, evaluation_settings
@@ -107,15 +109,12 @@ def load_tuning_communication(cfg, count):
     return [load_communication_sample(folder, q, (L, snr))[(L, snr)] for q in range(count)]
 
 
-from functools import lru_cache
-
-
 @lru_cache(maxsize=32768)
 def _array_digest(path, size, modified, changed, keys):
     digest = hashlib.sha256()
     with np.load(path) as archive:
         for key in keys:
-            if key not in archive:
+            if key not in archive.files:
                 raise ValueError(f'Missing communication input {key} in {path}')
             value = np.ascontiguousarray(archive[key])
             digest.update(key.encode()); digest.update(str(value.dtype).encode())
@@ -123,25 +122,45 @@ def _array_digest(path, size, modified, changed, keys):
     return digest.hexdigest()
 
 
+@lru_cache(maxsize=64)
+def _condition_digest(sources):
+    digest = hashlib.sha256()
+    for version, keys in sources:
+        digest.update(_array_digest(*version, keys).encode())
+    return digest.hexdigest()
+
+
+@snapshot_cached
+def _base_versions(folder, count):
+    return tuple(tuple(file_version(f'{folder}/{q:04d}/{name}.npz')
+                       for name in ('channels', 'pilots', 'observations')) for q in range(count))
+
+
+@snapshot_cached
 def communication_condition_identity(cfg, split, pair):
-    folder = validate_communication_dataset(cfg, split, [pair])
+    folder = validate_communication_dataset(cfg, split, [pair]).resolve()
     L, snr = pair
     key = f'L{L}_snr{snr:g}'
-    digest = hashlib.sha256()
-    for q in range(cfg['run'][f'num_{split}_samples']):
-        extra = folder / 'additional' / condition_name(pair) / f'{q:04d}' / 'inputs.npz'
-        sources = [(folder / f'{q:04d}' / 'channels.npz', ('H', 'a', 'Z'))]
-        if extra.exists():
-            sources.append((extra, ('Theta', 'Y', 'W', 'sigma2')))
+    additional = folder / 'additional' / condition_name(pair)
+    has_additional = additional.is_dir()
+    sources = []
+    count = cfg['run'][f'num_{split}_samples']
+    if not has_additional:
+        for channels, pilots, observations in _base_versions(str(folder), count):
+            sources.extend([(channels, ('H', 'a', 'Z')), (pilots, (f'L{L}',)),
+                            (observations, tuple(f'{key}_{suffix}' for suffix in ('Y', 'W', 'sigma2')))])
+    for q in range(count) if has_additional else ():
+        sample = folder / f'{q:04d}'
+        sources.append((file_version(sample / 'channels.npz'), ('H', 'a', 'Z')))
+        extra = additional / f'{q:04d}' / 'inputs.npz' if has_additional else None
+        if extra is not None and extra.exists():
+            sources.append((file_version(extra), ('Theta', 'Y', 'W', 'sigma2')))
         else:
-            sources.extend([(folder / f'{q:04d}' / 'pilots.npz', (f'L{L}',)),
-                            (folder / f'{q:04d}' / 'observations.npz', tuple(f'{key}_{suffix}' for suffix in ('Y', 'W', 'sigma2')))])
-        for path, keys in sources:
-            stat = path.stat()
-            digest.update(_array_digest(str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns, keys).encode())
+            sources.extend([(file_version(sample / 'pilots.npz'), (f'L{L}',)),
+                            (file_version(sample / 'observations.npz'), tuple(f'{key}_{suffix}' for suffix in ('Y', 'W', 'sigma2')))])
     definition = communication_definition(cfg, split)
     definition.pop('conditions')
-    return {**definition, 'condition': list(pair), 'arrays_sha256': digest.hexdigest()}
+    return {**definition, 'condition': list(pair), 'arrays_sha256': _condition_digest(tuple(sources))}
 
 
 def add_communication_conditions(cfg, conditions, methods=(), show_progress=True):

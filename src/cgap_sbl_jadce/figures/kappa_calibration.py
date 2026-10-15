@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from cgap_sbl_jadce.paths import result_path, figure_path
-from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
+from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits
 
 
 def plot_activity_calibration(cfg: dict, formats: str = "png") -> list[Path]:
@@ -42,6 +42,7 @@ def plot_activity_calibration(cfg: dict, formats: str = "png") -> list[Path]:
     ax.axhline(target, linestyle="--", linewidth=1.0, label=fr"Target mean $S={target:g}$")
     best = df.iloc[int(np.argmin(np.abs(df["mean_expected_active"].to_numpy() - target)))]
     ax.axvline(best["kappa"], linestyle=":", linewidth=1.0, label=fr"Closest grid $\kappa={best['kappa']:.4g}$")
+    ax.set_xlim(sweep_limits(df["kappa"]))
     ax.set_xlabel(r"Decay parameter $\kappa$")
     ax.set_ylabel(r"Average active MTD count $S$")
     ax.set_title(r"Mean Active MTD Count vs Decay Parameter $\kappa$" + "\n" + fr"Event influence radius $D={D:g}$ m")

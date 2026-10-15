@@ -63,6 +63,10 @@ atomic output writes. Label fresh actions Start or Rerun according to saved stat
 Resume restores compatible checkpoints. Algorithm Complete all/selected skips
 completed conditions, restores compatible unfinished work and starts untouched
 conditions; only an explicit Rerun replaces completed numerical results.
+Fresh algorithm runs validate the requested scope, then reset its known outputs
+and owned checkpoints before the first solver call. Keep reset cleanup recoverable;
+Resume retains new results and must never repeat a finished reset. Preserve input
+archives, tuning selections, optional conditions outside the scope and unrelated files.
 Track unfinished checkpoints and portable recovery
 requests in Git; clear owned checkpoints after saving final results and figures.
 Algorithm runs own separate L/SNR folders and accumulate overall completion;

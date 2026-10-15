@@ -38,7 +38,10 @@ def run(folder):
                 if plan.blocked:
                     raise ValueError('Some saved conditions are incompatible. Select them and explicitly Rerun.')
             from cgap_sbl_jadce.recovery import begin_recovery
-            begin_recovery(request, resume=record.get('resume', False))
+            from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
+            reset = (request['task'] in ESTIMATORS and request.get('action', 'run') == 'run'
+                     and not record.get('complete', False))
+            begin_recovery(request, resume=record.get('resume', False), reset=reset)
         update_status(folder, status='running', input_signature=input_signature(request))
         pause_point()
         if request['kind'] == 'task':

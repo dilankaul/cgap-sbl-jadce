@@ -82,3 +82,23 @@ def test_optional_condition_heatmaps_and_independent_tuning_use_saved_data(saved
     assert all(figure.data[0].type == 'heatmap' for label, figure in figures)
     from cgap_sbl_jadce.figures.algorithm_performance import make_performance_figures
     assert len(make_performance_figures(cfg, method='anc', show_progress=False)) == 3
+
+
+def test_square_matrix_cells_preserve_complex_matrix_proportions_and_entries(saved_data, tmp_path):
+    from cgap_sbl_jadce.gui.charts import _complex
+    matrix = np.arange(24).reshape(3, 8) * (1 + 2j)
+    figure = _complex(matrix, 'Matrix', 'Column', 'Row')
+    assert figure.layout.xaxis.range is None
+    assert figure.layout.yaxis.range is None
+    assert figure.layout.yaxis.scaleanchor is False
+    assert figure.layout.yaxis2.scaleanchor is False
+    np.testing.assert_allclose(np.asarray(figure.data[0].customdata)[..., 0], matrix.real)
+    np.testing.assert_allclose(np.asarray(figure.data[0].customdata)[..., 1], matrix.imag)
+    request = request_file(saved_data, tmp_path, category='spatial', split='evaluation', index=0)
+    figure = interactive_figures(request)[0][1]
+    assert figure.layout.yaxis.scaleanchor == 'x'
+    assert figure.layout.yaxis.scaleratio == 1
+    request.update(category='communication', condition=[7, 8])
+    correlation = dict(interactive_figures(request))['Pilot cross-correlation']
+    assert correlation.layout.yaxis.scaleanchor == 'x'
+    assert correlation.layout.yaxis.scaleratio == 1

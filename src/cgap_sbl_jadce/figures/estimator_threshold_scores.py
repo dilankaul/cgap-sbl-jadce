@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from cgap_sbl_jadce.paths import tuning_path, tuning_figure_path
 from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
+from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits
 
 
 def plot_threshold_tuning(cfg: dict, method: str, formats: str = "png") -> list[Path]:
@@ -25,6 +25,7 @@ def plot_threshold_tuning(cfg: dict, method: str, formats: str = "png") -> list[
                 marker="o", markevery=[int(best.name)], markersize=6,
                 markeredgecolor="black", markeredgewidth=0.8)
     ax.axvline(best["tau"], linestyle="--", linewidth=1.0, label=fr"Selected $\tau={best['tau']:.3g}$")
+    ax.set_xlim(sweep_limits(df["tau"]))
     ax.set_xlabel(r"Threshold $\tau$"); ax.set_ylabel("Score"); ax.set_ylim(-0.02, 1.02)
     ax.set_title(label + "\n" + r"Detection Scores vs Threshold $\tau$"); ax.grid(True, alpha=0.2); ax.legend()
     _apply_figure_style(fig, figure_style); fig.tight_layout(); paths.extend(_save(fig, tuning_figure_path(cfg, method, stem), formats))
