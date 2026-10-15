@@ -50,3 +50,23 @@ def test_active_worker_progress_takes_precedence_over_prerequisite_badge(tmp_pat
     state = card_state(cfg, tmp_path / 'config.yaml', 'communication', jobs)
     assert state.status == 'running'
     assert state.fraction == .1
+
+
+def test_saved_comparison_conditions_load_as_lists_and_preserve_source_guards(saved_data, tmp_path):
+    import json
+    from cgap_sbl_jadce.paths import result_path
+
+    estimators.run_estimator_stage(saved_data, 'omp', show_progress=False)
+    estimators.comparison_stage(saved_data, methods=['omp'], show_progress=False)
+    path = result_path(saved_data['run']['output_dir'], 'comparison', 'summary.json')
+    summary = json.loads(path.read_text())
+    assert all(isinstance(condition, list) for condition in summary['conditions'])
+    jobs = SimpleNamespace(task_job=lambda *args: None)
+    state = card_state(saved_data, tmp_path / 'config.yaml', 'comparison', jobs)
+    assert state.status == 'completed'
+    assert 'MMV-OMP' in state.detail
+
+    shutil.rmtree(task_dir(saved_data['run']['output_dir'], 'omp'))
+    state = numerical_state(saved_data, 'comparison')
+    assert state.status == 'incompatible'
+    assert 'Source algorithm results' in state.detail

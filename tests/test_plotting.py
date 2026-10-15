@@ -260,4 +260,5 @@ def test_activity_presentation_defaults_live_in_code(tmp_path):
     assert options['probability_alpha'] == 1.0
     assert options['probability_levels'] == 128
     assert not _activity_plot_options(cfg, False, False)['show_probability_field']
-    assert set(load_config('configs/experiment.yaml')['figures']) == {'tuning_indices', 'evaluation_indices'}
+    assert set(load_config('configs/experiment.yaml')['figures']) == {
+        'tuning_indices', 'evaluation_indices', 'tuning_main_index', 'evaluation_main_index'}

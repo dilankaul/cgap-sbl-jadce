@@ -73,6 +73,9 @@ def validate_setup(cfg):
     for split in ('tuning', 'evaluation'):
         indices = cfg['figures'][f'{split}_indices']
         count = cfg['run'][f'num_{split}_samples']
+        main = cfg['figures'].get(f'{split}_main_index', 0)
+        if type(main) is not int or not 0 <= main < count:
+            raise ValueError(f'{split} main realization index must be within 0..{count - 1}')
         if indices != 'all' and (not isinstance(indices, list) or any(type(i) is not int or not 0 <= i < count for i in indices)):
             raise ValueError(f'{split} figure indices must be between 0 and {count - 1}, or all')
     for name in ('gamma_distribution_samples', 'convergence_sample_offset'):

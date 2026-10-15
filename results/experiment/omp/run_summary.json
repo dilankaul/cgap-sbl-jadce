@@ -117,7 +117,7 @@
   "metric_rows": 12000,
   "nmse_scope": "true_active_support",
   "optional_conditions": [],
-  "oracle_capped_conditions": 730,
+  "oracle_capped_conditions": 0,
   "reference_pilot_length": 30,
   "reference_snr_db": 12.0,
   "requested_conditions": [

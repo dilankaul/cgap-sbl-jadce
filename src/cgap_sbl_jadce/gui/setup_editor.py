@@ -2,6 +2,7 @@ from pathlib import Path
 
 from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.settings import grouped_config, range_parameters
+from cgap_sbl_jadce.gui.previews import main_realization_index
 from cgap_sbl_jadce.gui.setups import (create_setup, parse_values, validate_setup,
     update_setup)
 
@@ -121,6 +122,11 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
             _numbers(st, cfg['seeds'], seed_names.get(task, list(cfg['seeds'])), prefix + '_seeds')
     if task is None or task in {'activity', 'communication', 'spatial_dependence'}:
         with st.expander('Figure selections'):
+            for split in ('tuning', 'evaluation'):
+                cfg['figures'].setdefault(f'{split}_main_index', main_realization_index(cfg, split))
+            _numbers(st, cfg['figures'], ['tuning_main_index', 'evaluation_main_index'], prefix + '_figures',
+                     {f'{split}_main_index': split.capitalize() + ' main realization index (zero-based)'
+                      for split in ('tuning', 'evaluation')})
             for split in ('tuning', 'evaluation'):
                 key = split + '_indices'
                 value = cfg['figures'][key]

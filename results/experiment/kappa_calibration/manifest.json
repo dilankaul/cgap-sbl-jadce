@@ -7,7 +7,7 @@
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
       "calibration_validation_samples": 5000,
-      "exact_sparsity": false,
+      "exact_sparsity": true,
       "kappa": 7.0,
       "kappa_refinement_steps": [
         0.1,
@@ -104,19 +104,21 @@
     },
     "figures": {
       "evaluation_indices": [
-        855,
-        188,
-        398,
-        896,
-        311,
-        118,
-        355
+        294,
+        458,
+        581,
+        594,
+        642,
+        789,
+        907
       ],
+      "evaluation_main_index": 458,
       "tuning_indices": [
-        51,
-        86,
-        78
-      ]
+        4,
+        37,
+        90
+      ],
+      "tuning_main_index": 4
     },
     "kappa_calibration": {
       "batch_size": 256,

@@ -1,0 +1,104 @@
+{
+  "Q": 1000,
+  "condition": [
+    45,
+    12.0
+  ],
+  "definition": {
+    "code": "b18b29532c14bf5258d83f2a92a08d57e58fa5814a8b4a6c6c680fe984ebe692",
+    "communication": [
+      {
+        "M": 4,
+        "N": 500,
+        "activity_sha256": {
+          "evaluation": "99d50877d00aafe35a5291c6b6487db718680712fed6a42d5fb8b9eeb9581997"
+        },
+        "arrays_sha256": "a79c5547b7e683c2d22d5791337a54d6bdc4d6582976e184b33db9c122a337d7",
+        "condition": [
+          45,
+          12.0
+        ],
+        "schema": 2,
+        "seed": 9517
+      }
+    ],
+    "method": "SBL",
+    "nmse_scope": "true_active_support",
+    "revision": 2,
+    "samples": 1000,
+    "selections": [
+      {
+        "definition": {
+          "code": "b18b29532c14bf5258d83f2a92a08d57e58fa5814a8b4a6c6c680fe984ebe692",
+          "communication": {
+            "M": 4,
+            "N": 500,
+            "activity_sha256": {
+              "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
+            },
+            "arrays_sha256": "a180ac83af08f73d348a4bb6b356c0c3965a5b8f795daa6231a3e5b280df7ec0",
+            "condition": [
+              25,
+              12
+            ],
+            "schema": 2,
+            "seed": 4283
+          },
+          "condition": [
+            25,
+            12
+          ],
+          "method": "SBL",
+          "nmse_scope": "true_active_support",
+          "parameters": [
+            {}
+          ],
+          "revision": 2,
+          "samples": 100,
+          "solver": {
+            "K": 500,
+            "delta": 0.0001,
+            "gamma_init": 0.1
+          },
+          "tau_grid": {
+            "start": 0.0,
+            "step": 0.001,
+            "stop": 0.2
+          }
+        },
+        "parameters": {
+          "tau": 0.191
+        },
+        "reference_pilot_length": 25,
+        "reference_snr_db": 12,
+        "tuning_scores": {
+          "f1": 0.6219296202693332,
+          "iterations": 500.0,
+          "nmse": 0.47905870880229573,
+          "precision": 0.6480685717480944,
+          "recall": 0.6020000000000001,
+          "tau": 0.191
+        }
+      }
+    ],
+    "solver": {
+      "K": 500,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    }
+  },
+  "gamma_samples": 100,
+  "nmse_scope": "true_active_support",
+  "outputs": {
+    "aggregate.csv": "68e0656ac3376c3c9cd57462d8966d970005ca9bc9b837c94f813ea4dbb2d0cf",
+    "figures/realization_scores.png": "ad0366168770581fd523d2cf2ff042671cef1ccfd460d60f463d919e4d499f64",
+    "gamma_distribution.npz": "d759eb96d7391628fb1ce0fde9ef5f755ff30fc9fda1c783c62370af620c2755",
+    "per_sample.csv": "22b4e8dc47351a72d959ed007afbbd860d899f25160f43f7a847804de910e696",
+    "runtime_summary.csv": "5cd783aef69547fedc3c6e4cf2bba3a8a8b1f7ffa9b4cafec153899fbaa3438d"
+  },
+  "parameters": {
+    "tau": 0.191
+  },
+  "selection_digest": "d9a1d32c3ba7f88de696122a59339aedba1f798efde1274a7b9d25b414ddb9f5",
+  "status": "complete"
+}

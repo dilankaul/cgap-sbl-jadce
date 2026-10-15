@@ -166,7 +166,7 @@ def numerical_state(cfg, task, action='run'):
                     else:
                         pairs = list(dict.fromkeys(tuple(value[:2]) for value in data['conditions']))
                         require_match(definitions, [evaluation_definition(cfg, method, condition=pair) for pair in pairs], 'Comparison')
-                eligible = completed_methods(cfg, list(dict.fromkeys(value[:2] for value in data['conditions']))) if task == 'comparison' else completed_methods(cfg, [(data['L'], data['snr_db'])])
+                eligible = completed_methods(cfg, list(dict.fromkeys(tuple(value[:2]) for value in data['conditions']))) if task == 'comparison' else completed_methods(cfg, [(data['L'], data['snr_db'])])
                 if not set(data['methods']) <= set(eligible):
                     return CardState('incompatible', 'Source algorithm results no longer match the setup')
                 return CardState('completed', ', '.join(data.get('algorithms', data.get('methods', []))), 1.)

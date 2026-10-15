@@ -164,8 +164,10 @@ For multiple events use
 `P_i = 1 - product_v(1 - P_iv)`.
 
 Use the experiment dimensions from configs/experiment.yaml. This branch uses
-N=500, target mean S=20, R=50 m and D=20 m. Calibrate kappa automatically rather
-than fixing per-realization activity counts.
+N=500, fixed S=20, R=50 m and D=20 m. Use `activity.exact_sparsity: true`
+by default: accept event-driven realizations only when their active count equals S.
+Calibrate kappa automatically to the unconditioned target mean before applying
+this exact-count conditioning. Retain explicit variable-activity support.
 Activity generation must report realized-S mean, standard deviation, minimum, maximum, and
 distribution/histogram.
 

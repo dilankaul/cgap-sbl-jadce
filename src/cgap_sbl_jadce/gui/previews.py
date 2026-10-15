@@ -25,6 +25,14 @@ PREVIEWS = {
 SAMPLE_PREVIEWS = {'activity', 'paper_activity', 'communication', 'spatial'}
 
 
+def main_realization_index(cfg, split, count=None):
+    figures = cfg.get('figures', {})
+    indices = figures.get(f'{split}_indices', [])
+    fallback = indices[0] if isinstance(indices, list) and indices else 0
+    index = figures.get(f'{split}_main_index', fallback)
+    return min(max(index, 0), count - 1) if count is not None else index
+
+
 def sample_options(cfg, category, split):
     if split not in {'tuning', 'evaluation'}:
         raise ValueError('split must be tuning or evaluation')

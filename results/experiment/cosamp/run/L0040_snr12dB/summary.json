@@ -1,0 +1,45 @@
+{
+  "Q": 1000,
+  "condition": [
+    40,
+    12.0
+  ],
+  "definition": {
+    "code": "b619e236ee852332912902fcf7fc60080aeb1d07bfdb8d17bea81f5efc250586",
+    "communication": [
+      {
+        "M": 4,
+        "N": 500,
+        "activity_sha256": {
+          "evaluation": "99d50877d00aafe35a5291c6b6487db718680712fed6a42d5fb8b9eeb9581997"
+        },
+        "arrays_sha256": "cd8e6492e86c5857228c42e3fced50f0951d06e46d299e79f43cef09f7788808",
+        "condition": [
+          40,
+          12.0
+        ],
+        "schema": 2,
+        "seed": 9517
+      }
+    ],
+    "method": "MMV-CoSaMP",
+    "nmse_scope": "true_active_support",
+    "revision": 2,
+    "samples": 1000,
+    "solver": {
+      "cosamp_max_iter": 500,
+      "cosamp_tol": 0.0001
+    }
+  },
+  "gamma_samples": 0,
+  "nmse_scope": "true_active_support",
+  "outputs": {
+    "aggregate.csv": "bd8eabd4bf63fa444215effc9afe06737fb10949ca23a2c7825e11a60270b6f3",
+    "figures/realization_scores.png": "51f4fbee4dfba3e76ad5a0b00cfe86743606bc52555bb54dcf7bbe0aeb9f54b6",
+    "per_sample.csv": "5813c012a5e589da35c9edd8c7bdf598138baceae1222b61a48442a3813624d6",
+    "runtime_summary.csv": "2a3ffa98788595904bfdc447119fb227cd7b0ae8eaa4501ba9ed0a5a4c7305dd"
+  },
+  "parameters": {},
+  "selection_digest": null,
+  "status": "complete"
+}

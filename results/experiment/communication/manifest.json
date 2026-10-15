@@ -4,7 +4,7 @@
       "D": 20.0,
       "V": 2,
       "batch_size": 256,
-      "exact_sparsity": false,
+      "exact_sparsity": true,
       "kappa": 7.0,
       "kappa_source": "calibration"
     },
@@ -75,19 +75,21 @@
     },
     "figures": {
       "evaluation_indices": [
-        855,
-        188,
-        398,
-        896,
-        311,
-        118,
-        355
+        294,
+        458,
+        581,
+        594,
+        642,
+        789,
+        907
       ],
+      "evaluation_main_index": 458,
       "tuning_indices": [
-        51,
-        86,
-        78
-      ]
+        4,
+        37,
+        90
+      ],
+      "tuning_main_index": 4
     },
     "kappa_calibration": {
       "batch_size": 256,
@@ -137,7 +139,7 @@
             "M": 4,
             "N": 500,
             "activity_sha256": {
-              "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c"
+              "evaluation": "99d50877d00aafe35a5291c6b6487db718680712fed6a42d5fb8b9eeb9581997"
             },
             "conditions": [
               [
@@ -200,7 +202,7 @@
             "M": 4,
             "N": 500,
             "activity_sha256": {
-              "tuning": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542"
+              "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
             },
             "conditions": [
               [

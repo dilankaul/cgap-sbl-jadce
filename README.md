@@ -154,6 +154,17 @@ the GUI visualizations use their underlying data directly.
 
 ## Configuration and reproducibility
 
+Under `figures`, `tuning_main_index` and `evaluation_main_index` set the dashboard's
+initial realization for each split. Edit them in experiment settings under Figure
+selections. Evaluation defaults to realization 458, the selected paper example.
+The index lists independently control automatic figure exports.
+
+The default experiment uses fixed activity: `activity.exact_sparsity: true`
+conditions event-driven samples on exactly `system.S: 20` active MTDs in both
+tuning and evaluation. Kappa calibration still targets the unconditioned mean.
+Existing setups retain their saved settings; changing an existing setup to fixed S
+requires regenerating activity and dependent inputs, tuning and algorithm results.
+
 `configs/experiment.yaml` defines grouped environment, activity, calibration,
 communication, evaluation and algorithm settings.
 Kappa calibration scans ascending kappa values, brackets the target expected count, then
