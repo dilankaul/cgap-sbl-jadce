@@ -1,0 +1,87 @@
+{
+  "evaluation": {
+    "definition": {
+      "M": 4,
+      "N": 500,
+      "activity_sha256": {
+        "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c"
+      },
+      "conditions": [
+        [
+          20,
+          12.0
+        ],
+        [
+          25,
+          12.0
+        ],
+        [
+          30,
+          4.0
+        ],
+        [
+          30,
+          8.0
+        ],
+        [
+          30,
+          12.0
+        ],
+        [
+          30,
+          16.0
+        ],
+        [
+          30,
+          20.0
+        ],
+        [
+          30,
+          24.0
+        ],
+        [
+          35,
+          12.0
+        ],
+        [
+          40,
+          12.0
+        ],
+        [
+          45,
+          12.0
+        ]
+      ],
+      "schema": 2,
+      "seed": 9517
+    },
+    "preview_condition": [
+      30,
+      12.0
+    ],
+    "samples": 1000
+  },
+  "status": "complete",
+  "tuning": {
+    "definition": {
+      "M": 4,
+      "N": 500,
+      "activity_sha256": {
+        "tuning": "e5691d95f3e514e231e8b0b684ed0f5044168ee9a073cc51e0f483546f347542"
+      },
+      "conditions": [
+        [
+          25,
+          12.0
+        ]
+      ],
+      "schema": 2,
+      "seed": 4283
+    },
+    "preview_condition": [
+      25,
+      12.0
+    ],
+    "samples": 100
+  }
+}

@@ -33,6 +33,6 @@ def build_Omega_ANC(C: np.ndarray, alpha: float, beta: float) -> np.ndarray:
 
 
 def anc_penalty(C: np.ndarray, gamma: np.ndarray, alpha: float, beta: float) -> np.ndarray:
-    """Equation (68): lambda = alpha * positive_part(beta * G - C @ gamma)."""
+    """lambda = alpha * positive_part(beta * sum(gamma) - C @ gamma)."""
     gamma = np.asarray(gamma, dtype=float)
     return float(alpha) * np.maximum(float(beta) * np.sum(gamma) - C @ gamma, 0.0)

@@ -13,7 +13,7 @@ def test_activity_s_distribution_uses_saved_task_data(tmp_path):
     import numpy as np
     from cgap_sbl_jadce.models.activity import ActivitySample
     from cgap_sbl_jadce.dataset import save_activity_samples
-    from cgap_sbl_jadce.figures.task02_active_mtd_count_distribution import plot_activity_s_distribution
+    from cgap_sbl_jadce.figures.active_mtd_count_distribution import plot_activity_s_distribution
 
     def sample(active_count):
         a = np.zeros(6, dtype=bool); a[:active_count] = True
@@ -35,24 +35,24 @@ def test_activity_s_distribution_uses_saved_task_data(tmp_path):
 
 def test_activity_probability_grid_matches_event_model():
     import numpy as np
-    from cgap_sbl_jadce.figures.task02_activity_realizations import activity_probability_grid
+    from cgap_sbl_jadce.figures.activity_realizations import activity_probability_grid
 
     X, Y, P = activity_probability_grid(
         np.array([[0.0, 0.0]]), R=20.0, D=10.0, kappa=3.0, resolution=101
     )
     center = 50
     assert np.isclose(P[center, center], 1.0)
-    # x=12 m is inside the BS cell but outside the event cutoff D=10 m.
+
     j = int(np.argmin(np.abs(X[center] - 12.0)))
     assert np.isclose(P[center, j], 0.0)
-    # A corner is outside the circular BS cell and must be masked.
+
     assert bool(P.mask[0, 0])
 
 
 def test_activity_probability_figure_can_be_saved(tmp_path):
     import numpy as np
     from cgap_sbl_jadce.models.activity import ActivitySample
-    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.figures.activity_realizations import plot_activity_sample
 
     sample = ActivitySample(
         a=np.array([True, False]),
@@ -72,7 +72,7 @@ def test_probability_field_uses_vector_contours(tmp_path, monkeypatch):
     import matplotlib.axes
     import numpy as np
     from cgap_sbl_jadce.models.activity import ActivitySample
-    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.figures.activity_realizations import plot_activity_sample
 
     called = {"contourf": False}
     original_contourf = matplotlib.axes.Axes.contourf
@@ -103,7 +103,7 @@ def test_probability_contours_start_at_zero_and_colormap_zero_is_white(monkeypat
     import matplotlib.axes
     import numpy as np
     from cgap_sbl_jadce.models.activity import ActivitySample
-    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_sample
+    from cgap_sbl_jadce.figures.activity_realizations import plot_activity_sample
 
     captured = {}
     original = matplotlib.axes.Axes.contourf
@@ -134,13 +134,12 @@ def test_probability_contours_start_at_zero_and_colormap_zero_is_white(monkeypat
     assert np.allclose(captured["cmap"](0.0)[:3], [1.0, 1.0, 1.0])
 
 
-
 def test_selected_realization_exports_pdf_with_native_truetype_fonts(tmp_path):
     import numpy as np
     import matplotlib as mpl
     from cgap_sbl_jadce.models.activity import ActivitySample
     from cgap_sbl_jadce.dataset import save_activity_samples
-    from cgap_sbl_jadce.figures.task02_activity_realizations import plot_activity_realization
+    from cgap_sbl_jadce.figures.activity_realizations import plot_activity_realization
 
     sample = ActivitySample(
         a=np.array([True, False]),
@@ -203,7 +202,7 @@ def test_batch_activity_figures_include_both_splits_and_titles(tmp_path, monkeyp
     import numpy as np
     from cgap_sbl_jadce.models.activity import ActivitySample
     from cgap_sbl_jadce.dataset import save_activity_samples
-    from cgap_sbl_jadce.figures import task02_activity_realizations as plotting
+    from cgap_sbl_jadce.figures import activity_realizations as plotting
 
     samples = [ActivitySample(
         a=np.array([True, bool(index)]),
@@ -250,9 +249,8 @@ def test_font_metadata_filter_keeps_other_warnings():
     assert filt.filter(record)
 
 
-
 def test_activity_presentation_defaults_live_in_code(tmp_path):
-    from cgap_sbl_jadce.figures.task02_activity_realizations import _activity_plot_options
+    from cgap_sbl_jadce.figures.activity_realizations import _activity_plot_options
     from cgap_sbl_jadce.config import load_config
     cfg = {'run': {'output_dir': str(tmp_path)}, 'system': {'R': 40},
            'activity': {'D': 15, 'kappa': 3.78}, 'figures': {}}

@@ -43,8 +43,10 @@ def test_loader_reads_each_npz_array_once_and_closes_archive(tmp_path, monkeypat
         assert sample.attempts == arrays['attempts'][index]
 
 
-def test_legacy_archive_without_attempts(tmp_path):
-    path = tmp_path / 'legacy.npz'
+def test_missing_attempts_is_rejected(tmp_path):
+    path = tmp_path / 'incomplete.npz'
     np.savez_compressed(path, a=np.array([[True]]), device_locations=np.zeros((1, 1, 2)),
         event_locations=np.zeros((1, 1, 2)), activation_probabilities=np.ones((1, 1)))
-    assert dataset.load_activity_samples(path)[0].attempts == 1
+    import pytest
+    with pytest.raises(KeyError, match='attempts'):
+        dataset.load_activity_samples(path)

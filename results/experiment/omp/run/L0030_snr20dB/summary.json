@@ -1,0 +1,42 @@
+{
+  "Q": 1000,
+  "condition": [
+    30,
+    20.0
+  ],
+  "definition": {
+    "code": "a1a6b0372eb2d7b83a056908fe5f0f1c68e4b0a9c3e5b67732bbd3538c4a16b9",
+    "communication": [
+      {
+        "M": 4,
+        "N": 500,
+        "activity_sha256": {
+          "evaluation": "ffeacc225bdcea32f5afb14a7faacaa0410c51f5ed2f6742a054036c339ff64c"
+        },
+        "arrays_sha256": "b522fe9cb0e95342353e155a9cdc191add400453ee782c8b746984b6fc8c07fd",
+        "condition": [
+          30,
+          20.0
+        ],
+        "schema": 2,
+        "seed": 9517
+      }
+    ],
+    "method": "MMV-OMP",
+    "nmse_scope": "true_active_support",
+    "revision": 2,
+    "samples": 1000,
+    "solver": {}
+  },
+  "gamma_samples": 0,
+  "nmse_scope": "true_active_support",
+  "outputs": {
+    "aggregate.csv": "1783284c76fc18128acdb95040d9c09cbb7db5bb4198eb820de90bfb0544245f",
+    "figures/realization_scores.png": "a82317edca306e3ed66cfb45ae8cdbf8f39a70165a38a0277ef1b36c323fc192",
+    "per_sample.csv": "184528e8a2b98fa8f92e86fdd2a0181fe7f548026ea2fcce6e3382f395ca9dc2",
+    "runtime_summary.csv": "b4cec454956be14450e437586ba1addcac38af384aab8a4202abf963337601e6"
+  },
+  "parameters": {},
+  "selection_digest": null,
+  "status": "complete"
+}

@@ -12,5 +12,12 @@
     "vscode": {
       "extensions": ["ms-python.python", "ms-toolsai.jupyter"]
     }
+  },
+  "forwardPorts": [8501],
+  "portsAttributes": {
+    "8501": {
+      "label": "CGAP-SBL Lab",
+      "onAutoForward": "openBrowser"
+    }
   }
 }

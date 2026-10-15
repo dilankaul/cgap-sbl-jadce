@@ -1,73 +1,92 @@
-# Validation of the revised CGAP-SBL implementation
+# Validation
 
-Run the complete test suite with:
+Run `PYTHONPATH=src pytest -q`.
 
-```bash
-PYTHONPATH=src pytest -q
-```
+The suite covers complex-MMV dimensions, Gaussian generation, unit-norm QPSK
+pilots, optimized Cholesky posterior calculations, stable CGAP-SBL updates,
+zero-penalty SBL equivalence, sparse ANC, spatial cutoffs, independent seeds,
+calibration, oracle greedy budgets and probability-preserving figures.
 
-Final result: **106 tests passed**.
+Workflow checks cover:
 
-The revised implementation is checked against the local manuscript
-`Publications___CGAP_SBL.pdf`. Validation covers:
+- Communication generation archives reproduce the deterministic communication model exactly.
+- Independent estimator tasks use saved inputs and never regenerate communication.
+- OMP/CoSaMP require neither tuning results nor spatial matrices.
+- SBL tunes its own threshold without running ANC or loading C.
+- ANC tunes alpha, beta and tau on tuning data; a separate Run action evaluates held-out data.
+- Tune needs no evaluation archives; Run reuses selections unchanged and never retunes.
+- Solver-call timers exclude archive loading and metric calculation.
+- Failed and abruptly terminated writes preserve previous complete files.
+- Fresh-process restart reuses committed scores and runtimes without duplicates.
+- Calibration restores RNG state and exact running sums; activity retains its seed sequence.
+- Generation validates output hashes before reuse; corrupted units are rebuilt.
+- Tuning and convergence reuse completed solver outputs after injected failure.
+- Comparison reads compatible completed outputs and executes no solver.
+- Historical, incomplete or mismatched scores and tuning selections are rejected.
+- True-active-support NMSE ignores inactive estimates, counts missed active rows,
+  handles zero energy, and is used consistently in convergence traces.
+- GUI navigation and setup creation never start an unrequested task.
+- Named setups copy defaults, keep data/results isolated, and preserve one source config.
+- Independent algorithm order and selected-condition runs retain prior scores and runtimes.
+- Both tuning policies keep evaluation data held out; condition-specific runs require
+  only requested selections and reject stale selection identities.
+- Partial-condition comparisons validate all requested algorithms without solver execution.
+- Interactive charts read arrays/tables rather than image files, expose exact HSV values,
+  preserve zero activation probabilities and maintain log NMSE scales.
+- Selected-condition views and publication exports regenerate from matching numerical inputs.
+- Analysis selectors include only compatible completed conditions; single-algorithm comparison works.
+- Convergence needs completed SBL/ANC evaluation, excludes greedy algorithms, and supports SBL alone without C.
+- Paused tasks allow another independent worker to run before continuation.
+- Paused workers reattach after controller restart; killed workers resume from checkpoints.
+- Import-safe GUI/task entry points, selected PNG diagnostics, local fonts and paper PDFs.
 
-- complex-MMV dimensions, ordinary channel transpose, Gaussian generation, and unit-norm QPSK pilots;
-- optimized Cholesky posterior mean and covariance diagonal against a full reference;
-- the stable nonnegative-penalty root, scalar stationarity, and maximization of each frozen penalized M-step;
-- general symmetric indefinite interaction matrices, ANC equivalence, sparse/dense ANC agreement, and lagged penalty histories;
-- exact SBL recovery when Omega or alpha is zero, relative stopping, and posterior recomputation from final gamma;
-- ANC cutoff and diagonal, with rho=kappa and U=D taken from saved activity data;
-- deterministic calibration, independent seeds, variable realized activity, and untouched probability-field values;
-- oracle baseline support recovery and B_q=min(S_q,L,N) capping;
-- paired spatial randomization preserving count, channels, pilots and standardized noise, with support fixed across conditions;
-- scenario-specific aggregation, paired F1/NMSE advantages, and exclusion of undefined zero-energy NMSE;
-- rejection of legacy tuning, configuration provenance, task wrappers, PNG outputs, and title-free vector paper PDFs.
 
-A complete nine-task smoke run was performed using the small test configuration
-in a temporary output folder, followed by a paper activity PDF export. Saved
-outputs were inspected: Task 05 produces both F1 and NMSE contours; Task 07
-produces 216 metric rows for six samples, six conditions, and six method/scenario
-combinations; Task 09 produces the main performance plots, four spatial-dependence
-comparisons, and paired advantages. Revised estimator stages were rechecked after
-final metadata changes.
+Tests use small temporary datasets. The full publication experiment is not run
+as part of this restructuring; historical measured results retain their metric
+scope and are not promoted to current results.
 
-This smoke run verifies integration, not publication performance. The full
-1,000-realization experiment has not been rerun for CGAP-SBL. Historical results
-remain unchanged, and no provisional manuscript performance values are copied
-into generated results.
+- Individual condition folders retain scores and runtimes; completing conditions separately completes the algorithm.
+- Explicit fresh reruns recalculate selected conditions and preserve other completed results.
+- Successful condition data and figure saves clear only owned checkpoints; figure failure retains numerical progress.
+- Portable recovery succeeds from a copied setup without `.gui/`, and a cleanup interruption repeats no calculations.
+- Disjoint conditions of one algorithm can run while another condition is paused.
 
-Task-02 randomization ownership was additionally verified by rerunning Tasks 02, 07 and 09 on the small temporary dataset. All six randomized maps and saved paired counts were inspected; tests verify the unchanged seed/index sequence and omission of event-model overlays.
+- Completion actions leave completed condition files and measured runtimes untouched, including when requested repeatedly.
+- Complete selected restores a partial condition from an interrupted wider request; incompatible saved work requires explicit Rerun.
+- GUI action labels follow saved state, and Complete all progress controls remain visible from a selected-condition view.
 
-Full Task-03 dataset ownership is verified by exact comparisons with the previous
-generator, shared paired H/Theta identity and standardized noise, zero-activity
-samples, source/seed mismatch rejection, selected diagnostics, and downstream
-Tasks 05–08 with generation functions deliberately disabled.
+- Grouped setup edits preserve effective values and independently owned algorithm settings.
+- Setup and task editors share one configuration and never launch a task when saving.
+- Relevant edits mark results incompatible and block successors; restoring values restores eligibility.
+- ANC tuning edits leave OMP, CoSaMP and SBL results usable; tuning policies can differ per algorithm.
+- Adding L/SNR conditions preserves existing condition measurements, even after communication archives expand.
+- Figure selections, YAML formatting and unrelated settings do not invalidate scoped recovery.
+- Running tasks reject relevant edits until paused, while unrelated edits remain allowed.
 
-The full configured Task-03 dataset was generated and inspected: 100 tuning
-realizations, 1,000 paired evaluation realizations, 11 unique evaluation conditions,
-4,300 compressed archives (171.3 MiB), and six diagnostic PNGs. Sampled pairs
-including the two high-activity realizations satisfy the system identity,
-prescribed noise variance/SNR, and shared paired H/Theta/standardized noise.
-Tasks 03 and 05–09 were also smoke-tested together on the small temporary dataset.
-This generates full communication inputs, not new publication performance results.
+- Inclusive range controls retain alpha/beta, kappa and evaluation candidates, validate endpoints and steps, support negative SNRs and singleton ranges, and preserve explicit custom grids.
 
-Current figure validation additionally covers independent tuning/evaluation
-selections, four-digit realization folders, compact CLI summaries, separate
-scenario exports, native HSV phase/magnitude mapping, and code-local activity
-presentation settings. Task-03 pilot heatmaps use automatic cell sizing; bold
-Greek labels use native STIX MathText. The current selected diagnostic set
-contains 91 figures.
+- Fresh runs require preparation compatibility metadata and condition-local results.
+- Old combined tables are not promoted into usable condition results.
+- The dashboard contains no historical-result migration or tutorial captions.
 
-Task-04 ownership is validated against exact dense reference matrices, CSR storage,
-source/parameter mismatch rejection, selected padded figure folders and split
-progress. Downstream stages are tested with build_C disabled after Task 04.
-The full run saved and checked 100 tuning and 1,000 shared evaluation matrices,
-with ten selected heatmaps and about 146.7 MiB of compressed matrix storage.
+- Cached communication identities exactly match direct hashing of the saved arrays.
+- Each refresh shares file checks across conditions and restats inputs on the next refresh.
+- Edited input/output files invalidate cached validation even when their modification time is restored.
+- Restoring original arrays restores compatibility; unrelated conditions remain eligible.
 
-The paper complexity audit (Section VII, equations 75–79) is documented in
-computational_complexity.md. Timing boundaries are checked with a deterministic
-clock: solver computation is included; loading and metrics are excluded. Runtime
-summary statistics are verified against known input times. A small workflow run
-recorded 216 real solver calls, 36 per-condition timing groups, timing-environment
-provenance, and runtime plots versus both SNR and pilot length. No full publication
-runtime benchmark or manuscript numerical-time claim was generated.
+On the existing 1,000-realization evaluation dataset, repeated checks for the
+algorithm and analysis workflow cards took 0.75–0.93 s after the initial cache
+fill, while an evaluation worker was running. The initial pass still hashes the
+saved arrays. This measures status validation, not browser or graph rendering.
+
+- Live logs handle nested tqdm cursor codes, partial writes and truncated UTF-8 tails without displaying broken bars; appended pause messages, warnings and errors remain visible.
+
+- Run-all completion counts and table rows advance after each saved condition while the worker remains running; unchanged polls do not trigger a page rerun or read array/checkpoint contents. Result changes during a normal page render preserve navigation clicks.
+
+- Fresh Run/Rerun retires all scoped condition results and old checkpoint units before the first solver call; optional/unselected results, inputs, tuning and unrelated files remain unchanged.
+- Resume after a reset or mid-reset interruption uses only newly calculated units, including interruption before cleanup starts.
+- Invalid prerequisites and linked condition paths prevent cleanup; combined numerical views exclude reset data immediately.
+
+- Saved and interactive sweep lines use their sweep endpoints, including incomplete evaluation sweeps. GUI lines retain Plotly's default y-autorange and allow unrestricted zooming/panning; Reset restores the sweep view on linear and log axes. Optional Chromium tests exercise the actual toolbar.
+
+- GUI spatial dependence and pilot cross-correlation matrices have square cells at responsive widths; complex communication matrices retain their existing proportions and color keys.

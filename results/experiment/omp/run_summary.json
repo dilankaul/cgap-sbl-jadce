@@ -1,0 +1,196 @@
+{
+  "Q": 1000,
+  "completed_conditions": [
+    [
+      30,
+      4.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      8.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      12.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      16.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      20.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      24.0,
+      "snr_sweep"
+    ],
+    [
+      20,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      25,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      30,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      35,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      40,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      45,
+      12.0,
+      "pilot_sweep"
+    ]
+  ],
+  "completed_pairs": [
+    [
+      30,
+      4.0
+    ],
+    [
+      30,
+      8.0
+    ],
+    [
+      30,
+      12.0
+    ],
+    [
+      30,
+      16.0
+    ],
+    [
+      30,
+      20.0
+    ],
+    [
+      30,
+      24.0
+    ],
+    [
+      20,
+      12.0
+    ],
+    [
+      25,
+      12.0
+    ],
+    [
+      35,
+      12.0
+    ],
+    [
+      40,
+      12.0
+    ],
+    [
+      45,
+      12.0
+    ]
+  ],
+  "definition": {
+    "method": "MMV-OMP",
+    "revision": 2
+  },
+  "gamma_samples": 0,
+  "method": "MMV-OMP",
+  "metric_rows": 12000,
+  "nmse_scope": "true_active_support",
+  "optional_conditions": [],
+  "oracle_capped_conditions": 730,
+  "reference_pilot_length": 30,
+  "reference_snr_db": 12.0,
+  "requested_conditions": [
+    [
+      30,
+      4.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      8.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      12.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      16.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      20.0,
+      "snr_sweep"
+    ],
+    [
+      30,
+      24.0,
+      "snr_sweep"
+    ],
+    [
+      20,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      25,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      30,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      35,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      40,
+      12.0,
+      "pilot_sweep"
+    ],
+    [
+      45,
+      12.0,
+      "pilot_sweep"
+    ]
+  ],
+  "selection_digests": {},
+  "solver_units": 11000,
+  "status": "complete",
+  "timing": {
+    "clock": "time.perf_counter",
+    "excludes": "tuning, data/matrix generation, loading, thresholding, metrics, plotting, saving",
+    "includes": "initialization, solver validation, all iterations, final channel estimate",
+    "scope": "one solver call",
+    "unit": "seconds"
+  },
+  "total_conditions": 11
+}

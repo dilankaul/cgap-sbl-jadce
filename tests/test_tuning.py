@@ -19,5 +19,5 @@ def test_fixed_tau_grid_and_inclusive_boundary():
     rows = threshold_curve(np.array([[True, False]]), np.array([[.05, .01]]))
     assert len(rows) == 201
     assert rows[11]['f1'] == 1.0
-    assert rows[50]['recall'] == 1.0  # gamma equal to tau is active
+    assert rows[50]['recall'] == 1.0
     assert rows[51]['recall'] == 0.0

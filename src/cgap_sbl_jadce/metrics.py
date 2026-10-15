@@ -2,6 +2,9 @@ from __future__ import annotations
 import numpy as np
 
 
+NMSE_SCOPE = "true_active_support"
+
+
 def support_from_gamma(gamma: np.ndarray, tau: float) -> np.ndarray:
     return np.asarray(gamma) >= float(tau)
 
@@ -18,13 +21,6 @@ def support_from_rows(Z_hat: np.ndarray, B_q: int) -> np.ndarray:
 
 
 def oracle_sparsity_budget(S_q: int, L: int, N: int) -> int:
-    """Feasible oracle support budget for OMP/CoSaMP.
-
-    The greedy baselines receive the realized activity count whenever it is
-    identifiable within the pilot dimension. If the natural event model
-    produces more active MTDs than measurements, cap the solver budget at L
-    (and at N defensively): B_q = min(S_q, L, N).
-    """
     S_q = int(S_q); L = int(L); N = int(N)
     if S_q < 0:
         raise ValueError("S_q must be non-negative.")
@@ -48,14 +44,17 @@ def precision_recall_f1(a_true: np.ndarray, a_hat: np.ndarray) -> tuple[float, f
     return p, r, f1
 
 
-def nmse(Z_true: np.ndarray, Z_hat: np.ndarray) -> float:
-    """Normalized channel-estimation MSE.
-
-    NMSE is undefined when a realization contains no active channel energy.
-    Return NaN in that case so aggregation can exclude it instead of being
-    poisoned by an artificial infinity. Detection metrics are still evaluated.
-    """
-    denom = float(np.linalg.norm(Z_true) ** 2)
+def nmse(Z_true: np.ndarray, Z_hat: np.ndarray, a_true: np.ndarray | None = None) -> float:
+    """NMSE over true active rows; NaN for zero reference energy."""
+    Z_true = np.asarray(Z_true)
+    Z_hat = np.asarray(Z_hat)
+    if Z_true.ndim != 2 or Z_hat.shape != Z_true.shape:
+        raise ValueError("Z_true and Z_hat must have matching (N, M) shapes.")
+    active = np.any(Z_true != 0, axis=1) if a_true is None else np.asarray(a_true, dtype=bool)
+    if active.shape != (Z_true.shape[0],):
+        raise ValueError("a_true must have shape (N,).")
+    reference = Z_true[active]
+    denom = float(np.linalg.norm(reference) ** 2)
     if denom == 0.0:
         return float("nan")
-    return float(np.linalg.norm(Z_true - Z_hat) ** 2 / denom)
+    return float(np.linalg.norm(reference - Z_hat[active]) ** 2 / denom)

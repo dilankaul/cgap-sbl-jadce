@@ -39,7 +39,7 @@ ANC uses a CSR matrix-vector product and does not form dense Omega_ANC. Its
 aggregate gamma sum and positive-part update need O(N). If C becomes dense,
 its interaction cost returns to O(N²), as noted in the paper.
 
-Task 04's direct pairwise-distance construction costs O(N²) per realization,
+Spatial dependence generation's direct pairwise-distance construction costs O(N²) per realization,
 with O(N²) temporary storage. This one-time preprocessing, sparse archive
 writing and later archive loading are excluded from the solver timings,
 consistent with Section VII's exclusion of spatial-matrix construction.
@@ -71,22 +71,18 @@ These bounds do not imply a performance ranking or replace measured runtimes.
 
 ## Recorded execution time
 
-Task 06 measures each CGAP-SBL-ANC, SBL, MMV-OMP and MMV-CoSaMP call separately
-using `time.perf_counter()`. Each raw metric row records `runtime_s`, grouped
-by realization, scenario, L, SNR and sweep. CGAP-SBL-ANC and SBL are also timed
-in the randomized scenario. General dense CGAP-SBL is implemented as a library
-method but is not a separately evaluated baseline in the paper experiment.
+The algorithms each measure their own algorithm using `time.perf_counter()`.
+Every raw row records runtime_s by realization, L, SNR and sweep. General dense
+CGAP-SBL is a library method, not a separately evaluated baseline.
 
-The timer includes solver initialization, input validation, all numerical
-iterations and the final channel estimate. Data generation, C construction,
-archive loading, support selection from final estimates, metric computation,
-plotting and saving are outside the timer. Execution is serial by default.
-The Task-06 manifest records the platform, Python/NumPy/SciPy versions, CPU
-information and explicit numerical thread settings.
+The timer includes solver initialization, input validation, all iterations and
+the final channel estimate. Tuning, data generation, C construction, archive
+loading, support thresholding, metrics, plotting and saving are excluded.
+Each algorithm's manifest records platform, library versions, CPU information
+and numerical thread settings. Execution is serial.
 
-Task 06 preserves mean runtime in aggregate.csv and produces runtime_summary.csv
-with sample count, mean, standard deviation, median, 95th percentile, minimum,
-maximum and total seconds for each scenario/method/condition/sweep. Standard
-runtime figures show correlated-scenario algorithms versus SNR and pilot length.
-Runtime statistics are measured wall-clock observations, not hardware-independent
-constants. No provisional paper execution times are inserted into results.
+Each algorithm saves runtime_summary.csv with count, mean, standard deviation,
+median, 95th percentile, minimum, maximum and total seconds per condition.
+Algorithm comparison compares their measured runtimes versus SNR and pilot length without
+executing solvers. Wall-clock statistics depend on hardware and software;
+no provisional manuscript execution times are inserted into results.

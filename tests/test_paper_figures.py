@@ -4,7 +4,7 @@ import runpy
 import pytest
 
 from cgap_sbl_jadce.figures import paper_activity_realizations as plotting
-from cgap_sbl_jadce.figures import task02_activity_realizations as activity
+from cgap_sbl_jadce.figures import activity_realizations as activity
 from cgap_sbl_jadce.config import load_config
 
 

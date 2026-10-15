@@ -1,4 +1,3 @@
-"""CGAP-SBL and its ANC implementation, revised paper equations (29)–(39)."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -24,7 +23,7 @@ class CGAPSBLResult:
 
 
 def stable_gamma_update(eta: np.ndarray, lambda_: np.ndarray, M: int) -> np.ndarray:
-    """Equation (37), including exact SBL recovery when lambda is zero."""
+    """gamma = 2 eta / (1 + sqrt(1 + 4 lambda eta / M))."""
     eta = np.asarray(eta, dtype=float)
     lambda_ = np.asarray(lambda_, dtype=float)
     if eta.shape != lambda_.shape:
@@ -37,7 +36,6 @@ def stable_gamma_update(eta: np.ndarray, lambda_: np.ndarray, M: int) -> np.ndar
 
 
 def relative_gamma_change(gamma_new: np.ndarray, gamma: np.ndarray) -> float:
-    """Equation (39), with the zero-vector limit handled explicitly."""
     change = float(np.linalg.norm(gamma_new - gamma))
     scale = float(np.linalg.norm(gamma))
     return change / scale if scale > 0 else (0.0 if change == 0 else float("inf"))
@@ -84,7 +82,7 @@ def cgap_sbl(
     gamma_init: float = 0.1, K: int = 500, delta: float = 1e-4,
     keep_history: bool = False, Z_true: np.ndarray | None = None,
 ) -> CGAPSBLResult:
-    """General CGAP-SBL: lambda = positive_part(Omega @ gamma)."""
+    """lambda = positive_part(Omega @ gamma)."""
     Omega = np.asarray(Omega, dtype=float)
     N = Theta.shape[1]
     if Omega.shape != (N, N) or not np.all(np.isfinite(Omega)) or not np.allclose(Omega, Omega.T):
@@ -99,7 +97,6 @@ def cgap_sbl_anc(
     Theta: np.ndarray, Y: np.ndarray, sigma2: float, C: np.ndarray,
     alpha: float, beta: float, **kwargs,
 ) -> CGAPSBLResult:
-    """ANC implementation of (68), without constructing dense Omega_ANC."""
     C = csr_matrix(C, dtype=float)
     if C.shape != (Theta.shape[1], Theta.shape[1]):
         raise ValueError("C must have shape (N, N)")

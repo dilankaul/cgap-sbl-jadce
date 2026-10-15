@@ -1,4 +1,3 @@
-# Independent random streams for each experimental purpose.
 seeds:
   kappa_calibration: 1379
   kappa_validation: 8641
@@ -6,58 +5,93 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
-  spatial_randomization: 9097
-
 run:
   output_dir: results/experiment
   num_tuning_samples: 100
   num_evaluation_samples: 1000
 system:
-  N: 400
+  N: 500
   M: 4
-  S: 10
-  R: 40.0
-  pilot_lengths:
-  - 20
-  - 25
-  - 30
-  - 35
-  - 40
-  - 45
-  snr_db:
-  - 4
-  - 8
-  - 12
-  - 16
-  - 20
-  - 24
+  S: 20
+  R: 50.0
 activity:
   kappa_source: calibration
   V: 2
-  D: 15.0
+  D: 20.0
   exact_sparsity: false
   batch_size: 256
-  calibration_samples: 5000
-  # Broad ascending scan followed by bracket refinement.
-  kappa_scan: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0]
-  kappa_refinement_steps: [0.1, 0.02, 0.005]
-  calibration_tolerance: 0.1
-# The paper sets rho=kappa and U=D; these are resolved from saved activity.
 algorithms:
-  gamma_init: 0.1
-  K: 500
-  delta: 0.0001
-  cosamp_max_iter: 50
-  cosamp_tol: 1.0e-06
-tuning:
-  reference_snr_db: 12
-  reference_pilot_length: 25
-  alpha_values: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
-  beta_values: [0.00, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+  omp:
+    solver: {}
+  cosamp:
+    solver:
+      cosamp_max_iter: 500
+      cosamp_tol: 0.0001
+  sbl:
+    solver:
+      gamma_init: 0.1
+      K: 500
+      delta: 0.0001
+    tuning:
+      reference_pilot_length: 25
+      reference_snr_db: 12
+      selection_mode: reference
+      tau_start: 0.0
+      tau_stop: 0.2
+      tau_step: 0.001
+  anc:
+    solver:
+      gamma_init: 0.1
+      K: 500
+      delta: 0.0001
+    tuning:
+      reference_pilot_length: 25
+      reference_snr_db: 12
+      selection_mode: reference
+      tau_start: 0.0
+      tau_stop: 0.2
+      tau_step: 0.001
+      alpha_start: 0.0
+      alpha_stop: 10.0
+      alpha_step: 1.0
+      beta_start: 0.0
+      beta_stop: 0.1
+      beta_step: 0.01
 evaluation:
+  snr_db: 12
   pilot_length: 30
   gamma_distribution_samples: 100
   convergence_sample_offset: 0
+  pilot_length_start: 20
+  pilot_length_stop: 45
+  pilot_length_step: 5
+  snr_start: 4.0
+  snr_stop: 24.0
+  snr_step: 4.0
 figures:
-  tuning_indices: [77, 97, 84]
-  evaluation_indices: [714, 495, 106, 618, 442, 101, 781]
+  tuning_indices:
+  - 51
+  - 86
+  - 78
+  evaluation_indices:
+  - 855
+  - 188
+  - 398
+  - 896
+  - 311
+  - 118
+  - 355
+kappa_calibration:
+  batch_size: 256
+  calibration_samples: 5000
+  kappa_refinement_steps:
+  - 0.1
+  - 0.01
+  calibration_tolerance: 0.1
+  kappa_start: 0.5
+  kappa_stop: 10.0
+  kappa_step: 0.5
+communication:
+  reference:
+    reference_pilot_length: 25
+    reference_snr_db: 12

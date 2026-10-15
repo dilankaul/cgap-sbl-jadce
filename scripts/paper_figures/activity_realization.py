@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-"""Export one title-free paper activity PDF from saved Task 02 data."""
 import argparse
 
 from cgap_sbl_jadce.config import load_config

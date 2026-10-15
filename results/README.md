@@ -1,22 +1,31 @@
-Saved experiment outputs are versioned in Git. `experiment/` contains experiment data, summaries, configuration snapshots, and task figures, generated with `configs/experiment.yaml`.
+Generated experiment outputs belong here, under each setup name. The result folders
+are currently empty. Run the preparation tasks to begin a new experiment.
 
+Data preparation own calibration, event-driven activity, full communication data and
+spatial dependence matrices. The algorithms own OMP, CoSaMP, SBL and ANC results;
+Algorithm comparison owns comparison figures and Convergence analysis owns convergence. SBL/ANC selections
+are saved in their respective `tuning/` subfolders.
 
-The source now implements the revised CGAP-SBL manuscript. Existing outputs are
-historical and retain the method/configuration recorded in their manifests;
-they are not relabeled as CGAP-SBL measurements. Task-01/02 activity data remain
-compatible. Regenerate Tasks 03–09 with `configs/experiment.yaml` for the revised
-noise/penalty notation, matched ANC parameters, relative stopping criterion,
-and paired spatial-randomization comparison. Task-local manifests record the
-actual effective configuration; the root YAML remains the activity snapshot.
+Communication generation stores `channels.npz` (H, a, Z), `pilots.npz` (Theta per L), and
+`observations.npz` (Y, W, sigma2 per condition) for each tuning/evaluation
+realization. All algorithms read the same archives. Spatial dependence generation stores C as sparse CSR.
+Activity, communication and spatial dependence tasks plot only configured indices in padded realization folders.
 
+A single root config YAML records the activity setup; task-local JSON manifests
+record the effective task configuration and execution environment. New estimator
+results record runtime and `nmse_scope: true_active_support`.
 
-Task 03 now saves full communication data under 03_communication_data/, with
-per-realization shared channels/pilots and scenario observation archives. The
-older 03_communication_preview/ folder is historical. Tasks 05–08 require the
-full dataset. Task 03 saves six selected-sample diagnostic PNGs, not figures for
-every communication realization.
+Algorithm evaluation data are separated under `<algorithm>/run/Lxxxx_snrXdB/`,
+including per-realization scores, timing summaries, gamma data where applicable,
+and condition figures. Algorithm-root tables combine compatible completed conditions.
+Unfinished `.checkpoints/` and `.recovery/` data are tracked in Git and removed
+after successful completion. Complete all/selected skips finished conditions and
+recovers compatible unfinished work. Explicit Rerun recalculates selected conditions.
 
-
-Task 04 stores complete sparse C datasets in 04_spatial_dependence/tuning/ and
-evaluation/, with only selected heatmaps under padded realization figure folders.
-The prior preview_C.npz artifact is historical; consumers require the full dataset.
+Optional evaluation conditions are shared in `additional_conditions.json` at the
+setup result root, outside `config.yaml`. Their communication inputs are stored
+under `communication/<split>/additional/Lxxxx_snrXdB/<index>/inputs.npz`, preserving
+base archive bytes and shared H/a/Z. Each algorithm owns its optional condition
+results under its usual run folder. Deleting an option removes it from all
+algorithm tables while retaining existing data and results. Sweep completion
+ignores optional rows.

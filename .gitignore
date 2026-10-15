@@ -16,3 +16,10 @@ figures/*
 !figures/README.md
 data/generated/*
 !data/generated/README.md
+
+# Unfinished checkpoints and portable recovery metadata are versioned.
+# Uncommitted atomic-write files left by process termination.
+.tmp-*
+
+# Local dashboard jobs and saved-data previews.
+.gui/
