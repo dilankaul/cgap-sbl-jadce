@@ -10,6 +10,18 @@ activity dataset. A future GL variant can reuse the independent estimator workfl
 python -m pip install -e '.[dev]'
 ```
 
+### Windows with VS Code and Docker
+
+Install Docker Desktop with its WSL 2 backend, and the Dev Containers extension
+in VS Code. Keep Docker Desktop running, open the repository folder in VS Code,
+and select **Dev Containers: Reopen in Container** from the Command Palette.
+
+The existing container configuration installs Python 3.11, project dependencies
+and development tools, and sets the numerical-library thread limits. Once setup
+finishes, run `cgap-sbl-lab` in the container terminal. VS Code forwards port 8501
+and opens the dashboard in your browser. Results stay in the repository's
+`results/` directory across container rebuilds.
+
 ## Experiment dashboard
 
 Launch from the repository root:
