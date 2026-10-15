@@ -43,7 +43,8 @@ def validate_setup(cfg):
         raise ValueError('Kappa refinement steps must decrease')
     for method, settings in cfg['algorithms'].items():
         for key, value in settings.get('solver', {}).items():
-            positive(value, f'{method}.{key}', integer=key in {'K', 'cosamp_max_iter'})
+            positive(value, f'{method}.{key}', integer=key in {'K', 'cosamp_max_iter'},
+                     zero=method == 'cosamp' and key == 'cosamp_lambda_reg')
         tune = settings.get('tuning')
         if not tune:
             continue

@@ -72,7 +72,8 @@ def solver_settings(cfg, method):
     keys = ('gamma_init', 'K', 'delta') if method in {'sbl', 'anc'} else ()
     old = {key: algorithms[key] for key in keys if key in algorithms}
     if method == 'cosamp':
-        old = {key: algorithms[key] for key in ('cosamp_max_iter', 'cosamp_tol') if key in algorithms}
+        old = {'cosamp_lambda_reg': 1e-2,
+               **{key: algorithms[key] for key in ('cosamp_max_iter', 'cosamp_tol', 'cosamp_lambda_reg') if key in algorithms}}
     return {**old, **algorithms.get(method, {}).get('solver', {})}
 
 

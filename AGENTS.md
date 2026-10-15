@@ -177,8 +177,10 @@ SBL uses the same optimized posterior engine as CGAP-SBL where possible and an
 independently tuned threshold.
 
 MMV-OMP/SOMP is a joint-row-support oracle sparsity-budget baseline. MMV-CoSaMP is also
-joint-support, uses stable unregularized least squares, and has no hidden ridge
-penalty. For realization `q`, OMP and CoSaMP use the feasible oracle sparsity budget
+joint-support and uses explicit ridge regularization in both merged and pruned
+support fits, solved as augmented SVD least squares. Configure
+`algorithms.cosamp.solver.cosamp_lambda_reg` (default 0.01; zero is unregularized).
+For realization `q`, OMP and CoSaMP use the feasible oracle sparsity budget
 `B_q = min(S_q, L, N)`. Record whether capping occurs. CGAP-SBL and SBL never
 receive `S_q` or `B_q`.
 

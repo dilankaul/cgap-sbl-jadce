@@ -42,8 +42,10 @@ def _omp(r, C, parameters, cfg, **kwargs):
 
 
 def _cosamp(r, C, parameters, cfg, **kwargs):
+    solver = solver_settings(cfg, 'cosamp')
     return mmv_cosamp(r.Theta, r.Y, parameters['B_q'],
-                      max_iter=solver_settings(cfg, 'cosamp')['cosamp_max_iter'], tol=solver_settings(cfg, 'cosamp')['cosamp_tol'])
+                      max_iter=solver['cosamp_max_iter'], tol=solver['cosamp_tol'],
+                      lambda_reg=solver['cosamp_lambda_reg'])
 
 
 def _sbl(r, C, parameters, cfg, **kwargs):

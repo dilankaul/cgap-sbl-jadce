@@ -3,10 +3,22 @@ import numpy as np
 from scipy.linalg import lstsq
 
 
-def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 500, tol: float = 1e-4) -> np.ndarray:
+def _fit_support(A: np.ndarray, Y: np.ndarray, lambda_reg: float) -> np.ndarray:
+    if lambda_reg > 0:
+        # Augmented least squares minimizes ||Y-AX||_F^2 + lambda_reg*||X||_F^2.
+        columns = A.shape[1]
+        A = np.vstack((A, np.sqrt(lambda_reg) * np.eye(columns, dtype=A.dtype)))
+        Y = np.vstack((Y, np.zeros((columns, Y.shape[1]), dtype=Y.dtype)))
+    return lstsq(A, Y, lapack_driver="gelsd")[0]
+
+
+def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 500,
+               tol: float = 1e-4, lambda_reg: float = 1e-2) -> np.ndarray:
     L, N = Theta.shape
     if not (0 <= B_q <= min(L, N)):
         raise ValueError("B_q must satisfy 0 <= B_q <= min(L, N).")
+    if not np.isfinite(lambda_reg) or lambda_reg < 0:
+        raise ValueError("lambda_reg must be finite and nonnegative.")
     Z_hat = np.zeros((N, Y.shape[1]), dtype=np.complex128)
     if B_q == 0:
         return Z_hat
@@ -21,13 +33,13 @@ def mmv_cosamp(Theta: np.ndarray, Y: np.ndarray, B_q: int, max_iter: int = 500, 
         omega = np.argpartition(energy, -take)[-take:]
         merged = np.union1d(support, omega)
 
-        B, *_ = lstsq(Theta[:, merged], Y, lapack_driver="gelsd")
+        B = _fit_support(Theta[:, merged], Y, lambda_reg)
         row_energy = np.sum(np.abs(B) ** 2, axis=1)
         keep = min(B_q, len(merged))
         local = np.argpartition(row_energy, -keep)[-keep:]
         support = np.sort(merged[local])
 
-        Xs, *_ = lstsq(Theta[:, support], Y, lapack_driver="gelsd")
+        Xs = _fit_support(Theta[:, support], Y, lambda_reg)
         Z_new = np.zeros_like(Z_hat)
         Z_new[support, :] = Xs
         residual = Y - Theta @ Z_new

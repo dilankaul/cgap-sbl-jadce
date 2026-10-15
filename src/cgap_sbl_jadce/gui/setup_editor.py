@@ -11,14 +11,15 @@ LABELS = {'N': 'MTDs N', 'M': 'BS antennas M', 'S': 'Target mean active S', 'R':
           'delta': 'Stopping tolerance delta', 'gamma_init': 'Initial gamma',
           'reference_pilot_length': 'Reference pilot length L', 'reference_snr_db': 'Reference SNR (dB)',
           'pilot_length': 'Pilot length for SNR sweep', 'snr_db': 'SNR for pilot-length sweep',
-          'snr_start': 'SNR start', 'snr_stop': 'SNR stop', 'snr_step': 'SNR step'}
+          'snr_start': 'SNR start', 'snr_stop': 'SNR stop', 'snr_step': 'SNR step',
+          'cosamp_lambda_reg': 'Ridge regularization lambda (0 = unregularized)'}
 
 
 def _numbers(st, values, keys, prefix, labels=None):
     columns = st.columns(2)
     for i, name in enumerate(keys):
         value = values[name]
-        if name in {'S', 'R', 'D', 'reference_snr_db', 'snr_db', 'gamma_init', 'delta', 'cosamp_tol',
+        if name in {'S', 'R', 'D', 'reference_snr_db', 'snr_db', 'gamma_init', 'delta', 'cosamp_tol', 'cosamp_lambda_reg',
                     'tau_start', 'tau_stop', 'tau_step', 'calibration_tolerance'} or any(
                     name == parameter + '_' + part for parameter in ('alpha', 'beta', 'kappa', 'snr')
                     for part in ('start', 'stop', 'step')):

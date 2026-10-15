@@ -14,6 +14,29 @@ def dashboard(saved_data, tmp_path, monkeypatch):
     return app, config
 
 
+def test_ridge_is_editable_in_setup_and_cosamp_settings_with_explicit_save(saved_data, tmp_path, monkeypatch):
+    app, config = dashboard(saved_data, tmp_path, monkeypatch)
+    next(b for b in app.sidebar.button if b.label == 'Experiment setups').click().run()
+    ridge = next(w for w in app.number_input if w.key.endswith('_cosamp_solver_cosamp_lambda_reg'))
+    assert ridge.value == .01
+    before = config.read_bytes()
+    ridge.set_value(.02)
+    assert config.read_bytes() == before
+    next(b for b in app.button if b.label == 'Save changes').click().run()
+    assert not app.exception
+    assert not app.error, [error.value for error in app.error]
+    assert load_config(config)['algorithms']['cosamp']['solver']['cosamp_lambda_reg'] == .02
+    app.button(key='go_back').click().run()
+    app.button(key='open_algorithm_cosamp').click().run()
+    ridge = next(w for w in app.number_input if w.key.endswith('_cosamp_solver_cosamp_lambda_reg'))
+    assert ridge.value == .02
+    ridge.set_value(0.)
+    next(b for b in app.button if b.label == 'Save changes').click().run()
+    assert not app.exception
+    assert load_config(config)['algorithms']['cosamp']['solver']['cosamp_lambda_reg'] == 0
+    assert not list((tmp_path / '.gui').glob('*/job.json'))
+
+
 def test_setup_requires_save_and_reset_discards_invalid_draft(saved_data, tmp_path, monkeypatch):
     app, config = dashboard(saved_data, tmp_path, monkeypatch)
     next(b for b in app.sidebar.button if b.label == 'Experiment setups').click().run()
