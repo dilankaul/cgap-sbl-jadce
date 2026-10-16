@@ -32,6 +32,7 @@
       },
       "cosamp": {
         "solver": {
+          "cosamp_lambda_reg": 0.01,
           "cosamp_max_iter": 500,
           "cosamp_tol": 0.0001
         }
