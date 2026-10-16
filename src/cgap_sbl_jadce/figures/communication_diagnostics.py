@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 import numpy as np
 from tqdm.auto import tqdm
-from cgap_sbl_jadce.paths import result_path, figure_path, task_dir
+from cgap_sbl_jadce.paths import result_path, figure_path, task_dir, condition_name
 from cgap_sbl_jadce.communication_dataset import load_communication_sample
 from cgap_sbl_jadce.figures.common import _apply_figure_style, _save, sweep_limits, selected_realizations
 
@@ -89,7 +89,9 @@ def plot_communication_preview(cfg: dict, formats: str = 'png', show_progress: b
             r = data[(L, snr)]
             common_context = fr"{split.capitalize()} Realization {q}: $L={L}$, SNR={snr:g} dB"
             context = fr"{split.capitalize()} Realization {q} (Event-Driven): $S_q={int(r.a.sum())}$, $L={L}$, SNR={snr:g} dB"
-            stem = lambda name: figure_path(out, 'communication', f'{split}_{name}_{q:04d}', split, q)
+            def stem(name):
+                path = figure_path(out, 'communication', f'{split}_{name}_{q:04d}', split, q)
+                return path.parent / condition_name(condition) / path.name if condition is not None else path
             gram = np.abs(r.Theta.conj().T @ r.Theta)
             np.fill_diagonal(gram, 0.)
             fig, ax = plt.subplots(figsize=(6.4, 5.2))

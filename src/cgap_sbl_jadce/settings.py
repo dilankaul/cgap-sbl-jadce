@@ -122,9 +122,20 @@ def communication_pairs(cfg, split):
     evaluation = evaluation_settings(cfg)
     pairs = {value[:2] for value in evaluation_conditions(cfg)}
     pairs.add((int(evaluation['pilot_length']), float(evaluation['snr_db'])))
-    if split == 'tuning':
-        pairs.update(tuning_pairs(cfg))
+    pairs.update(tuning_pairs(cfg))
     return sorted(pairs)
+
+
+def communication_conditions(cfg, conditions=None, include_optional=False):
+    from cgap_sbl_jadce.additional_conditions import additional_conditions, validate_pair
+    pairs = communication_pairs(cfg, 'evaluation')
+    optional = additional_conditions(cfg)
+    if conditions is None:
+        return sorted(set(pairs + optional)) if include_optional else pairs
+    selected = list(dict.fromkeys(validate_pair(pair) for pair in conditions))
+    if not selected or not set(selected) <= set(pairs + optional):
+        raise ValueError('Choose setup conditions or add optional conditions in the Condition status table first.')
+    return selected
 
 
 def grouped_config(cfg):

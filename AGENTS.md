@@ -47,13 +47,16 @@ its task page; task manifests retain the effective settings that produced result
 Compatibility is recomputed from relevant values and inputs, and restoring matching
 settings restores eligibility. Preserve incompatible results and block their
 downstream use. Algorithm solver/tuning settings belong to that algorithm only.
-Setup editors expose only fixed-reference sweeps. Algorithm Run pages manage shared optional
+Setup editors expose only fixed-reference sweeps. Algorithm Run and Communication pages manage shared optional
 additional L/SNR pairs in the Condition status table, using an empty input row
 with Add and per-row Delete controls, without a separate Save step. They require saved communication inputs and independent
 per-condition tuning when selected. All/Complete all includes only setup sweeps.
-Communication also lists shared optional conditions and per-split input readiness.
-Its Complete selected/all missing inputs extends saved communication only, covering
-both required splits and preserving base inputs and completed algorithm results.
+Communication uses the same condition table and scope/run controls as algorithm Run.
+Each condition has one combined status and is Completed only when both tuning and
+evaluation inputs are saved. Complete selected/all skips completed inputs, resumes
+compatible work and starts missing conditions; optional pairs remain outside All.
+Preparation from either page always saves both splits, preserving shared inputs
+and completed algorithm results. Selected conditions can start with no communication data.
 Settings forms require explicit Save, disable Enter submission, and discard drafts
 on Reset or navigation. Keep all setup datasets, results and checkpoints separate.
 Detached GUI workers pause between completed units so timing excludes paused time;
@@ -148,8 +151,8 @@ Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
 Convergence: L=30, 12 dB. Use the six explicit independent seeds.
 Activity generation saves event-driven tuning and evaluation supports. Communication generation saves all
 communication inputs; downstream tasks load them and never regenerate data.
-Both communication splits cover every configured sweep condition. Tuning also
-includes independent algorithm/preview reference conditions outside the sweeps,
+Both communication splits cover every configured sweep condition and
+independent algorithm/preview reference conditions outside the sweeps,
 regardless of tuning selection policy. Optional pairs retain explicit input preparation.
 Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need no tuning or C;
 SBL tunes tau independently; ANC tunes its own alpha, beta and tau.

@@ -170,7 +170,8 @@ def test_crash_during_final_cleanup_resumes_without_recomputing(saved_data, tmp_
     assert json.loads(recovery_path(config, 'communication').read_text())['phase'] == 'results_saved'
     monkeypatch.setattr(Checkpoint, 'clear', clear)
     from cgap_sbl_jadce.experiments import pipeline
-    monkeypatch.setattr(pipeline, 'communication_realization', lambda *a, **k: pytest.fail('Repeated completed generator'))
+    from cgap_sbl_jadce.models import realizations
+    monkeypatch.setattr(realizations, 'communication_realization', lambda *a, **k: pytest.fail('Repeated completed generator'))
     paths = run_task('communication', cfg, show_progress=False, resume=True)
     assert all(path.exists() for path in paths)
     assert not list(task_dir(saved_data['run']['output_dir'], 'communication').rglob('.checkpoints/*/*.npz'))

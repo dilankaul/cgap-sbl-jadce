@@ -9,7 +9,7 @@ from cgap_sbl_jadce.paths import result_path, task_dir, condition_name
 from cgap_sbl_jadce.file_cache import file_version, snapshot_cached
 from cgap_sbl_jadce.io import save_npz
 from cgap_sbl_jadce.models.realizations import Realization
-from cgap_sbl_jadce.settings import reference_settings, communication_pairs
+from cgap_sbl_jadce.settings import reference_settings, communication_pairs, evaluation_settings
 
 
 def communication_definition(cfg, split):
@@ -23,7 +23,9 @@ def communication_definition(cfg, split):
         stat = path.stat()
         hashes[name] = _archive_digest(str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns).hex()
     conditions = communication_pairs(cfg, split)
-    return {'schema': 2, 'M': int(cfg['system']['M']), 'N': int(cfg['system']['N']),
+    from cgap_sbl_jadce.compatibility import _source_digest
+    return {'schema': 3, 'code': _source_digest(['models/realizations.py', 'models/communication.py']),
+            'M': int(cfg['system']['M']), 'N': int(cfg['system']['N']),
             'seed': cfg['seeds'][f'communication_{split}'], 'activity_sha256': hashes,
             'conditions': [list(condition) for condition in conditions]}
 
@@ -68,6 +70,13 @@ def load_communication_sample(folder, q, condition=None):
         raise FileNotFoundError(f'Communication realization missing; rerun communication generation: {folder}')
     with np.load(folder / 'channels.npz') as archive:
         channels = {key: archive[key] for key in archive.files}
+    if condition is not None:
+        path = folder.parent / 'additional' / condition_name(condition) / f'{q:04d}' / 'inputs.npz'
+        if path.exists():
+            pair, realization = _load_condition_sample(path, channels)
+            if pair != tuple(condition):
+                raise ValueError(f'Communication archive has a different condition: {path}')
+            return {pair: realization}
     with np.load(folder / 'pilots.npz') as archive:
         pilots = {key: archive[key] for key in archive.files}
     result = {}
@@ -89,12 +98,18 @@ def load_communication_sample(folder, q, condition=None):
         path = source / f'{q:04d}' / 'inputs.npz'
         if not path.exists():
             continue
-        with np.load(path) as archive:
-            pair = tuple(archive['condition'])
-            pair = (int(pair[0]), float(pair[1]))
-            result[pair] = Realization(a=channels['a'], H=channels['H'], Z=channels['Z'],
-                Theta=archive['Theta'], Y=archive['Y'], W=archive['W'], sigma2=float(archive['sigma2']))
+        pair, realization = _load_condition_sample(path, channels)
+        result[pair] = realization
     return result
+
+
+def _load_condition_sample(path, channels):
+    with np.load(path) as archive:
+        L, snr = archive['condition']
+        pair = (int(L), float(snr))
+        r = Realization(a=channels['a'], H=channels['H'], Z=channels['Z'],
+                        Theta=archive['Theta'], Y=archive['Y'], W=archive['W'], sigma2=float(archive['sigma2']))
+    return pair, r
 
 
 def load_tuning_communication(cfg, count):
@@ -158,64 +173,133 @@ def communication_condition_identity(cfg, split, pair):
     return {**definition, 'condition': list(pair), 'arrays_sha256': _condition_digest(tuple(sources))}
 
 
-def add_communication_conditions(cfg, conditions, methods=(), show_progress=True):
+def communication_checkpoint_definition(cfg, split, pair):
+    base = communication_definition(cfg, split)
+    base.pop('conditions')
+    return {'definition': {'method': f'Communication inputs ({split})', **base},
+            'condition': list(pair), 'samples': cfg['run'][f'num_{split}_samples']}
+
+
+def add_communication_conditions(cfg, conditions, methods=(), show_progress=True, rerun=False, full_scope=False):
     from tqdm.auto import tqdm
-    from cgap_sbl_jadce.additional_conditions import additional_conditions, validate_pair, input_splits
-    from cgap_sbl_jadce.checkpoints import Checkpoint, completed_outputs, output_hashes
+    from cgap_sbl_jadce.additional_conditions import input_splits
+    from cgap_sbl_jadce.checkpoints import Checkpoint, completed_outputs, output_hashes, prune_owned_checkpoints
+    from cgap_sbl_jadce.compatibility import validate_preparation
     from cgap_sbl_jadce.dataset import load_activity_samples
     from cgap_sbl_jadce.models.realizations import communication_realization
     from cgap_sbl_jadce.io import save_json
+    from cgap_sbl_jadce.provenance import save_task_snapshot
+    from cgap_sbl_jadce.settings import communication_conditions
     from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-    pairs = list(dict.fromkeys(validate_pair(pair) for pair in conditions))
-    optional = set(additional_conditions(cfg))
-    allowed = optional if methods else optional | set(communication_pairs(cfg, 'tuning')) | set(communication_pairs(cfg, 'evaluation'))
-    if not pairs or not set(pairs) <= allowed or any(method not in ESTIMATORS for method in methods):
-        raise ValueError('Choose setup conditions or add optional conditions on an algorithm Run page first.')
+    pairs = communication_conditions(cfg, conditions)
+    if any(method not in ESTIMATORS for method in methods):
+        raise ValueError('Choose a registered algorithm.')
     splits = input_splits(cfg, methods)
-    folders = {split: validate_communication_dataset(cfg, split, []) for split in splits}
-    summary_path = result_path(cfg['run']['output_dir'], 'communication', 'summary.json')
-    summary = json.loads(summary_path.read_text())
-    for split, folder in folders.items():
-        base = communication_definition(cfg, split)
-        base.pop('conditions')
-        activities = load_activity_samples(result_path(cfg['run']['output_dir'], 'activity', f'{split}_activity.npz'))
+    root = task_dir(cfg['run']['output_dir'], 'communication')
+    summary_path = root / 'summary.json'
+    summary = json.loads(summary_path.read_text()) if summary_path.exists() else {}
+    definitions = {}
+    incompatible = []
+    for split in splits:
+        validate_preparation(cfg, 'activity', split)
+        definitions[split] = communication_definition(cfg, split)
+        if split in summary:
+            try:
+                validate_communication_dataset(cfg, split, [])
+            except (OSError, ValueError, KeyError):
+                incompatible.append(split)
+    if incompatible and not (rerun and full_scope):
+        raise ValueError('Shared communication inputs changed. Explicitly Rerun all conditions first.')
+    if incompatible:
+        from uuid import uuid4
+        import shutil
+        retired = root / '.retired' / uuid4().hex
+        retired.mkdir(parents=True)
+        save_json(retired / 'summary.json', summary)
+        for split in incompatible:
+            folder = root / split
+            if folder.exists():
+                shutil.move(str(folder), retired / split)
+            summary.pop(split)
+    if not rerun and all(set(pairs) <= {tuple(pair) for pair in summary.get(split, {}).get('definition', {}).get('conditions', [])}
+                         for split in splits):
         for pair in pairs:
-            if not methods and pair not in optional | set(communication_pairs(cfg, split)):
+            for split in splits:
+                communication_condition_identity(cfg, split, pair)
+                prune_owned_checkpoints(root / split / 'additional' / condition_name(pair) / '.checkpoints',
+                                        communication_checkpoint_definition(cfg, split, pair))
+        return summary
+    for split in splits:
+        if split not in summary:
+            summary[split] = {'samples': cfg['run'][f'num_{split}_samples'],
+                              'definition': {**definitions[split], 'conditions': []},
+                              'preview_condition': list(pairs[0])}
+        if rerun:
+            summary[split]['definition']['conditions'] = [value for value in summary[split]['definition']['conditions']
+                                                         if tuple(value) not in pairs]
+    summary['status'] = 'partial'
+    save_json(summary_path, summary)
+    save_task_snapshot(cfg, 'communication', status='started')
+    activities = {split: load_activity_samples(result_path(cfg['run']['output_dir'], 'activity', f'{split}_activity.npz'))
+                  for split in splits}
+    for pair in pairs:
+        L, snr = pair
+        for split in splits:
+            folder = root / split
+            owned = folder / 'additional' / condition_name(pair)
+            definition = communication_checkpoint_definition(cfg, split, pair)
+            saved_pairs = {tuple(value) for value in summary[split]['definition']['conditions']}
+            if pair in saved_pairs:
+                communication_condition_identity(cfg, split, pair)
+                prune_owned_checkpoints(owned / '.checkpoints', definition)
                 continue
-            if pair in {tuple(value) for value in summary[split]['definition']['conditions']}:
-                try:
-                    communication_condition_identity(cfg, split, pair)
-                except (OSError, ValueError, KeyError):
-                    pass
-                else:
-                    continue
-            L, snr = pair
-            checkpoint = Checkpoint(folder, {'definition': {'method': f'Communication inputs ({split})', **base},
-                                              'condition': list(pair), 'samples': len(activities)})
-            for q, activity in enumerate(tqdm(activities, desc=f'Additional {split} inputs L={L} SNR={snr:g} dB',
+            checkpoint = Checkpoint(owned, definition)
+            base = definitions[split]
+            for q, activity in enumerate(tqdm(activities[split], desc=f'{split.capitalize()} inputs L={L} SNR={snr:g} dB',
                                             unit='realization', disable=not show_progress)):
                 source = folder / f'{q:04d}'
-                path = folder / 'additional' / condition_name(pair) / f'{q:04d}' / 'inputs.npz'
-                if completed_outputs(checkpoint, f'{q:04d}', [path]) is not None:
+                path = owned / f'{q:04d}' / 'inputs.npz'
+                files = ([path, source / 'channels.npz'] if path.exists() else
+                         [source / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')])
+                if completed_outputs(checkpoint, f'{q:04d}', files) is not None:
                     continue
+                if len(activity.a) != base['N']:
+                    raise ValueError('Saved activity dimensions differ from configuration; rerun activity generation.')
                 r = communication_realization(activity, base['seed'], q, base['M'], L, snr)
-                with np.load(source / 'channels.npz') as archive:
-                    if any(not np.array_equal(archive[key], getattr(r, key)) for key in ('H', 'a', 'Z')):
-                        raise ValueError('Saved shared channels/activity differ from deterministic inputs; rerun communication generation.')
-                with np.load(source / 'pilots.npz') as archive:
-                    if f'L{L}' in archive and not np.array_equal(archive[f'L{L}'], r.Theta):
-                        raise ValueError('Saved shared pilots differ from deterministic inputs; rerun communication generation.')
-
-                values = {'condition': np.asarray(pair), 'Theta': r.Theta, 'Y': r.Y, 'W': r.W, 'sigma2': np.asarray(r.sigma2)}
-                unchanged = False
-                if path.exists():
-                    with np.load(path) as archive:
-                        unchanged = all(key in archive and np.array_equal(archive[key], value) for key, value in values.items())
-                if not unchanged:
-                    save_npz(path, **values)
-                checkpoint.save(f'{q:04d}', {'outputs': output_hashes([path])})
-            saved_pairs = {tuple(value) for value in summary[split]['definition']['conditions']}
+                if not (source / 'channels.npz').exists():
+                    save_communication_sample(folder, q, {pair: r})
+                else:
+                    try:
+                        with np.load(source / 'channels.npz') as archive:
+                            if any(not np.array_equal(archive[key], getattr(r, key)) for key in ('H', 'a', 'Z')):
+                                raise ValueError('Saved shared channels/activity differ from deterministic inputs.')
+                    except (OSError, ValueError, KeyError, EOFError):
+                        if not (rerun and full_scope):
+                            raise ValueError('Saved shared inputs are damaged; explicitly rerun all communication conditions.') from None
+                        save_communication_sample(folder, q, {pair: r})
+                    try:
+                        saved = load_communication_sample(folder, q, pair).get(pair)
+                    except (OSError, ValueError, KeyError, EOFError):
+                        if path.exists():
+                            saved = None
+                        elif rerun and full_scope:
+                            save_communication_sample(folder, q, {pair: r})
+                            saved = r
+                        else:
+                            raise ValueError('Saved shared inputs are damaged; explicitly rerun all communication conditions.') from None
+                    if saved is None or any(not np.array_equal(getattr(saved, key), getattr(r, key))
+                                             for key in ('Theta', 'Y', 'W', 'sigma2')):
+                        save_npz(path, condition=np.asarray(pair), Theta=r.Theta, Y=r.Y, W=r.W, sigma2=np.asarray(r.sigma2))
+                files = ([path, source / 'channels.npz'] if path.exists() else
+                         [source / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')])
+                checkpoint.save(f'{q:04d}', {'outputs': output_hashes(files)})
             summary[split]['definition']['conditions'] = [list(value) for value in sorted(saved_pairs | {pair})]
+            reference = ((reference_settings(cfg)['reference_pilot_length'], reference_settings(cfg)['reference_snr_db'])
+                         if split == 'tuning' else (cfg['evaluation']['pilot_length'], evaluation_settings(cfg)['snr_db']))
+            summary[split]['preview_condition'] = list(reference if reference in saved_pairs | {pair} else pair)
+            complete = all(set(communication_pairs(cfg, name)) <= {tuple(value) for value in summary[name]['definition']['conditions']}
+                           for name in splits)
+            summary['status'] = 'complete' if complete else 'partial'
             save_json(summary_path, summary)
-            checkpoint.clear(prune=True)
+    save_task_snapshot(cfg, 'communication', status=summary['status'], communication_datasets=summary)
     return summary

@@ -32,14 +32,14 @@ def test_communication_prepares_shared_pair_in_both_splits_preserving_completed_
     rows, issues = condition_rows(saved_data)
     assert not issues
     optional = next(row for row in rows if row['Type'] == 'Optional')
-    assert optional['Tuning inputs'] == 'Missing' and optional['Evaluation inputs'] == 'Ready'
+    assert optional['Status'] == 'Completed'
     pipeline.communication_stage(saved_data, False, conditions=[PAIR])
     for split in ('tuning', 'evaluation'):
         validate_communication_dataset(saved_data, split, [PAIR])
     rows, issues = condition_rows(saved_data)
     assert not issues
     optional = next(row for row in rows if row['Type'] == 'Optional')
-    assert optional['Tuning inputs'] == optional['Evaluation inputs'] == 'Ready'
+    assert optional['Status'] == 'Completed'
     assert versions(task_dir(out, 'omp')) == algorithm
     assert all((path.read_bytes(), path.stat().st_mtime_ns) == value for path, value in base.items())
     assert estimators.completed_methods(saved_data, [(7, 8)]) == ['omp']
@@ -47,7 +47,7 @@ def test_communication_prepares_shared_pair_in_both_splits_preserving_completed_
     from cgap_sbl_jadce.models import realizations
     monkeypatch.setattr(realizations, 'communication_realization', lambda *a: pytest.fail('Repeated completed input generation'))
     saved = versions(communication)
-    pipeline.communication_stage(saved_data, False, conditions=[PAIR])
+    pipeline.communication_stage(saved_data, False, conditions=[PAIR], resume=True)
     assert versions(communication) == saved
 
 
@@ -67,7 +67,7 @@ def test_selected_preparation_fills_missing_setup_tuning_without_replacing_base_
     pipeline.communication_stage(saved_data, False, conditions=[(7, 8)])
     validate_communication_dataset(saved_data, 'tuning', [(7, 8)])
     assert (root / 'tuning/additional/L0007_snr8dB/0000/inputs.npz').exists()
-    assert not (root / 'evaluation/additional').exists()
+    validate_communication_dataset(saved_data, 'evaluation', [(7, 8)])
     assert all((path.read_bytes(), path.stat().st_mtime_ns) == value for path, value in base.items())
 
 
@@ -87,7 +87,7 @@ def test_both_split_preparation_resumes_without_repeating_completed_split(saved_
     validate_communication_dataset(saved_data, 'evaluation', [PAIR])
     rows, _ = condition_rows(saved_data)
     optional = next(row for row in rows if row['Type'] == 'Optional')
-    assert optional['Evaluation inputs'] == 'Ready' and optional['Tuning inputs'] == 'Missing'
+    assert optional['Status'] == 'Unfinished'
     calls.clear()
     monkeypatch.setattr(realizations, 'communication_realization',
         lambda activity, seed, q, *args: (calls.append((seed, q)), generate(activity, seed, q, *args))[1])
@@ -103,7 +103,7 @@ def test_algorithm_added_condition_appears_in_communication_and_launches_input_o
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv('CGAP_GUI_CONFIG', str(config))
     requests = []
-    monkeypatch.setattr(Jobs, 'start', lambda self, request: requests.append(request) or {'id': 'test'})
+    monkeypatch.setattr(Jobs, 'complete', lambda self, request: requests.append(request) or {'id': 'test'})
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30).run()
     app.button(key='open_algorithm_omp').click().run()
     next(w for w in app.number_input if w.label == 'Additional pilot length L').set_value(9)
@@ -112,14 +112,95 @@ def test_algorithm_added_condition_appears_in_communication_and_launches_input_o
     app.button(key='go_back').click().run()
     app.button(key='open_communication_run').click().run()
     assert not app.exception
-    table = next(w.value for w in app.dataframe if 'Tuning inputs' in w.value.columns)
-    row = table[table.Type.eq('Optional')].iloc[0]
-    assert row['Pilot length L'] == 9 and row['SNR (dB)'] == 10.
-    assert row['Tuning inputs'] == row['Evaluation inputs'] == 'Missing'
-    selector = next(w for w in app.multiselect if w.label == 'Communication conditions')
-    assert PAIR in selector.options or PAIR in selector.value
-    next(b for b in app.button if b.label == 'Complete selected inputs').click().run()
+    headers = [widget.value for widget in app.markdown]
+    assert '**Status**' in headers
+    assert '**Tuning inputs**' not in headers and '**Evaluation inputs**' not in headers
+    assert 'Optional' in headers
+    next(w for w in app.radio if w.label == 'Condition scope').set_value('Selected conditions').run()
+    selector = next(w for w in app.multiselect if w.label == 'L / SNR conditions')
+    selector.set_value([PAIR]).run()
+    assert app.button(key='task_action').label == 'Start'
+    app.button(key='task_action').click().run()
     assert not app.exception
     assert len(requests) == 1
     assert requests[0]['task'] == 'communication' and requests[0]['conditions'] == [[9, 10.]]
     assert 'methods' not in requests[0]
+
+
+def test_selected_start_from_empty_communication_saves_only_requested_pair_in_both_splits(saved_data, tmp_path):
+    import shutil
+    from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
+    root = task_dir(saved_data['run']['output_dir'], 'communication')
+    shutil.rmtree(root)
+    config = tmp_path / 'source.yaml'
+    save_yaml(config, saved_data)
+    assert completion_plan(config, 'communication').label() == 'Start'
+    pipeline.communication_stage(saved_data, False, conditions=[(7, 8)])
+    for split in ('tuning', 'evaluation'):
+        validate_communication_dataset(saved_data, split, [(7, 8)])
+        with pytest.raises(ValueError, match='missing requested'):
+            validate_communication_dataset(saved_data, split)
+    plan = completion_plan(config, 'communication')
+    assert plan.completed == [(7, 8.)] and len(plan.start) == 2
+    assert plan.label() == 'Complete all'
+    assert plan.selected([(7, 8)]).label(selected=True) == 'Rerun selected'
+    original = {path: value for path, value in versions(root).items() if path.suffix == '.npz'}
+    pipeline.communication_stage(saved_data, False, resume=True)
+    assert completion_plan(config, 'communication').label() == 'Rerun all'
+    assert all((path.read_bytes(), path.stat().st_mtime_ns) == value for path, value in original.items())
+
+
+def test_communication_optional_registration_is_shared_and_outside_all_scope(saved_data, tmp_path):
+    from cgap_sbl_jadce.additional_conditions import additional_conditions
+    from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
+    config = tmp_path / 'source.yaml'
+    save_yaml(config, saved_data)
+    add_condition(saved_data, 'communication', PAIR)
+    assert additional_conditions(saved_data, 'omp') == [PAIR]
+    assert PAIR not in completion_plan(config, 'communication').pairs
+    plan = completion_plan(config, 'communication', [PAIR])
+    assert plan.start == [PAIR] and plan.label(selected=True) == 'Start'
+
+
+def test_shared_input_changes_require_full_rerun_and_preserve_retired_data(saved_data):
+    root = task_dir(saved_data['run']['output_dir'], 'communication')
+    original = (root / 'evaluation/0000/channels.npz').read_bytes()
+    saved_data['seeds']['communication_evaluation'] += 1
+    with pytest.raises(ValueError, match='Rerun all'):
+        pipeline.communication_stage(saved_data, False, conditions=[(7, 8)])
+    assert (root / 'evaluation/0000/channels.npz').read_bytes() == original
+    pipeline.communication_stage(saved_data, False)
+    for split in ('tuning', 'evaluation'):
+        validate_communication_dataset(saved_data, split)
+    assert (root / 'evaluation/0000/channels.npz').read_bytes() != original
+    assert next(root.glob('.retired/*/evaluation/0000/channels.npz')).read_bytes() == original
+
+
+def test_selected_rerun_repairs_its_condition_archive_without_replacing_other_inputs(saved_data):
+    from cgap_sbl_jadce.communication_dataset import communication_condition_identity
+    root = task_dir(saved_data['run']['output_dir'], 'communication')
+    original = communication_condition_identity(saved_data, 'evaluation', (7, 8.))
+    other = communication_condition_identity(saved_data, 'evaluation', (5, 12.))
+    path = root / 'evaluation/additional/L0007_snr8dB/0000/inputs.npz'
+    path.write_bytes(b'interrupted write')
+    rows, issues = condition_rows(saved_data)
+    assert issues
+    assert next(row for row in rows if row['Pilot length L'] == 7 and row['SNR (dB)'] == 8.)['Status'] == 'Incompatible'
+    pipeline.communication_stage(saved_data, False, conditions=[(7, 8.)])
+    assert communication_condition_identity(saved_data, 'evaluation', (7, 8.)) == original
+    assert communication_condition_identity(saved_data, 'evaluation', (5, 12.)) == other
+
+
+def test_deleted_optional_condition_does_not_break_communication_plans_with_old_recovery(saved_data, tmp_path):
+    from cgap_sbl_jadce.additional_conditions import remove_condition
+    from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
+    from cgap_sbl_jadce.recovery import begin_recovery
+    config = tmp_path / 'source.yaml'
+    save_yaml(config, saved_data)
+    add_condition(saved_data, 'communication', PAIR)
+    request = {'kind': 'task', 'config': str(config), 'task': 'communication', 'action': 'run',
+               'conditions': [list(PAIR)]}
+    begin_recovery(request)
+    remove_condition(saved_data, PAIR)
+    plan = completion_plan(config, 'communication')
+    assert len(plan.completed) == len(plan.pairs) and not plan.blocked

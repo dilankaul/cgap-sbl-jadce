@@ -8,7 +8,6 @@ from cgap_sbl_jadce.paths import result_path, task_dir, tuning_path
 
 PREVIEWS = {
     'activity': 'Activity realization',
-    'paper_activity': 'Paper activity realization (no title)',
     'active_counts': 'Active MTD count distribution',
     'kappa': 'Kappa calibration',
     'communication': 'Communication diagnostics',
@@ -22,7 +21,7 @@ PREVIEWS = {
     'comparison': 'Algorithm comparison',
     'convergence': 'Convergence',
 }
-SAMPLE_PREVIEWS = {'activity', 'paper_activity', 'communication', 'spatial'}
+SAMPLE_PREVIEWS = {'activity', 'communication', 'spatial'}
 
 
 def main_realization_index(cfg, split, count=None):
@@ -65,7 +64,6 @@ def missing_preview_inputs(cfg, category):
 def render_preview(request, destination):
     from cgap_sbl_jadce.figures.common import figure_destination
     from cgap_sbl_jadce.figures.activity_realizations import plot_activity_realization
-    from cgap_sbl_jadce.figures.paper_activity_realizations import plot_paper_activity_figure
     from cgap_sbl_jadce.figures.active_mtd_count_distribution import plot_activity_s_distribution
     from cgap_sbl_jadce.figures.kappa_calibration import plot_activity_calibration
     from cgap_sbl_jadce.figures.communication_diagnostics import plot_communication_preview
@@ -86,8 +84,6 @@ def render_preview(request, destination):
     with figure_destination(Path(cfg['run']['output_dir']), Path(destination)):
         if category == 'activity':
             return plot_activity_realization(cfg, split, index, formats='both')
-        if category == 'paper_activity':
-            return [plot_paper_activity_figure(cfg, split, index, formats=ext) for ext in ('png', 'pdf')]
         if category == 'active_counts':
             return plot_activity_s_distribution(cfg, formats='both')
         if category == 'kappa':

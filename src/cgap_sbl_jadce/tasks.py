@@ -31,7 +31,7 @@ TASKS = {
     'kappa_calibration': Task("calibrate kappa", pipeline.calibrate_kappa_stage, (plot_activity_calibration,), True),
     'activity': Task("generate activity realizations", pipeline.generate_activity_stage,
             (plot_activity_realizations, plot_activity_s_distribution), True),
-    'communication': Task("generate full communication datasets", pipeline.communication_stage, (plot_communication_preview,), True),
+    'communication': Task("generate communication datasets", pipeline.communication_stage, (plot_communication_preview,), True),
     'spatial_dependence': Task("build spatial dependence", pipeline.spatial_dependence_stage, (plot_spatial_dependence,), True),
     'omp': Task("run OMP", partial(estimators.run_estimator_stage, method="omp"),
             (partial(make_performance_figures, method="omp"),), True),
@@ -96,6 +96,9 @@ def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool =
     paths = []
     render_configs = ([estimators.condition_config(cfg, pair, task_id) for pair in estimators.tuning_conditions(cfg, conditions, task_id)]
                       if action == 'tune' else [cfg])
+    if task_id == 'communication' and conditions is not None:
+        for pair in conditions:
+            paths.extend(plot_communication_preview(cfg, formats='png', show_progress=show_progress, condition=tuple(pair)))
     for render_cfg in render_configs:
         for render in (() if task_id == 'communication' and conditions is not None else task.plots):
             kwargs = {"formats": "png"}

@@ -29,8 +29,6 @@ def test_activity_view_preserves_actual_probability_field_and_zero_regions(saved
     assert figure.data[0].zmin == 0 and figure.data[0].zmax == 1
     assert figure.layout.dragmode == 'pan'
     assert len(figure.data[1].customdata) == 17
-    request['category'] = 'paper_activity'
-    assert interactive_figures(request)[0][1].layout.title.text is None
 
 
 def test_communication_hsv_has_exact_magnitude_phase_and_does_not_read_images(saved_data, tmp_path, monkeypatch):

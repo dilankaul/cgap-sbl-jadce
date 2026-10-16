@@ -86,7 +86,7 @@ def _activity(cfg, request):
         fig.add_trace(go.Scatter(x=x + D * np.cos(angle), y=y + D * np.sin(angle), mode='lines',
             name='Event influence boundary', showlegend=i == 0, legendgroup='events',
             line={'color': '#888888', 'dash': 'dash', 'width': 1}, hoverinfo='skip'))
-    title = None if request['category'] == 'paper_activity' else f'Event-Driven Activation<br>{split.capitalize()} Realization {q}: {int(active.sum())} Active MTDs'
+    title = f'Event-Driven Activation<br>{split.capitalize()} Realization {q}: {int(active.sum())} Active MTDs'
     _style(fig, title, '<i>x</i> (m)', '<i>y</i> (m)')
     fig.update_yaxes(scaleanchor='x', scaleratio=1, range=[-1.08 * R, 1.08 * R])
     fig.update_xaxes(range=[-1.08 * R, 1.08 * R])
@@ -156,7 +156,7 @@ def interactive_figures(request):
     if category.endswith('_tune'):
         from cgap_sbl_jadce.gui.previews import tuning_preview_config
         cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
-    if category in {'activity', 'paper_activity'}:
+    if category == 'activity':
         return _activity(cfg, request)
     if category == 'communication':
         return _communication(cfg, request)
@@ -289,7 +289,7 @@ def source_version(request):
         from cgap_sbl_jadce.gui.previews import tuning_preview_config
         cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
     paths = [Path(request['config'])]
-    if category in {'activity', 'paper_activity', 'active_counts'}:
+    if category in {'activity', 'active_counts'}:
         splits = (request['split'],) if category != 'active_counts' else ('tuning', 'evaluation')
         paths += [result_path(out, 'activity', f'{split}_activity.npz') for split in splits]
         paths += [result_path(out, 'activity', 'summary.json')]

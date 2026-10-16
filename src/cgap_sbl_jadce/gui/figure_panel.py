@@ -5,7 +5,7 @@ from cgap_sbl_jadce.gui.charts import interactive_figures, source_version
 from cgap_sbl_jadce.gui.previews import main_realization_index
 
 CATEGORIES = {
-    'kappa_calibration': ['kappa'], 'activity': ['activity', 'active_counts', 'paper_activity'],
+    'kappa_calibration': ['kappa'], 'activity': ['activity', 'active_counts'],
     'communication': ['communication'], 'spatial_dependence': ['spatial'],
     'comparison': ['comparison'], 'convergence': ['convergence'],
 }

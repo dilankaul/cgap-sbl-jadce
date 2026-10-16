@@ -40,6 +40,7 @@ def test_tuning_coverage_includes_references_without_changing_selection_policy(s
     cfg['algorithms']['anc']['tuning'].update(reference_pilot_length=8, reference_snr_db=16.)
     expected = {(5, 12.), (7, 8.), (7, 12.), (6, 10.), (8, 16.)}
     assert set(communication_pairs(cfg, 'tuning')) == expected
+    assert set(communication_pairs(cfg, 'evaluation')) == expected
     assert {tuple(pair) for pair in communication_definition(cfg, 'tuning')['conditions']} == expected
     request = {'kind': 'task', 'task': 'communication', 'action': 'run'}
     assert set(request_settings(cfg, request)['tuning_pairs']) == expected

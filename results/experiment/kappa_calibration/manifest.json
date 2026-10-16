@@ -51,16 +51,17 @@
           "beta_start": 0.0,
           "beta_step": 0.01,
           "beta_stop": 0.1,
-          "reference_pilot_length": 25,
-          "reference_snr_db": 12,
+          "reference_pilot_length": 30,
+          "reference_snr_db": 12.0,
           "selection_mode": "reference",
           "tau_start": 0.0,
           "tau_step": 0.001,
-          "tau_stop": 0.2
+          "tau_stop": 0.5
         }
       },
       "cosamp": {
         "solver": {
+          "cosamp_lambda_reg": 0.01,
           "cosamp_max_iter": 500,
           "cosamp_tol": 0.0001
         }
@@ -75,19 +76,19 @@
           "gamma_init": 0.1
         },
         "tuning": {
-          "reference_pilot_length": 25,
-          "reference_snr_db": 12,
+          "reference_pilot_length": 30,
+          "reference_snr_db": 12.0,
           "selection_mode": "reference",
           "tau_start": 0.0,
           "tau_step": 0.001,
-          "tau_stop": 0.2
+          "tau_stop": 0.5
         }
       }
     },
     "communication": {
       "reference": {
         "reference_pilot_length": 25,
-        "reference_snr_db": 12
+        "reference_snr_db": 12.0
       }
     },
     "evaluation": {
@@ -97,7 +98,7 @@
       "pilot_length_start": 20,
       "pilot_length_step": 5,
       "pilot_length_stop": 45,
-      "snr_db": 12,
+      "snr_db": 12.0,
       "snr_start": 4.0,
       "snr_step": 4.0,
       "snr_stop": 24.0
@@ -124,6 +125,7 @@
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
+      "calibration_validation_samples": 5000,
       "kappa_refinement_steps": [
         0.1,
         0.01

@@ -141,22 +141,19 @@ def numerical_state(cfg, task, action='run'):
                 for split in ('tuning', 'evaluation'):
                     validate_preparation(cfg, task, split)
                 return CardState('completed', 'Tuning and evaluation activity saved', 1.)
-            if task in {'communication', 'spatial_dependence'} and data.get('status') == 'complete':
-                from cgap_sbl_jadce.communication_dataset import validate_communication_dataset
+            if task == 'communication':
+                from cgap_sbl_jadce.gui.communication_conditions import completion_plan
+                plan = completion_plan(cfg)
+                done, total = len(plan.completed), len(plan.pairs)
+                if plan.blocked:
+                    return CardState('incompatible', next(iter(plan.blocked.values())), done / max(1, total))
+                if done == total:
+                    return CardState('completed', 'Tuning and evaluation data saved', 1.)
+                return CardState('partial', f'{done}/{total} conditions completed', done / max(1, total))
+            if task == 'spatial_dependence' and data.get('status') == 'complete':
                 from cgap_sbl_jadce.spatial_dependence_dataset import validate_spatial_dependence_dataset
-                if task == 'communication':
-                    from cgap_sbl_jadce.communication_dataset import communication_definition
-                    done = total = 0
-                    for split in ('tuning', 'evaluation'):
-                        validate_communication_dataset(cfg, split, [])
-                        expected = {tuple(pair) for pair in communication_definition(cfg, split)['conditions']}
-                        available = {tuple(pair) for pair in data[split]['definition']['conditions']}
-                        done += len(expected & available); total += len(expected)
-                    if done != total:
-                        return CardState('partial', f'{done}/{total} communication conditions saved; generate missing conditions', done / total)
-                else:
-                    for split in ('tuning', 'evaluation'):
-                        validate_spatial_dependence_dataset(cfg, split)
+                for split in ('tuning', 'evaluation'):
+                    validate_spatial_dependence_dataset(cfg, split)
                 return CardState('completed', 'Tuning and evaluation data saved', 1.)
             if task in {'comparison', 'convergence'} and data.get('status') == 'complete':
                 from cgap_sbl_jadce.experiments.estimators import evaluation_definition

@@ -12,7 +12,8 @@ from cgap_sbl_jadce.paths import result_path, task_dir
 def test_independent_tasks_use_saved_inputs_and_comparison_runs_no_solvers(saved_data, monkeypatch):
     def forbidden(*args, **kwargs):
         pytest.fail('A downstream task regenerated communication or spatial matrices')
-    monkeypatch.setattr(pipeline, 'communication_realization', forbidden)
+    from cgap_sbl_jadce.models import realizations
+    monkeypatch.setattr(realizations, 'communication_realization', forbidden)
     monkeypatch.setattr(pipeline, 'build_C', forbidden)
     expected_inputs = {}
     for method, spec in list(estimators.ESTIMATORS.items()):

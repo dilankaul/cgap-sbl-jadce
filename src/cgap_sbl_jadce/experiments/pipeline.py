@@ -17,8 +17,6 @@ from cgap_sbl_jadce.models.spatial_dependence import build_C
 from cgap_sbl_jadce.spatial_dependence_dataset import spatial_dependence_definition
 from cgap_sbl_jadce.dataset import load_activity_samples, save_activity_samples
 from cgap_sbl_jadce.io import ensure_dir, save_csv, save_json, atomic_path
-from cgap_sbl_jadce.models.realizations import communication_realization
-from cgap_sbl_jadce.communication_dataset import communication_definition, save_communication_sample
 from cgap_sbl_jadce.reporting import print_task_report
 from cgap_sbl_jadce.checkpoints import Checkpoint, checkpointed, output_hashes, completed_outputs
 from cgap_sbl_jadce.provenance import save_task_snapshot
@@ -202,47 +200,12 @@ def generate_activity_stage(cfg: dict[str, Any], show_progress: bool = True) -> 
 
 @checkpointed
 def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditions=None, methods=None) -> dict[str, Any]:
-    if conditions is not None:
-        from cgap_sbl_jadce.communication_dataset import add_communication_conditions
-        return add_communication_conditions(cfg, conditions, methods or [], show_progress)
-    from cgap_sbl_jadce.compatibility import validate_preparation
-    for split in ("tuning", "evaluation"):
-        validate_preparation(cfg, "activity", split)
-    out = output_dir(cfg)
-    summary = {"status": "started"}
-    summary_path = result_path(out, "communication", "summary.json")
-    save_json(summary_path, summary)
-    save_task_snapshot(cfg, 'communication', status="started")
-    for split in ("tuning", "evaluation"):
-        definition = communication_definition(cfg, split)
-        activities = load_activity_samples(result_path(out, "activity", f"{split}_activity.npz"))
-        folder = task_dir(out, 'communication') / split
-        checkpoint = Checkpoint(folder, definition)
-        for q, activity in enumerate(tqdm(activities, desc=f"communication generation {split} communication",
-                                        unit="realization", disable=not show_progress)):
-            if len(activity.a) != definition["N"]:
-                raise ValueError("Saved activity dimensions differ from configuration; rerun activity generation.")
-            files = [folder / f'{q:04d}' / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')]
-            if completed_outputs(checkpoint, f'{q:04d}', files) is not None:
-                continue
-            realizations = {}
-            for L, snr in definition["conditions"]:
-                realizations[(L, snr)] = communication_realization(
-                    activity, definition["seed"], q, definition["M"], L, snr)
-            save_communication_sample(folder, q, realizations)
-            checkpoint.save(f'{q:04d}', {'outputs': output_hashes(files)})
-        summary[split] = {"samples": len(activities), "definition": definition,
-                          "preview_condition": [int(reference_settings(cfg)["reference_pilot_length"] if split == "tuning" else cfg["evaluation"]["pilot_length"]), float(reference_settings(cfg)["reference_snr_db"] if split == "tuning" else evaluation_settings(cfg)["snr_db"])]}
-    summary["status"] = "complete"
-    save_json(summary_path, summary)
-    save_task_snapshot(cfg, 'communication', status="complete", communication_datasets=summary)
-    print_task_report("COMMUNICATION GENERATION — COMMUNICATION DATASETS", {
-        "tuning realizations": summary["tuning"]["samples"],
-        "unique tuning conditions": len(summary["tuning"]["definition"]["conditions"]),
-        "evaluation realizations": summary["evaluation"]["samples"],
-        "unique evaluation conditions": len(summary["evaluation"]["definition"]["conditions"]),
-    }, [task_dir(out, 'communication') / "tuning", task_dir(out, 'communication') / "evaluation", summary_path])
-    return summary
+    from cgap_sbl_jadce.communication_dataset import add_communication_conditions
+    from cgap_sbl_jadce.settings import communication_conditions
+    from cgap_sbl_jadce.checkpoints import is_resuming
+    return add_communication_conditions(cfg, communication_conditions(cfg, conditions), methods or [],
+                                        show_progress, rerun=not is_resuming(),
+                                        full_scope=conditions is None)
 
 
 @checkpointed

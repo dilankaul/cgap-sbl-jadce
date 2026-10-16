@@ -103,17 +103,20 @@ shared channels/activity. Condition-specific SBL/ANC policies require tuning
 the added pair on their **Tune** page first; reference policies reuse the reference
 selection. Completed optional conditions are available for comparison and SBL/ANC convergence.
 
-The Communication page shows the same shared optional conditions alongside setup
-conditions, with separate tuning/evaluation input status. **Complete selected inputs**
-and **Complete all missing inputs** extend the saved inputs without replacing base
-archives or completed algorithm results. Communication-page preparation covers
-both splits; algorithm-page Prepare inputs retains its algorithm-specific needs.
+The Communication page uses the same condition table, shared Add/Delete controls,
+All/Selected scope, and Start/Complete/Resume/Rerun actions as algorithm Run pages.
+Each condition has one status: Completed means both tuning and evaluation inputs
+are saved. Complete skips completed inputs, resumes compatible unfinished work,
+and starts missing conditions without changing completed algorithm results.
+Optional conditions must be selected explicitly and remain outside All/Complete all.
 
-Communication generation saves independent tuning inputs at every configured
-pilot-length/SNR sweep condition, plus any tuning or preview reference conditions
-outside those sweeps. Evaluation uses its own activity and communication seeds.
-Both tuning policies can select from those saved inputs without changing the
-evaluation dataset. Optional additional conditions still require Prepare inputs.
+Both communication splits cover every setup sweep condition and any algorithm
+tuning or preview references outside those sweeps. They use separate activity and
+communication seeds. Preparing an optional condition from either page also saves
+both datasets; algorithm tuning policies and Run prerequisites remain independent.
+Selected conditions can start from an empty communication dataset once activity
+is available. Each realization is checkpointed, and scoped PNG figures can be
+regenerated from the saved arrays.
 
 Choose either tuning policy independently for SBL and ANC:
 
@@ -145,8 +148,8 @@ HSV matrices expose the actual magnitude, phase, real and imaginary values on
 hover. NMSE uses logarithmic axes/colors.
 
 **Regenerate publication exports** renders fresh PNG/PDFs from the same data using
-the existing code-defined Matplotlib typography. Paper activity exports omit the
-title. Standard task PNG outputs remain available as reproducible artifacts;
+the existing code-defined Matplotlib typography. Standard task PNG outputs
+remain available as reproducible artifacts;
 the GUI visualizations use their underlying data directly.
 
 ### Task responsibilities
@@ -270,8 +273,9 @@ save condition-local gamma data. Algorithm-root sweep tables are combined views
 of compatible completed conditions; the overall card completes when every configured
 sweep condition finishes. Saved numerical outputs and figures are versioned.
 
-Communication generation stores H, a and Z once, Theta once per L, and Y, W and sigma2 per unique
-condition. Overlapping sweep conditions share inputs. Spatial dependence generation saves every C;
+Communication generation stores shared H, a and Z once per realization, with
+Theta, Y, W and sigma2 for each condition. The first condition uses the shared
+base archives; later conditions use separate condition input archives. Overlapping sweep conditions share inputs. Spatial dependence generation saves every C;
 ANC loads those matrices and never constructs them during evaluation.
 
 ## Resume after interruption
@@ -321,18 +325,10 @@ The plotted activation field is the actual model probability
 appearance. Only the region outside the physical cell is masked. The colormap
 maps zero to white and increasing probability to red.
 
-Normal tasks save PNG. Export one title-free publication PDF from saved Activity generation data:
-
-```bash
-python scripts/paper_figures/activity_realization.py --split evaluation --index 855
-```
-
-The filename is `event_driven_activation_model_evaluation_0855.pdf` under
-`results/experiment/paper_figures/activity/evaluation/`. No separate paper YAML
-or LaTeX installation is required. Edit `figure_style` and `figsize` inside
-`figures/paper_activity_realizations.py` for publication-specific typography.
-Native serif and Computer Modern math fonts are used with embedded TrueType PDF
-fonts; bold Greek labels use local STIX math rendering.
+Normal tasks save PNG. Use **Regenerate publication exports** on the Activity
+page to export the standard activity realization as PNG and vector PDF from
+saved data. Native serif and Computer Modern math fonts are used with embedded
+TrueType PDF fonts; bold Greek labels use local STIX math rendering.
 
 ## Code structure and validation
 

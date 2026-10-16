@@ -15,10 +15,10 @@ def test_cached_identity_matches_saved_arrays_and_tracks_condition_changes(saved
     folder = task_dir(saved_data['run']['output_dir'], 'communication') / 'evaluation'
     digest = hashlib.sha256()
     for q in range(2):
-        for name, keys in [('channels.npz', ('H', 'a', 'Z')), ('pilots.npz', ('L7',)),
-                           ('observations.npz', ('L7_snr8_Y', 'L7_snr8_W', 'L7_snr8_sigma2'))]:
+        for path, keys in [(folder / f'{q:04d}/channels.npz', ('H', 'a', 'Z')),
+                           (folder / f'additional/L0007_snr8dB/{q:04d}/inputs.npz', ('Theta', 'Y', 'W', 'sigma2'))]:
             group = hashlib.sha256()
-            with np.load(folder / f'{q:04d}' / name) as archive:
+            with np.load(path) as archive:
                 for key in keys:
                     value = np.ascontiguousarray(archive[key])
                     group.update(key.encode())
@@ -27,11 +27,11 @@ def test_cached_identity_matches_saved_arrays_and_tracks_condition_changes(saved
                     group.update(value.tobytes())
             digest.update(group.hexdigest().encode())
     assert original['arrays_sha256'] == digest.hexdigest()
-    path = folder / '0000/observations.npz'
+    path = folder / 'additional/L0007_snr8dB/0000/inputs.npz'
     contents, stat = path.read_bytes(), path.stat()
     with np.load(path) as archive:
         arrays = {key: archive[key] for key in archive.files}
-    arrays['L7_snr8_Y'][0, 0] += 1
+    arrays['Y'][0, 0] += 1
     np.savez_compressed(path, **arrays)
     os.utime(path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
     assert communication_condition_identity(saved_data, 'evaluation', pair) != original

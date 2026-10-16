@@ -156,8 +156,8 @@ class Jobs:
     def _validate_completion(self, request):
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
         from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
-        if request.get('kind') != 'task' or request['task'] not in ESTIMATORS or request.get('action', 'run') != 'run':
-            raise ValueError('Completion applies only to algorithm evaluation.')
+        if request.get('kind') != 'task' or request['task'] not in set(ESTIMATORS) | {'communication'} or request.get('action', 'run') != 'run':
+            raise ValueError('Completion applies only to algorithm evaluation and communication.')
         plan = completion_plan(request['config'], request['task'], request.get('conditions'))
         if plan.blocked:
             names = ', '.join(f'L={L}, SNR={snr:g} dB' for L, snr in plan.blocked)
@@ -166,13 +166,10 @@ class Jobs:
 
     def complete(self, request):
         request = dict(request, config=str(Path(request['config']).resolve()))
-        self._validate_completion(request)
+        plan = self._validate_completion(request)
         if self.busy():
             raise ValueError('Pause the running task and wait for confirmation before completing these conditions.')
-        from cgap_sbl_jadce.config import load_config
-        cfg = load_config(request['config'])
-        from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
-        pairs = {value[:2] for value in evaluation_conditions(cfg, request.get('conditions'), method=request['task'])}
+        pairs = set(plan.pairs)
 
 
         paused = []
@@ -182,7 +179,8 @@ class Jobs:
                     old['config'] != request['config'] or old['task'] != request['task'] or
                     old.get('action', 'run') != 'run'):
                 continue
-            if pairs & {value[:2] for value in evaluation_conditions(cfg, old.get('conditions'), method=old['task'])}:
+            old_pairs = self._validate_completion(old).pairs
+            if pairs & set(old_pairs):
                 paused.append(job)
         for job in paused:
             self.control(job['id'], 'stop')

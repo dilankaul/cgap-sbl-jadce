@@ -140,7 +140,7 @@ def test_preview_exports_read_saved_data_without_running_estimators(saved_data, 
         render_preview(request, destination)
 
 
-def test_saved_sample_options_and_paper_styles_are_independent_of_yaml_counts(saved_data, tmp_path):
+def test_saved_activity_sample_options_and_exports_are_independent_of_yaml_counts(saved_data, tmp_path):
     summary_path = result_path(saved_data['run']['output_dir'], 'activity', 'summary.json')
     summary = json.loads(summary_path.read_text())
     summary.update(tuning={'samples': 2}, evaluation={'samples': 2})
@@ -149,8 +149,8 @@ def test_saved_sample_options_and_paper_styles_are_independent_of_yaml_counts(sa
     assert sample_options(saved_data, 'activity', 'evaluation') == (2, [])
     config = tmp_path / 'experiment.yaml'
     save_yaml(config, saved_data)
-    paths = render_preview({'config': str(config), 'category': 'paper_activity', 'split': 'evaluation', 'index': 0}, tmp_path / 'preview')
-    assert [path.name for path in paths] == ['event_driven_activation_model_evaluation_0000.png', 'event_driven_activation_model_evaluation_0000.pdf']
+    paths = render_preview({'config': str(config), 'category': 'activity', 'split': 'evaluation', 'index': 0}, tmp_path / 'preview')
+    assert [path.name for path in paths] == ['activity_realization_evaluation_0000_probability_field.png', 'activity_realization_evaluation_0000_probability_field.pdf']
 
 
 def test_dashboard_navigation_does_not_launch_work(tmp_path, monkeypatch):

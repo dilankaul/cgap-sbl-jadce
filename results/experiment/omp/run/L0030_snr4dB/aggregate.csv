@@ -1,2 +1,0 @@
-algorithm,L,snr_db,sweep,precision,recall,f1,nmse,runtime_s,nmse_scope
-MMV-OMP,30,4.0,snr_sweep,0.2551,0.2551,0.25510000000000005,1.0856561937971252,0.011345915662983316,true_active_support

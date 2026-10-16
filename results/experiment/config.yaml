@@ -12,7 +12,7 @@ run:
 system:
   N: 500
   M: 4
-  S: 20
+  S: 20.0
   R: 50.0
 activity:
   kappa_source: calibration
@@ -26,6 +26,7 @@ algorithms:
     solver: {}
   cosamp:
     solver:
+      cosamp_lambda_reg: 0.01
       cosamp_max_iter: 500
       cosamp_tol: 0.0001
   sbl:
@@ -34,11 +35,11 @@ algorithms:
       K: 500
       delta: 0.0001
     tuning:
-      reference_pilot_length: 25
-      reference_snr_db: 12
+      reference_pilot_length: 30
+      reference_snr_db: 12.0
       selection_mode: reference
       tau_start: 0.0
-      tau_stop: 0.2
+      tau_stop: 0.5
       tau_step: 0.001
   anc:
     solver:
@@ -46,11 +47,11 @@ algorithms:
       K: 500
       delta: 0.0001
     tuning:
-      reference_pilot_length: 25
-      reference_snr_db: 12
+      reference_pilot_length: 30
+      reference_snr_db: 12.0
       selection_mode: reference
       tau_start: 0.0
-      tau_stop: 0.2
+      tau_stop: 0.5
       tau_step: 0.001
       alpha_start: 0.0
       alpha_stop: 10.0
@@ -59,7 +60,7 @@ algorithms:
       beta_stop: 0.1
       beta_step: 0.01
 evaluation:
-  snr_db: 12
+  snr_db: 12.0
   pilot_length: 30
   gamma_distribution_samples: 100
   convergence_sample_offset: 0
@@ -91,13 +92,14 @@ kappa_calibration:
   - 0.1
   - 0.01
   calibration_tolerance: 0.1
+  calibration_validation_samples: 5000
   kappa_start: 0.5
   kappa_stop: 10.0
   kappa_step: 0.5
 communication:
   reference:
     reference_pilot_length: 25
-    reference_snr_db: 12
+    reference_snr_db: 12.0
 task_runtime:
   input_config: /workspaces/cgap-sbl-jadce/configs/experiment.yaml
   action: run

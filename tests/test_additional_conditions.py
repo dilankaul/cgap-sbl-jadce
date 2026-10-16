@@ -52,9 +52,9 @@ def test_preparation_preserves_base_inputs_and_results(saved_data):
         np.testing.assert_array_equal(getattr(r, name), getattr(base, name))
     np.testing.assert_allclose(r.Y, r.Theta @ r.Z + r.W)
     assert r.Theta.shape == (9, 20)
-    assert not (folder / 'tuning/additional').exists()
+    assert (folder / 'tuning/additional').exists()
     extra = {path: path.read_bytes() for path in folder.glob('*/additional/*/*/*.npz')}
-    pipeline.communication_stage(saved_data, False, conditions=[PAIR], methods=['omp'])
+    pipeline.communication_stage(saved_data, False, conditions=[PAIR], methods=['omp'], resume=True)
     assert all(path.read_bytes() == data for path, data in extra.items())
 
 
@@ -96,7 +96,7 @@ def test_optional_sbl_respects_independent_tuning_policy(saved_data, policy):
         assert PAIR not in estimators.tuning_conditions(cfg, method='sbl')
         estimators.tune_estimator_stage(cfg, 'sbl', False, conditions=[PAIR])
     else:
-        assert not (folder / 'tuning/additional').exists()
+        assert (folder / 'tuning/additional').exists()
     assert not blocking_reasons(cfg, 'sbl', conditions=[PAIR])
     estimators.run_estimator_stage(cfg, 'sbl', False, conditions=[PAIR])
     assert estimators.convergence_methods(cfg, PAIR) == ['sbl']
@@ -121,7 +121,7 @@ def test_optional_input_failure_resumes_without_repeating_finished_unit(saved_da
     calls.clear()
     monkeypatch.setattr(realizations, 'communication_realization', lambda *a: (calls.append(a[2]), generate(*a))[1])
     pipeline.communication_stage(saved_data, False, conditions=[PAIR], methods=['omp'], resume=True)
-    assert calls == [1]
+    assert calls == [1, 0, 1]
     assert not input_reasons(saved_data, 'omp', PAIR)
     assert not list(task_dir(saved_data['run']['output_dir'], 'communication').rglob('.checkpoints/*/*.npz'))
 
@@ -165,8 +165,7 @@ def test_gui_worker_prepares_optional_inputs_without_running_estimator(saved_dat
             time.sleep(.05)
         assert state['status'] == 'completed', jobs.log(record['id'])[0]
         assert not input_reasons(saved_data, 'omp', PAIR)
-        if methods is None:
-            validate_communication_dataset(saved_data, 'tuning', [PAIR])
+        validate_communication_dataset(saved_data, 'tuning', [PAIR])
         assert not run_path(saved_data, 'omp').exists()
         assert not load_recoveries(config, 'communication')
         assert not list(task_dir(saved_data['run']['output_dir'], 'communication').rglob('.checkpoints/*/*.npz'))

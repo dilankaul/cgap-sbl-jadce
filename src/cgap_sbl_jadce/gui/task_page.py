@@ -28,7 +28,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
         command = ('pause' if record.get('portable') else
                    json.loads((jobs.folder / record['id'] / 'control.json').read_text())['command'])
         st.subheader('Task progress')
-        if task in ESTIMATORS and action == 'run':
+        if task in set(ESTIMATORS) | {'communication'} and action == 'run':
             pairs = record['request'].get('conditions')
             st.caption('Running scope: All conditions' if pairs is None else 'Running scope: ' +
                        ', '.join(f'L={L}, SNR={snr:g} dB' for L, snr in pairs))
@@ -128,7 +128,7 @@ def condition_status_panel(st, cfg, config, jobs, method, plan):
         with st.container(border=True, key='condition_status_table'):
             for column, label in zip(st.columns(widths), ['Pilot length L', 'SNR (dB)', 'Type', 'Status', '']):
                 column.markdown('**' + label + '**' if label else '')
-            for current_plan, kind in [(plan, 'Sweep'), (optional_plan, 'Optional')]:
+            for current_plan, kind in [(plan, 'Setup' if method == 'communication' else 'Sweep'), (optional_plan, 'Optional')]:
                 if current_plan is None:
                     continue
                 for pair in current_plan.pairs:
@@ -174,7 +174,7 @@ def condition_status_panel(st, cfg, config, jobs, method, plan):
                         st.rerun()
                     except (OSError, ValueError) as error:
                         st.error(str(error))
-        if pairs:
+        if pairs and method != 'communication':
             optional_input_controls(st, cfg, config, jobs, method, pairs)
 
 
@@ -190,7 +190,7 @@ def task_page(st, cfg, config, jobs, task, action):
     plan = None
     with validation_snapshot():
         state = numerical_state(cfg, task, action)
-        if spec and action == 'run':
+        if (spec or task == 'communication') and action == 'run':
             from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
             plan = completion_plan(config, task)
     if state.status == 'incompatible':
@@ -199,20 +199,20 @@ def task_page(st, cfg, config, jobs, task, action):
             st.write(state.detail)
     with st.expander('Task settings'):
         edit_settings(st, cfg, config, jobs, task, action)
-    if task == 'communication':
-        from cgap_sbl_jadce.gui.communication_conditions import communication_condition_controls
-        communication_condition_controls(st, cfg, config, jobs)
     if plan is not None:
         st.progress(len(plan.completed) / max(1, len(plan.pairs)),
                     text=f'{len(plan.completed)}/{len(plan.pairs)} conditions completed')
         condition_status_panel(st, cfg, config, jobs, task, plan)
     conditions = condition = methods = q = None
-    selectable = (task in ESTIMATORS or task == 'comparison') and action == 'run' or (
+    selectable = (task in ESTIMATORS or task in {'comparison', 'communication'}) and action == 'run' or (
         action == 'tune' and tuning_settings(cfg, task)['selection_mode'] == 'per_condition')
     if selectable:
         pairs = (tuning_pairs(cfg, task, include_optional=True) if action == 'tune' else
                  list(dict.fromkeys(pair[:2] for pair in evaluation_conditions(cfg,
                      method=task if spec else None, include_optional=True))))
+        if task == 'communication':
+            from cgap_sbl_jadce.settings import communication_conditions
+            pairs = communication_conditions(cfg, include_optional=True)
         scope = st.radio('Condition scope', ['All conditions', 'Selected conditions'], horizontal=True,
                          key=f'scope_{config}_{task}_{action}')
         if scope == 'Selected conditions':
@@ -277,7 +277,7 @@ def task_page(st, cfg, config, jobs, task, action):
                 if fresh:
                     jobs.start(request)
                 elif (label == 'Resume' and own and own['status'] in RECOVERABLE | {'paused'} and
-                      set(selected_plan.pairs) == {value[:2] for value in evaluation_conditions(cfg, own['request'].get('conditions'), method=task)}):
+                      set(selected_plan.pairs) == set(completion_plan(config, task, own['request'].get('conditions')).pairs)):
                     jobs.resume(own['id'])
                 else:
                     jobs.complete(request)
@@ -286,7 +286,7 @@ def task_page(st, cfg, config, jobs, task, action):
                 all_reasons = blocking_reasons(cfg, task, action)
                 complete_disabled = busy or bool(all_reasons) or bool(plan.blocked) or len(plan.completed) == len(plan.pairs)
                 if controls[1].button('Complete all', key='complete_all', icon=':material/done_all:',
-                                      disabled=complete_disabled, help='Finish remaining sweep conditions.'):
+                                      disabled=complete_disabled, help='Finish remaining setup conditions.'):
                     jobs.complete({key: value for key, value in request.items() if key != 'conditions'})
                     st.rerun()
             if not fresh and (selected_plan.completed or selected_plan.resume or selected_plan.blocked):

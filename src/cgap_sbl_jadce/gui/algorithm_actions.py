@@ -77,6 +77,28 @@ def _checkpoint_issue(folder, expected):
 @validation_snapshot()
 def completion_plan(config, method, conditions=None):
     cfg = load_config(config)
+    if method == 'communication':
+        from cgap_sbl_jadce.gui.communication_conditions import completion_plan as communication_plan
+        from cgap_sbl_jadce.settings import communication_conditions
+        plan = communication_plan(cfg, conditions)
+        for saved in load_recoveries(config, method):
+            try:
+                saved_pairs = set(communication_conditions(cfg, saved['request'].get('conditions')))
+            except (ValueError, KeyError):
+                continue
+            affected = (saved_pairs & set(plan.pairs)) - set(plan.completed)
+            if not affected:
+                continue
+            try:
+                validate_recovery(saved['request'])
+            except (OSError, ValueError, KeyError) as error:
+                for pair in affected:
+                    plan.blocked[pair] = str(error)
+                    if pair in plan.resume:
+                        plan.resume.remove(pair)
+                    if pair in plan.start:
+                        plan.start.remove(pair)
+        return plan
     requested = evaluation_conditions(cfg, conditions, method=method)
     plan = CompletionPlan(list(dict.fromkeys(value[:2] for value in requested)))
     try:
@@ -139,10 +161,15 @@ def completion_plan(config, method, conditions=None):
 def clear_finished_recoveries(config, method):
     from cgap_sbl_jadce.recovery import finish_recovery
     cfg = load_config(config)
-    done = {pair for pair, _, _ in completed_conditions(cfg, method)}
+    if method == 'communication':
+        from cgap_sbl_jadce.settings import communication_conditions
+        done = set(completion_plan(config, method, communication_conditions(cfg, include_optional=True)).completed)
+    else:
+        done = {pair for pair, _, _ in completed_conditions(cfg, method)}
     for saved in load_recoveries(config, method):
         try:
-            pairs = {value[:2] for value in evaluation_conditions(cfg, saved['request'].get('conditions'), method=method)}
+            pairs = (set(communication_conditions(cfg, saved['request'].get('conditions'))) if method == 'communication' else
+                     {value[:2] for value in evaluation_conditions(cfg, saved['request'].get('conditions'), method=method)})
         except (OSError, ValueError, KeyError):
             continue
         if pairs <= done:

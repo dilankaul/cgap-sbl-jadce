@@ -106,15 +106,17 @@ def test_generation_restart_skips_committed_units_and_fresh_rerun_rebuilds_outpu
     with pytest.raises(Crash):
         getattr(pipeline, stage)(saved_data, show_progress=False)
     monkeypatch.setattr(Checkpoint, 'save', original_save)
-    original = getattr(pipeline, operation)
+    from cgap_sbl_jadce.models import realizations
+    module = realizations if task == 'communication' else pipeline
+    original = getattr(module, operation)
     calls = []
     def count(*args, **kwargs):
         calls.append(1)
         return original(*args, **kwargs)
-    monkeypatch.setattr(pipeline, operation, count)
+    monkeypatch.setattr(module, operation, count)
     getattr(pipeline, stage)(saved_data, show_progress=False, resume=True)
 
-    assert len(calls) == (9 if task == 'communication' else 3)
+    assert len(calls) == (11 if task == 'communication' else 3)
     assert not list(task_dir(saved_data['run']['output_dir'], task).rglob('.checkpoints/*/*.npz'))
     calls.clear()
     folder = task_dir(saved_data['run']['output_dir'], task) / 'tuning'
@@ -214,13 +216,15 @@ def test_abrupt_exit_during_write_keeps_previous_checkpoint(tmp_path):
 def test_changed_archive_bytes_cannot_reuse_evaluation_scores(saved_data, monkeypatch):
     from cgap_sbl_jadce.io import save_npz
     estimators.run_estimator_stage(saved_data, 'omp', show_progress=False)
-    path = task_dir(saved_data['run']['output_dir'], 'communication') / 'evaluation' / '0000' / 'observations.npz'
-    with np.load(path) as archive:
-        arrays = {key: archive[key] for key in archive.files}
-    for key in arrays:
-        if key.endswith('_Y'):
-            arrays[key] = arrays[key] + .1
-    save_npz(path, **arrays)
+    folder = task_dir(saved_data['run']['output_dir'], 'communication') / 'evaluation'
+    paths = list(folder.glob('*/observations.npz')) + list(folder.glob('additional/*/*/inputs.npz'))
+    for path in paths:
+        with np.load(path) as archive:
+            arrays = {key: archive[key] for key in archive.files}
+        for key in arrays:
+            if key.endswith('_Y') or key == 'Y':
+                arrays[key] = arrays[key] + .1
+        save_npz(path, **arrays)
     spec = estimators.ESTIMATORS['omp']
     calls = []
     def solve(*args, **kwargs):
