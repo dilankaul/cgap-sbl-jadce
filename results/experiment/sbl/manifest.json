@@ -22,16 +22,17 @@
           "beta_start": 0.0,
           "beta_step": 0.01,
           "beta_stop": 0.1,
-          "reference_pilot_length": 25,
-          "reference_snr_db": 12,
+          "reference_pilot_length": 30,
+          "reference_snr_db": 12.0,
           "selection_mode": "reference",
           "tau_start": 0.0,
           "tau_step": 0.001,
-          "tau_stop": 0.2
+          "tau_stop": 0.5
         }
       },
       "cosamp": {
         "solver": {
+          "cosamp_lambda_reg": 0.01,
           "cosamp_max_iter": 500,
           "cosamp_tol": 0.0001
         }
@@ -46,19 +47,19 @@
           "gamma_init": 0.1
         },
         "tuning": {
-          "reference_pilot_length": 25,
-          "reference_snr_db": 12,
+          "reference_pilot_length": 30,
+          "reference_snr_db": 12.0,
           "selection_mode": "reference",
           "tau_start": 0.0,
           "tau_step": 0.001,
-          "tau_stop": 0.2
+          "tau_stop": 0.5
         }
       }
     },
     "communication": {
       "reference": {
-        "reference_pilot_length": 25,
-        "reference_snr_db": 12
+        "reference_pilot_length": 30,
+        "reference_snr_db": 12.0
       }
     },
     "evaluation": {
@@ -68,7 +69,7 @@
       "pilot_length_start": 20,
       "pilot_length_step": 5,
       "pilot_length_stop": 45,
-      "snr_db": 12,
+      "snr_db": 12.0,
       "snr_start": 4.0,
       "snr_step": 4.0,
       "snr_stop": 24.0
@@ -95,6 +96,7 @@
       "batch_size": 256,
       "calibration_samples": 5000,
       "calibration_tolerance": 0.1,
+      "calibration_validation_samples": 5000,
       "kappa_refinement_steps": [
         0.1,
         0.01
@@ -120,10 +122,10 @@
       "M": 4,
       "N": 500,
       "R": 50.0,
-      "S": 20
+      "S": 20.0
     },
     "task_runtime": {
-      "action": "run",
+      "action": "tune",
       "activity_parameters_used": {
         "D": 20.0,
         "N": 500,
@@ -145,17 +147,17 @@
             "activity_sha256": {
               "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
             },
-            "arrays_sha256": "a180ac83af08f73d348a4bb6b356c0c3965a5b8f795daa6231a3e5b280df7ec0",
+            "arrays_sha256": "4514d1e61d516ddac9f117508dbc2234f2b642816dbf6262ee81ecce396f5a54",
             "condition": [
-              25,
-              12
+              30,
+              12.0
             ],
             "schema": 2,
             "seed": 4283
           },
           "condition": [
-            25,
-            12
+            30,
+            12.0
           ],
           "method": "SBL",
           "nmse_scope": "true_active_support",
@@ -172,21 +174,21 @@
           "tau_grid": {
             "start": 0.0,
             "step": 0.001,
-            "stop": 0.2
+            "stop": 0.5
           }
         },
         "parameters": {
-          "tau": 0.191
+          "tau": 0.242
         },
-        "reference_pilot_length": 25,
-        "reference_snr_db": 12,
+        "reference_pilot_length": 30,
+        "reference_snr_db": 12.0,
         "tuning_scores": {
-          "f1": 0.6219296202693332,
-          "iterations": 500.0,
-          "nmse": 0.47905870880229573,
-          "precision": 0.6480685717480944,
-          "recall": 0.6020000000000001,
-          "tau": 0.191
+          "f1": 0.8449801643035206,
+          "iterations": 495.19,
+          "nmse": 0.25108304476677,
+          "precision": 0.9155709265364835,
+          "recall": 0.7890000000000006,
+          "tau": 0.242
         }
       },
       "status": "complete",

@@ -9,7 +9,7 @@ from cgap_sbl_jadce.paths import result_path, task_dir, condition_name
 from cgap_sbl_jadce.file_cache import file_version, snapshot_cached
 from cgap_sbl_jadce.io import save_npz
 from cgap_sbl_jadce.models.realizations import Realization
-from cgap_sbl_jadce.settings import reference_settings, tuning_pairs, evaluation_settings
+from cgap_sbl_jadce.settings import reference_settings, communication_pairs
 
 
 def communication_definition(cfg, split):
@@ -22,12 +22,7 @@ def communication_definition(cfg, split):
         from cgap_sbl_jadce.checkpoints import _archive_digest
         stat = path.stat()
         hashes[name] = _archive_digest(str(path.resolve()), stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns).hex()
-    tune = reference_settings(cfg)
-    conditions = tuning_pairs(cfg)
-    if split == 'evaluation':
-        from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
-        conditions = sorted({(L, snr) for L, snr, _ in evaluation_conditions(cfg)} |
-                            {(int(cfg['evaluation']['pilot_length']), float(evaluation_settings(cfg)['snr_db']))})
+    conditions = communication_pairs(cfg, split)
     return {'schema': 2, 'M': int(cfg['system']['M']), 'N': int(cfg['system']['N']),
             'seed': cfg['seeds'][f'communication_{split}'], 'activity_sha256': hashes,
             'conditions': [list(condition) for condition in conditions]}
@@ -170,9 +165,12 @@ def add_communication_conditions(cfg, conditions, methods=(), show_progress=True
     from cgap_sbl_jadce.dataset import load_activity_samples
     from cgap_sbl_jadce.models.realizations import communication_realization
     from cgap_sbl_jadce.io import save_json
+    from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
     pairs = list(dict.fromkeys(validate_pair(pair) for pair in conditions))
-    if not pairs or not methods or any(not set(pairs) <= set(additional_conditions(cfg, method)) for method in methods):
-        raise ValueError('Add these optional conditions on an algorithm Run page first.')
+    optional = set(additional_conditions(cfg))
+    allowed = optional if methods else optional | set(communication_pairs(cfg, 'tuning')) | set(communication_pairs(cfg, 'evaluation'))
+    if not pairs or not set(pairs) <= allowed or any(method not in ESTIMATORS for method in methods):
+        raise ValueError('Choose setup conditions or add optional conditions on an algorithm Run page first.')
     splits = input_splits(cfg, methods)
     folders = {split: validate_communication_dataset(cfg, split, []) for split in splits}
     summary_path = result_path(cfg['run']['output_dir'], 'communication', 'summary.json')
@@ -182,6 +180,15 @@ def add_communication_conditions(cfg, conditions, methods=(), show_progress=True
         base.pop('conditions')
         activities = load_activity_samples(result_path(cfg['run']['output_dir'], 'activity', f'{split}_activity.npz'))
         for pair in pairs:
+            if not methods and pair not in optional | set(communication_pairs(cfg, split)):
+                continue
+            if pair in {tuple(value) for value in summary[split]['definition']['conditions']}:
+                try:
+                    communication_condition_identity(cfg, split, pair)
+                except (OSError, ValueError, KeyError):
+                    pass
+                else:
+                    continue
             L, snr = pair
             checkpoint = Checkpoint(folder, {'definition': {'method': f'Communication inputs ({split})', **base},
                                               'condition': list(pair), 'samples': len(activities)})

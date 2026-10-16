@@ -47,7 +47,7 @@ def remove_condition(cfg, condition):
 def input_splits(cfg, methods):
     from cgap_sbl_jadce.settings import tuning_settings
     from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-    return ['evaluation', 'tuning'] if any(ESTIMATORS[method].tuning_grid and tuning_settings(cfg, method)['selection_mode'] == 'per_condition'
+    return ['evaluation', 'tuning'] if not methods or any(ESTIMATORS[method].tuning_grid and tuning_settings(cfg, method)['selection_mode'] == 'per_condition'
                                          for method in methods) else ['evaluation']
 
 

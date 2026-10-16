@@ -143,14 +143,17 @@ def test_shared_deletion_removes_options_but_preserves_inputs_and_results(saved_
     assert estimators.completed_methods(saved_data, [PAIR]) == ['omp']
 
 
-def test_gui_worker_prepares_optional_inputs_without_running_estimator(saved_data, tmp_path):
+@pytest.mark.parametrize('methods', [['omp'], None])
+def test_gui_worker_prepares_optional_inputs_without_running_estimator(saved_data, tmp_path, methods):
     import time
     from cgap_sbl_jadce.gui.jobs import Jobs
     from cgap_sbl_jadce.recovery import load_recoveries
     config = tmp_path / 'source.yaml'; save_yaml(config, saved_data)
     add_condition(saved_data, 'omp', PAIR)
     request = {'kind': 'task', 'task': 'communication', 'action': 'run', 'config': str(config),
-               'conditions': [list(PAIR)], 'methods': ['omp']}
+               'conditions': [list(PAIR)]}
+    if methods is not None:
+        request['methods'] = methods
     jobs = Jobs(tmp_path)
     record = jobs.start(request)
     try:
@@ -162,6 +165,8 @@ def test_gui_worker_prepares_optional_inputs_without_running_estimator(saved_dat
             time.sleep(.05)
         assert state['status'] == 'completed', jobs.log(record['id'])[0]
         assert not input_reasons(saved_data, 'omp', PAIR)
+        if methods is None:
+            validate_communication_dataset(saved_data, 'tuning', [PAIR])
         assert not run_path(saved_data, 'omp').exists()
         assert not load_recoveries(config, 'communication')
         assert not list(task_dir(saved_data['run']['output_dir'], 'communication').rglob('.checkpoints/*/*.npz'))

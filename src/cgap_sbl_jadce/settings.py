@@ -117,6 +117,16 @@ def tuning_pairs(cfg, method=None, include_optional=False):
     return sorted(pairs)
 
 
+def communication_pairs(cfg, split):
+    from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
+    evaluation = evaluation_settings(cfg)
+    pairs = {value[:2] for value in evaluation_conditions(cfg)}
+    pairs.add((int(evaluation['pilot_length']), float(evaluation['snr_db'])))
+    if split == 'tuning':
+        pairs.update(tuning_pairs(cfg))
+    return sorted(pairs)
+
+
 def grouped_config(cfg):
     result = deepcopy(cfg)
     result.pop('task_runtime', None)
@@ -183,8 +193,8 @@ def request_settings(cfg, request):
                           seeds={split: cfg['seeds'][f'communication_{split}'] for split in splits})
             return values
         if task == 'communication':
-            from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
-            values.update(M=system['M'], tuning_pairs=tuning_pairs(cfg), evaluation_pairs=sorted({v[:2] for v in evaluation_conditions(cfg)}),
+            values.update(M=system['M'], tuning_pairs=communication_pairs(cfg, 'tuning'),
+                          evaluation_pairs=communication_pairs(cfg, 'evaluation'),
                           seeds={split: cfg['seeds'][f'communication_{split}'] for split in ('tuning', 'evaluation')})
         return values
     if task in {'omp', 'cosamp', 'sbl', 'anc'}:

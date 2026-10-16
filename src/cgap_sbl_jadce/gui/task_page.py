@@ -199,6 +199,9 @@ def task_page(st, cfg, config, jobs, task, action):
             st.write(state.detail)
     with st.expander('Task settings'):
         edit_settings(st, cfg, config, jobs, task, action)
+    if task == 'communication':
+        from cgap_sbl_jadce.gui.communication_conditions import communication_condition_controls
+        communication_condition_controls(st, cfg, config, jobs)
     if plan is not None:
         st.progress(len(plan.completed) / max(1, len(plan.pairs)),
                     text=f'{len(plan.completed)}/{len(plan.pairs)} conditions completed')

@@ -114,14 +114,14 @@ def test_generation_restart_skips_committed_units_and_fresh_rerun_rebuilds_outpu
     monkeypatch.setattr(pipeline, operation, count)
     getattr(pipeline, stage)(saved_data, show_progress=False, resume=True)
 
-    assert len(calls) == (7 if task == 'communication' else 3)
+    assert len(calls) == (9 if task == 'communication' else 3)
     assert not list(task_dir(saved_data['run']['output_dir'], task).rglob('.checkpoints/*/*.npz'))
     calls.clear()
     folder = task_dir(saved_data['run']['output_dir'], task) / 'tuning'
     path = folder / '0000' / 'channels.npz' if task == 'communication' else folder / '0000.npz'
     path.write_bytes(b'interrupted or replaced archive')
     getattr(pipeline, stage)(saved_data, show_progress=False)
-    assert len(calls) == (8 if task == 'communication' else 4)
+    assert len(calls) == (12 if task == 'communication' else 4)
     assert path.stat().st_size > 100
 
 

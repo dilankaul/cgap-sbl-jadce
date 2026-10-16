@@ -51,6 +51,9 @@ Setup editors expose only fixed-reference sweeps. Algorithm Run pages manage sha
 additional L/SNR pairs in the Condition status table, using an empty input row
 with Add and per-row Delete controls, without a separate Save step. They require saved communication inputs and independent
 per-condition tuning when selected. All/Complete all includes only setup sweeps.
+Communication also lists shared optional conditions and per-split input readiness.
+Its Complete selected/all missing inputs extends saved communication only, covering
+both required splits and preserving base inputs and completed algorithm results.
 Settings forms require explicit Save, disable Enter submission, and discard drafts
 on Reset or navigation. Keep all setup datasets, results and checkpoints separate.
 Detached GUI workers pause between completed units so timing excludes paused time;
@@ -145,6 +148,9 @@ Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
 Convergence: L=30, 12 dB. Use the six explicit independent seeds.
 Activity generation saves event-driven tuning and evaluation supports. Communication generation saves all
 communication inputs; downstream tasks load them and never regenerate data.
+Both communication splits cover every configured sweep condition. Tuning also
+includes independent algorithm/preview reference conditions outside the sweeps,
+regardless of tuning selection policy. Optional pairs retain explicit input preparation.
 Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need no tuning or C;
 SBL tunes tau independently; ANC tunes its own alpha, beta and tau.
 Record true-active-support NMSE and solver-call runtimes. Algorithm comparison compares only

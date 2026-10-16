@@ -238,6 +238,7 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditi
     save_task_snapshot(cfg, 'communication', status="complete", communication_datasets=summary)
     print_task_report("COMMUNICATION GENERATION — COMMUNICATION DATASETS", {
         "tuning realizations": summary["tuning"]["samples"],
+        "unique tuning conditions": len(summary["tuning"]["definition"]["conditions"]),
         "evaluation realizations": summary["evaluation"]["samples"],
         "unique evaluation conditions": len(summary["evaluation"]["definition"]["conditions"]),
     }, [task_dir(out, 'communication') / "tuning", task_dir(out, 'communication') / "evaluation", summary_path])

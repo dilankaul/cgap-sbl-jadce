@@ -103,12 +103,24 @@ shared channels/activity. Condition-specific SBL/ANC policies require tuning
 the added pair on their **Tune** page first; reference policies reuse the reference
 selection. Completed optional conditions are available for comparison and SBL/ANC convergence.
 
+The Communication page shows the same shared optional conditions alongside setup
+conditions, with separate tuning/evaluation input status. **Complete selected inputs**
+and **Complete all missing inputs** extend the saved inputs without replacing base
+archives or completed algorithm results. Communication-page preparation covers
+both splits; algorithm-page Prepare inputs retains its algorithm-specific needs.
+
+Communication generation saves independent tuning inputs at every configured
+pilot-length/SNR sweep condition, plus any tuning or preview reference conditions
+outside those sweeps. Evaluation uses its own activity and communication seeds.
+Both tuning policies can select from those saved inputs without changing the
+evaluation dataset. Optional additional conditions still require Prepare inputs.
+
 Choose either tuning policy independently for SBL and ANC:
 
 - **One reference selection:** tune at the reference L/SNR and reuse its selection
   across all selected evaluation conditions (the default).
-- **Separate selections:** save tuning communication at each condition, select
-  which conditions to tune, and evaluate with each condition's own saved selection.
+- **Separate selections:** select which saved conditions to tune, and evaluate
+  with each condition's own saved selection.
   Selections and tuning tables are saved under `tuning/Lxxxx_snrXdB/`.
 
 All tuning uses the independent tuning realizations. Evaluation never tunes on

@@ -13,6 +13,68 @@ from cgap_sbl_jadce.communication_dataset import load_communication_sample, vali
 from cgap_sbl_jadce.experiments import pipeline
 
 
+def test_reference_policy_still_saves_every_sweep_condition_in_both_splits(saved_data):
+    from cgap_sbl_jadce.settings import tuning_settings
+    expected = {(5, 12.), (7, 8.), (7, 12.)}
+    out = saved_data['run']['output_dir']
+    assert all(tuning_settings(saved_data, method)['selection_mode'] == 'reference'
+               for method in ('sbl', 'anc'))
+    for split in ('tuning', 'evaluation'):
+        folder = validate_communication_dataset(saved_data, split)
+        for q in range(2):
+            loaded = load_communication_sample(folder, q)
+            assert set(loaded) == expected
+            np.testing.assert_array_equal(loaded[(7, 8.)].Theta, loaded[(7, 12.)].Theta)
+            np.testing.assert_array_equal(loaded[(5, 12.)].H, loaded[(7, 12.)].H)
+    tuning = load_communication_sample(task_dir(out, 'communication') / 'tuning', 0)
+    evaluation = load_communication_sample(task_dir(out, 'communication') / 'evaluation', 0)
+    assert not np.array_equal(tuning[(7, 12.)].H, evaluation[(7, 12.)].H)
+    assert not np.array_equal(tuning[(7, 12.)].W, evaluation[(7, 12.)].W)
+
+
+def test_tuning_coverage_includes_references_without_changing_selection_policy(saved_data):
+    from cgap_sbl_jadce.settings import grouped_config, communication_pairs, request_settings, tuning_pairs
+    from cgap_sbl_jadce.communication_dataset import communication_definition
+    cfg = grouped_config(saved_data)
+    cfg['algorithms']['sbl']['tuning'].update(reference_pilot_length=6, reference_snr_db=10.)
+    cfg['algorithms']['anc']['tuning'].update(reference_pilot_length=8, reference_snr_db=16.)
+    expected = {(5, 12.), (7, 8.), (7, 12.), (6, 10.), (8, 16.)}
+    assert set(communication_pairs(cfg, 'tuning')) == expected
+    assert {tuple(pair) for pair in communication_definition(cfg, 'tuning')['conditions']} == expected
+    request = {'kind': 'task', 'task': 'communication', 'action': 'run'}
+    assert set(request_settings(cfg, request)['tuning_pairs']) == expected
+    assert tuning_pairs(cfg, 'sbl') == [(6, 10.)]
+    assert tuning_pairs(cfg, 'anc') == [(8, 16.)]
+
+
+def test_expanding_old_reference_only_coverage_preserves_condition_identities(saved_data):
+    from cgap_sbl_jadce.communication_dataset import communication_condition_identity
+    from cgap_sbl_jadce.io import save_npz
+    from cgap_sbl_jadce.gui.workflow import numerical_state
+    out = saved_data['run']['output_dir']
+    folder = task_dir(out, 'communication') / 'tuning'
+    for q in range(2):
+        path = folder / f'{q:04d}' / 'observations.npz'
+        with np.load(path) as archive:
+            arrays = {key: archive[key] for key in archive.files if key.startswith('L5_snr12_')}
+        save_npz(path, **arrays)
+    path = result_path(out, 'communication', 'summary.json')
+    summary = json.loads(path.read_text())
+    summary['tuning']['definition']['conditions'] = [[5, 12.]]
+    save_json(path, summary)
+    validate_communication_dataset(saved_data, 'tuning', [(5, 12.)])
+    with pytest.raises(ValueError, match='missing requested'):
+        validate_communication_dataset(saved_data, 'tuning', [(7, 8.)])
+    assert numerical_state(saved_data, 'communication').status == 'partial'
+    before_tuning = communication_condition_identity(saved_data, 'tuning', (5, 12.))
+    before_evaluation = communication_condition_identity(saved_data, 'evaluation', (7, 8.))
+    pipeline.communication_stage(saved_data, show_progress=False)
+    validate_communication_dataset(saved_data, 'tuning')
+    assert numerical_state(saved_data, 'communication').status == 'completed'
+    assert communication_condition_identity(saved_data, 'tuning', (5, 12.)) == before_tuning
+    assert communication_condition_identity(saved_data, 'evaluation', (7, 8.)) == before_evaluation
+
+
 def test_archives_exactly_match_old_generation_and_share_channels_pilots(saved_data):
     cfg = saved_data
     out = cfg['run']['output_dir']
