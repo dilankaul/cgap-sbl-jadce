@@ -3,7 +3,8 @@ from pathlib import Path
 TASK_FOLDERS = {
     'kappa_calibration': 'kappa_calibration', 'activity': 'activity',
     'communication': 'communication', 'spatial_dependence': 'spatial_dependence',
-    'omp': 'omp', 'cosamp': 'cosamp', 'sbl': 'sbl', 'anc': 'cgap_sbl_anc',
+    'omp': 'omp', 'cosamp': 'cosamp', 'sbl': 'sbl', 'anc': 'cgap_sbl_anc', 'gl': 'cgap_sbl_gl',
+    'anc_grid_study': 'anc_grid_study',
     'comparison': 'comparison', 'convergence': 'convergence',
 }
 

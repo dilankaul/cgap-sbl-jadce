@@ -57,6 +57,17 @@ def validate_setup(cfg):
         for name in ('alpha', 'beta'):
             if name + '_values' in tune or name + '_start' in tune:
                 sequence(range_values(tune, name), f'{method}.{name}', zero=True)
+    from cgap_sbl_jadce.settings import validate_anc_search, grid_study_settings
+    validate_anc_search(cfg)
+    from cgap_sbl_jadce.settings import validate_gl_search
+    validate_gl_search(cfg)
+    study = grid_study_settings(cfg)
+    positive(study['pilot_length'], 'Grid study pilot length', integer=True)
+    positive(study['samples'], 'Grid study samples', integer=True)
+    if study['samples'] > cfg['run']['num_tuning_samples'] or not math.isfinite(study['snr_db']):
+        raise ValueError('Grid study needs finite SNR and samples within the saved tuning dataset.')
+    for parameter in ('alpha', 'beta', 'tau'):
+        sequence(range_values(study, parameter), f'Grid study {parameter}', zero=True)
     ref = cfg['communication']['reference']
     positive(ref['reference_pilot_length'], 'Communication reference pilot length', integer=True)
     if not math.isfinite(ref['reference_snr_db']):

@@ -57,9 +57,26 @@ def _anc(r, C, parameters, cfg, **kwargs):
                         parameters['alpha'], parameters['beta'], **_sbl_options(cfg, 'anc'), **kwargs)
 
 
+def _gl(r, C, parameters, cfg, **kwargs):
+    from cgap_sbl_jadce.algorithms.cgap_sbl_gl import cgap_sbl_gl
+    return cgap_sbl_gl(r.Theta, r.Y, r.sigma2, C, parameters['alpha'], **_sbl_options(cfg, 'gl'), **kwargs)
+
+
+def _gl_search(cfg):
+    from cgap_sbl_jadce.settings import gl_search_settings
+    return gl_search_settings(cfg)
+
+
+def _anc_search(cfg):
+    from cgap_sbl_jadce.settings import anc_search_settings
+    return anc_search_settings(cfg)
+
+
 def _anc_grid(cfg):
+    from cgap_sbl_jadce.settings import grid_study_settings
+    study = grid_study_settings(cfg)
     return [{'alpha': float(alpha), 'beta': float(beta)}
-            for alpha in range_values(tuning_settings(cfg, 'anc'), 'alpha') for beta in range_values(tuning_settings(cfg, 'anc'), 'beta')]
+            for alpha in range_values(study, 'alpha') for beta in range_values(study, 'beta')]
 
 
 @dataclass(frozen=True)
@@ -75,7 +92,8 @@ ESTIMATORS = {
     'omp': Estimator('omp', 'MMV-OMP', _omp),
     'cosamp': Estimator('cosamp', 'MMV-CoSaMP', _cosamp),
     'sbl': Estimator('sbl', 'SBL', _sbl, lambda cfg: [{}]),
-    'anc': Estimator('anc', 'CGAP-SBL-ANC', _anc, _anc_grid, spatial=True),
+    'anc': Estimator('anc', 'CGAP-SBL-ANC', _anc, _anc_search, spatial=True),
+    'gl': Estimator('gl', 'CGAP-SBL-GL', _gl, _gl_search, spatial=True),
 }
 
 
@@ -85,12 +103,25 @@ def tuning_definition(cfg, method):
     pair = (tune['reference_pilot_length'], tune['reference_snr_db'])
     from cgap_sbl_jadce.communication_dataset import communication_condition_identity
     from cgap_sbl_jadce.compatibility import solver_revision
-    definition = {'method': ESTIMATORS[method].name, 'revision': 2, 'nmse_scope': NMSE_SCOPE,
+    from cgap_sbl_jadce.compatibility import _source_digest
+    sources = ['experiments/tuning.py', 'experiments/search.py']
+    if method == 'anc':
+        sources.append('experiments/optuna_tuning.py')
+    if method == 'gl':
+        sources.append('experiments/gl_optuna_tuning.py')
+    definition = {'search_code': _source_digest(sources), 'method': ESTIMATORS[method].name, 'revision': 2, 'nmse_scope': NMSE_SCOPE,
         'condition': list(pair), 'tau_grid': {key: tune['tau_' + key] for key in ('start', 'stop', 'step')},
         'solver': solver_settings(cfg, method), 'code': solver_revision(method),
         'communication': communication_condition_identity(cfg, 'tuning', pair),
         'parameters': ESTIMATORS[method].tuning_grid(cfg), 'samples': cfg['run']['num_tuning_samples']}
     if ESTIMATORS[method].spatial:
+        import optuna
+        definition['revision'] = 4
+        definition['search_method'] = 'optuna_tpe'
+        definition['optuna_version'] = optuna.__version__
+        search = _gl_search(cfg) if method == 'gl' else _anc_search(cfg)
+        definition['samples'] = search['samples']
+        definition['sample_indices'] = list(range(search['samples']))
         definition['spatial_dependence'] = spatial_dependence_definition(cfg, 'tuning')
         definition['spatial_archive_sha256'] = archive_identity(task_dir(cfg['run']['output_dir'], 'spatial_dependence') / 'tuning', cfg['run']['num_tuning_samples'], ['matrix'])
     return definition
@@ -131,10 +162,19 @@ def load_selection(cfg, method, condition=None):
         cfg = condition_config(cfg, condition, method)
     cfg = method_config(cfg, method)
     path = tuning_path(cfg, method, 'selected.json')
+    from cgap_sbl_jadce.tuning_results import pending_tuning_resets
+    tune = tuning_settings(cfg, method)
+    pair = (int(tune['reference_pilot_length']), float(tune['reference_snr_db']))
+    if pair in pending_tuning_resets(cfg, method):
+        raise ValueError('An interrupted tuning reset must finish through Resume on its original request.')
     spec = ESTIMATORS[method]
     if not path.exists():
         raise FileNotFoundError(f'Choose Algorithms > {spec.name} > Tune : {path}')
     selected = json.loads(path.read_text())
+    if method == 'anc' and selected.get('search_method') != 'optuna_tpe':
+        raise ValueError('ANC Run requires a full Optuna TPE selection; paper grid and two-stage results cannot be used.')
+    if method == 'gl' and selected.get('search_method') != 'optuna_tpe':
+        raise ValueError('GL Run requires its own full Optuna TPE selection.')
     definition = tuning_definition(cfg, method)
     from cgap_sbl_jadce.compatibility import require_match
     require_match(selected.get('definition', {}), definition, f'{spec.name} tuning')
@@ -166,68 +206,63 @@ def evaluation_selections(cfg, method, required):
 def tune_estimator(cfg, method, show_progress=True):
     spec = ESTIMATORS[method]
     cfg = method_config(cfg, method)
-    communication = load_tuning_communication(cfg, cfg['run']['num_tuning_samples'])
+    from cgap_sbl_jadce.settings import validate_anc_search
+    from cgap_sbl_jadce.settings import validate_gl_search
+    count = (validate_gl_search(cfg)['samples'] if method == 'gl' else
+             validate_anc_search(cfg)['samples'] if method == 'anc' else cfg['run']['num_tuning_samples'])
+    communication = load_tuning_communication(cfg, count)
     matrices = (load_tuning_spatial_dependence(cfg, len(communication)) if spec.spatial
                 else [None] * len(communication))
     checkpoint = Checkpoint(tuning_path(cfg, method, ''), tuning_definition(cfg, method))
-    rows, curves = [], []
-    for pair_index, parameters in enumerate(tqdm(spec.tuning_grid(cfg), desc=f'{spec.name} tuning',
-                           unit='pair' if spec.spatial else 'setup', disable=not show_progress)):
-        gammas, errors, iterations = [], [], []
-        for q, (r, C) in enumerate(zip(communication, matrices)):
-            key = f'pair_{pair_index:04d}_{q:04d}'
-            cached = checkpoint.load(key)
-            if cached is None:
-                result = spec.solve(r, C, parameters, cfg)
-                metadata = {'nmse': nmse(r.Z, result.mu, r.a), 'iterations': result.iterations}
-                arrays = {'gamma': result.gamma}
-                checkpoint.save(key, metadata, **arrays)
-            else:
-                metadata, arrays = cached
-            gammas.append(arrays['gamma'])
-            errors.append(metadata['nmse'])
-            iterations.append(metadata['iterations'])
-        tune = tuning_settings(cfg, method)
-        candidates = (None if (tune['tau_start'], tune['tau_stop'], tune['tau_step']) == (0., .2, .001)
-                      else range_values(tune, 'tau'))
-        curve = threshold_curve(np.stack([r.a for r in communication]), np.asarray(gammas), tau_values=candidates)
-        best = max(curve, key=lambda point: (point['f1'], point['recall'], point['precision']))
-        rows.append({**parameters, **best, 'nmse': float(np.nanmean(errors)),
-                     'iterations': float(np.mean(iterations))})
-        curves.append(curve)
-    order = sorted(range(len(rows)), key=lambda i: (rows[i]['f1'], -rows[i]['nmse'], rows[i]['recall']), reverse=True)
+    if method == 'anc':
+        from cgap_sbl_jadce.experiments.optuna_tuning import tune_anc_optuna
+        rows, curves = tune_anc_optuna(cfg, communication, matrices, checkpoint, spec.solve, show_progress)
+    elif method == 'gl':
+        from cgap_sbl_jadce.experiments.gl_optuna_tuning import tune_gl_optuna
+        rows, curves = tune_gl_optuna(cfg, communication, matrices, checkpoint, spec.solve, show_progress)
+    else:
+        from cgap_sbl_jadce.experiments.search import score_candidate
+        rows, curves = [], []
+        for index, parameters in enumerate(spec.tuning_grid(cfg)):
+            row, curve = score_candidate(cfg, parameters, communication, matrices, checkpoint, spec.solve,
+                                          range_values(tuning_settings(cfg, method), 'tau'), len(communication),
+                                          show_progress, f'{spec.name} tuning', prefix=f'pair_{index:04d}')
+            rows.append(row)
+            curves.append(curve)
+    from cgap_sbl_jadce.experiments.search import rank_score
+    order = sorted(range(len(rows)), key=lambda i: rank_score(rows[i]), reverse=True)
     winner = order[0]
     best = rows[winner]
     selected = {'definition': tuning_definition(cfg, method),
-                'parameters': {**spec.tuning_grid(cfg)[winner], 'tau': best['tau']},
+                'parameters': {key: best[key] for key in (('alpha', 'beta', 'tau') if method == 'anc' else
+                    ('alpha', 'tau') if method == 'gl' else (*spec.tuning_grid(cfg)[winner], 'tau'))},
                 'tuning_scores': best,
                 'reference_pilot_length': reference_settings(cfg)['reference_pilot_length'],
                 'reference_snr_db': reference_settings(cfg)['reference_snr_db']}
+    if method in {'anc', 'gl'}:
+        selected.update(search_method='optuna_tpe')
     out = cfg['run']['output_dir']
     save_json(tuning_path(cfg, method, 'selected.json'), selected)
     save_csv(tuning_path(cfg, method, 'thresholds.csv'), curves[winner])
-    if spec.spatial:
-        save_csv(tuning_path(cfg, method, 'alpha_beta.csv'), [rows[i] for i in order])
-        save_csv(tuning_path(cfg, method, 'alpha_beta_tau_scores.csv'),
-                 [{**parameters, **point} for parameters, curve in zip(spec.tuning_grid(cfg), curves)
-                  for point in curve])
     folder = tuning_path(cfg, method, '')
     from cgap_sbl_jadce.figures.estimator_threshold_scores import plot_threshold_tuning
-    from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_alpha_beta_tau_tuning
+    from cgap_sbl_jadce.figures.anc_optuna_tuning import plot_anc_optuna_tuning
     from cgap_sbl_jadce.checkpoints import output_hashes
     plots = plot_threshold_tuning(cfg, method)
     if method == 'anc':
-        plots.extend(plot_alpha_beta_tau_tuning(cfg))
+        plots.extend(plot_anc_optuna_tuning(cfg))
+    if method == 'gl':
+        from cgap_sbl_jadce.figures.gl_optuna_tuning import plot_gl_optuna_tuning
+        plots.extend(plot_gl_optuna_tuning(cfg))
     names = ['selected.json', 'thresholds.csv']
     if spec.spatial:
-        names.extend(['alpha_beta.csv', 'alpha_beta_tau_scores.csv'])
+        names.extend(['trials.csv', 'study.sqlite3', 'sampler.pkl', 'search_progress.json'])
     files = [folder / name for name in names] + plots
     import os
     save_json(folder / 'summary.json', {
-        'status': 'complete', 'selected': selected, 'grid_pairs': len(rows), 'tau_candidates': len(curves[winner]),
+        'status': 'complete', 'selected': selected, 'candidate_count': len(rows), 'tau_candidates': len(curves[winner]),
         'outputs': {os.path.relpath(path, folder): digest for path, digest in zip(files, output_hashes(files).values())},
     })
-    checkpoint.clear(prune=True)
     return selected
 
 
@@ -236,10 +271,25 @@ def tune_estimator_stage(cfg, method, show_progress=True, conditions=None):
     spec = ESTIMATORS[method]
     if spec.tuning_grid is None:
         raise ValueError(f"{spec.name} does not require tuning.")
-    save_task_snapshot(cfg, spec.task, status='started', action='tune', method=spec.name)
     cfg = method_config(cfg, method)
     pairs = tuning_conditions(cfg, conditions, method)
+    from cgap_sbl_jadce.settings import validate_anc_search
+    if method == 'anc':
+        validate_anc_search(cfg)
+    if method == 'gl':
+        from cgap_sbl_jadce.settings import validate_gl_search
+        validate_gl_search(cfg)
+    range_values(tuning_settings(cfg, method), 'tau')
+    validate_communication_dataset(cfg, 'tuning', pairs)
+    if spec.spatial:
+        validate_spatial_dependence_dataset(cfg, 'tuning')
+    definitions = [tuning_definition(condition_config(cfg, pair, method), method) for pair in pairs]
+    from cgap_sbl_jadce.tuning_results import reset_tuning_results
+    from cgap_sbl_jadce.figures.estimator_parameter_sweeps import plot_tuning_parameter_sweeps
+    reset_tuning_results(cfg, method, pairs, definitions, is_resuming())
+    save_task_snapshot(cfg, spec.task, status='started', action='tune', method=spec.name)
     selections = []
+    refreshed = False
     for pair in pairs:
         condition_cfg = condition_config(cfg, pair, method)
         summary_path = tuning_path(condition_cfg, method, 'summary.json')
@@ -252,11 +302,21 @@ def tune_estimator_stage(cfg, method, show_progress=True, conditions=None):
                 files = [root / name for name in saved.get('outputs', {})]
                 hashes = {str(path.relative_to(root)): digest for path, digest in zip(files, output_hashes(files).values())}
                 if saved.get('status') == 'complete' and hashes == saved.get('outputs'):
+                    from cgap_sbl_jadce.checkpoints import prune_owned_checkpoints
+                    prune_owned_checkpoints(root / '.checkpoints', tuning_definition(condition_cfg, method))
                     selections.append(current)
                     continue
             except (OSError, ValueError, KeyError):
                 pass
         selections.append(tune_estimator(condition_cfg, method, show_progress))
+        plot_tuning_parameter_sweeps(cfg, method)
+        if method == 'gl':
+            from cgap_sbl_jadce.checkpoints import prune_owned_checkpoints
+            prune_owned_checkpoints(tuning_path(condition_cfg, method, '') / '.checkpoints',
+                                    tuning_definition(condition_cfg, method))
+        refreshed = True
+    if not refreshed:
+        plot_tuning_parameter_sweeps(cfg, method)
     selected = selections[0] if len(selections) == 1 else {'conditions': selections}
     save_task_snapshot(cfg, spec.task, status='complete', action='tune',
                        method=spec.name, selected_parameters=selected)
@@ -500,7 +560,7 @@ def convergence_stage(cfg, show_progress=True, methods=None, realization_index=N
     r = load_communication_sample(validate_communication_dataset(cfg, 'evaluation', [(L, snr)]), q, (L, snr))[(L, snr)]
     methods = analysis_methods(cfg, 'convergence', methods, condition=(L, snr))
     if not set(methods) <= set(convergence_methods(cfg, (L, snr))):
-        raise ValueError('Convergence requires completed SBL or CGAP-SBL-ANC evaluation at this condition.')
+        raise ValueError('Convergence requires completed SBL, CGAP-SBL-ANC or CGAP-SBL-GL evaluation at this condition.')
     C = load_spatial_dependence_matrix(validate_spatial_dependence_dataset(cfg, 'evaluation'), q) if any(ESTIMATORS[method].spatial for method in methods) else None
     histories, scores = {}, {}
     selections = {method: load_selection(cfg, method, (L, snr)) for method in methods if ESTIMATORS[method].tuning_grid}

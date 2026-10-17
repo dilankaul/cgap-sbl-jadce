@@ -90,3 +90,37 @@ saved arrays. This measures status validation, not browser or graph rendering.
 - Saved and interactive sweep lines use their sweep endpoints, including incomplete evaluation sweeps. GUI lines retain Plotly's default y-autorange and allow unrestricted zooming/panning; Reset restores the sweep view on linear and log axes. Optional Chromium tests exercise the actual toolbar.
 
 - GUI spatial dependence and pilot cross-correlation matrices have square cells at responsive widths; complex communication matrices retain their existing proportions and color keys.
+
+
+Optuna tuning checks cover the full trials-times-samples solver budget, identical
+tuning samples for every trial, full-TPE-only selection, deterministic trial suggestions
+after interruption (including the tell/checkpoint boundary), saved threshold
+selection and independent paper-grid results/settings. Tune condition tables
+support shared Add/Delete controls and preserve completed outputs. Full scientific
+runs are not part of validation: tests use tiny saved datasets and explicit small
+search budgets. Workflow logic tests substitute atomic artifact writers; dedicated
+plotting tests retain real native-font PNG/PDF exports. Worker integration continues
+to exercise the production renderer and detached execution path.
+
+Use `make test-fast`, `make test-gui`, `make test-integration`, and
+`make test-plotting` while editing. `make test-all` runs all checks with two isolated
+workers; `make test-profile` reports slow tests. Scientific, sampling, tuning and
+recovery changes require the full local suite before completion.
+
+
+Condition-specific tuning validation also covers Run-equivalent row ordering and
+Sweep labels, separate Resume/Rerun after Stop, worker Complete preserving finished
+conditions, scoped resets before solver calls, interrupted-reset recovery and
+linked-path protection. Parameter plots are checked against saved selections,
+including missing-point gaps, incompatible-selection exclusion, independent SBL
+thresholds, visible ANC parameter labels and real PNG/PDF export of both new sweep
+plots and retained diagnostics. No research datasets are regenerated.
+
+
+GL validation covers sparse penalties versus explicit normalized Laplacians,
+lagged gamma, zero-alpha/isolated-self-loop SBL recovery, retained diagonals,
+connectivity scaling and invalid graphs. Workflow coverage exercises independent
+TPE alpha/tau selection, interruption before and after Optuna tell, deterministic
+resume without repeated completed solver calls, scoped resets, separate ANC
+ownership, the fifth GUI card and condition controls, evaluation, comparison,
+convergence, interactive plots and real PNG/PDF exports.

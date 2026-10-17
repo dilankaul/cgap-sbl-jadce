@@ -150,7 +150,9 @@ def test_condition_tune_dispatch_and_pdf_export_use_selected_scope(saved_data, t
     from cgap_sbl_jadce.io import save_yaml
     cfg = per_condition_data(saved_data)
     paths = run_task('sbl', cfg, action='tune', show_progress=False, conditions=[[7, 8]])
-    assert len(paths) == 1 and 'L0007_snr8dB' in str(paths[0])
+    assert len(paths) == 3 and 'L0007_snr8dB' in str(paths[0])
+    assert {path.name for path in paths[1:]} == {'sbl_tau_vs_snr.png', 'sbl_tau_vs_pilot_length.png'}
+    assert all(path.parent.name == 'sweeps' for path in paths[1:])
     config = tmp_path / 'input.yaml'
     save_yaml(config, cfg)
     exported = render_preview({'config': str(config), 'category': 'sbl_tune', 'condition': [7, 8]}, tmp_path / 'export')

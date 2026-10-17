@@ -203,7 +203,10 @@ def communication_stage(cfg: dict[str, Any], show_progress: bool = True, conditi
     from cgap_sbl_jadce.communication_dataset import add_communication_conditions
     from cgap_sbl_jadce.settings import communication_conditions
     from cgap_sbl_jadce.checkpoints import is_resuming
-    return add_communication_conditions(cfg, communication_conditions(cfg, conditions), methods or [],
+    pairs = communication_conditions(cfg, conditions)
+    if conditions is None:
+        pairs = sorted(pairs)
+    return add_communication_conditions(cfg, pairs, methods or [],
                                         show_progress, rerun=not is_resuming(),
                                         full_scope=conditions is None)
 

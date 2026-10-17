@@ -9,6 +9,8 @@ PATHS = {
     'cosamp': '<path d="m12 3 10 5-10 5L2 8l10-5zm-9 9 9 5 9-5M3 16l9 5 9-5"/>',
     'sbl': '<path d="M3 18c4 0 3-12 9-12s5 12 9 12M3 21h18"/>',
     'anc': '<path d="m12 3 8 4v5c0 5-8 9-8 9s-8-4-8-9V7l8-4zM8 12l3 3 5-6"/>',
+    'gl': '<circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M7 5h10M6 7l5 10m7-10-5 10"/>',
+    'anc_grid_study': '<path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18"/>',
     'comparison': '<path d="M4 20V10m8 10V4m8 16v-7M2 20h20"/>',
     'convergence': '<path d="M3 3v18h18M6 6c2 0 2 8 6 10s6 1 9 1"/>',
     'tune': '<path d="M5 3v5m0 4v9M12 3v10m0 4v4M19 3v2m0 4v12M2 8h6m1 9h6m1-12h6"/>',

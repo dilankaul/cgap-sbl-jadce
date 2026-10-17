@@ -72,7 +72,8 @@ def test_optional_condition_heatmaps_and_independent_tuning_use_saved_data(saved
     estimators.tune_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
     estimators.run_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
     request = request_file(cfg, tmp_path, category='anc_tune', condition=[5, 8])
-    assert len(interactive_figures(request)) == 4
+    assert [label for label, _ in interactive_figures(request)] == [
+        'TPE search history', 'Sampled parameter pairs', 'Threshold scores']
     request['category'] = 'anc_run'
     request.pop('condition')
     figures = interactive_figures(request)

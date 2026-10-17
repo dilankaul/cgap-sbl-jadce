@@ -17,13 +17,14 @@ dependencies = [
   "tqdm>=4.66",
   "streamlit>=1.58,<2",
   "plotly>=6,<8",
+  "optuna>=4.5,<6",
 ]
 
 [project.scripts]
 cgap-sbl-lab = "cgap_sbl_jadce.gui.app:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = ["pytest>=8.0", "pytest-xdist>=3.6,<4"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -31,3 +32,10 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+markers = [
+  "unit: fast numerical and configuration checks",
+  "gui: Streamlit interaction checks",
+  "integration: workers, saved datasets and recovery checks",
+  "plotting: real PNG/PDF export and plotting checks",
+]

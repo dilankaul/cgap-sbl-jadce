@@ -5,7 +5,7 @@ import pytest
 
 from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.settings import (range_values, grouped_config, calibration_settings,
-                                     evaluation_settings, tuning_settings)
+                                     evaluation_settings, tuning_settings, grid_study_settings)
 from cgap_sbl_jadce.gui.setups import validate_setup
 from cgap_sbl_jadce.experiments.estimators import _anc_grid, evaluation_conditions
 from cgap_sbl_jadce.io import save_yaml
@@ -13,7 +13,7 @@ from cgap_sbl_jadce.io import save_yaml
 
 def test_default_sweeps_keep_all_original_values_and_inclusive_endpoints():
     cfg = load_config('configs/experiment.yaml')
-    cal, tune, evaluation = calibration_settings(cfg), tuning_settings(cfg, 'anc'), evaluation_settings(cfg)
+    cal, tune, evaluation = calibration_settings(cfg), grid_study_settings(cfg), evaluation_settings(cfg)
     assert cal['kappa_scan'] == [i / 2 for i in range(1, 21)]
     assert cal['kappa_refinement_steps'] == [.1, .01]
     assert range_values(tune, 'alpha') == list(range(11))
@@ -89,5 +89,5 @@ def test_gui_exposes_all_range_controls_and_saves_edited_grid(saved_data, tmp_pa
     next(b for b in app.button if b.label == 'Save changes').click().run()
     assert not app.exception
     saved = load_config(config)
-    assert range_values(tuning_settings(saved, 'anc'), 'alpha') == [0., 2., 4.]
+    assert range_values(grid_study_settings(saved), 'alpha') == [0., 2., 4.]
     assert not list((tmp_path / '.gui').glob('*/job.json'))

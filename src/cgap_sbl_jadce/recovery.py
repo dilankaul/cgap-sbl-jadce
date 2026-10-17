@@ -101,7 +101,7 @@ def record_completed_outputs(request, figure_paths):
         sources = [source for pair in pairs for source in (
             tuning_path(condition_config(cfg, pair, request['task']), request['task'], ''),
             tuning_figure_path(condition_config(cfg, pair, request['task']), request['task'], ''))]
-    elif request['task'] in {'omp', 'cosamp', 'sbl', 'anc'}:
+    elif request['task'] in {'omp', 'cosamp', 'sbl', 'anc', 'gl'}:
         from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
         from cgap_sbl_jadce.paths import run_path
         pairs = list(dict.fromkeys(value[:2] for value in evaluation_conditions(cfg, request.get('conditions'), method=request['task'])))

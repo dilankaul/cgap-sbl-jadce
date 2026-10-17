@@ -25,11 +25,11 @@ def save_task_snapshot(cfg, task, **runtime):
             provenance['activity_parameters_used'] = {
                 key: activity[key] for key in ('N', 'V', 'R', 'D', 'kappa', 'target_mean_S') if key in activity
             }
-    if task in {'spatial_dependence', 'anc', 'convergence'}:
+    if task in {'spatial_dependence', 'anc', 'gl', 'convergence', 'anc_grid_study'}:
         from cgap_sbl_jadce.config import activity_spatial_dependence_parameters
         snapshot["spatial_dependence"] = activity_spatial_dependence_parameters(cfg)
         provenance["method_revision"] = 1
-    if task in {'omp', 'cosamp', 'sbl', 'anc', 'comparison', 'convergence'}:
+    if task in {'omp', 'cosamp', 'sbl', 'anc', 'gl', 'comparison', 'convergence', 'anc_grid_study'}:
         provenance['nmse_scope'] = NMSE_SCOPE
     snapshot['task_runtime'] = provenance
     folder = task_dir(out, task)
@@ -49,6 +49,6 @@ def save_task_snapshot(cfg, task, **runtime):
             'logical_cpus': os.cpu_count(),
             'thread_settings': {name: os.environ.get(name) for name in (
                 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'OMP_NUM_THREADS', 'NUMEXPR_NUM_THREADS')},
-        }} if task in {'omp', 'cosamp', 'sbl', 'anc'} else {}),
+        }} if task in {'omp', 'cosamp', 'sbl', 'anc', 'gl'} else {}),
     })
     return snapshot

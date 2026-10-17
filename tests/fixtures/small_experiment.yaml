@@ -5,7 +5,6 @@ seeds:
   activity_evaluation: 7069
   communication_tuning: 4283
   communication_evaluation: 9517
-
 run:
   output_dir: results/quick
   num_tuning_samples: 4
@@ -30,8 +29,23 @@ activity:
   exact_sparsity: false
   batch_size: 128
   calibration_samples: 1000
-  kappa_scan: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 6.0, 8.0]
-  kappa_refinement_steps: [0.1, 0.02, 0.005]
+  kappa_scan:
+  - 0.5
+  - 1.0
+  - 1.5
+  - 2.0
+  - 2.5
+  - 3.0
+  - 3.5
+  - 4.0
+  - 4.5
+  - 5.0
+  - 6.0
+  - 8.0
+  kappa_refinement_steps:
+  - 0.1
+  - 0.02
+  - 0.005
   calibration_tolerance: 0.1
 algorithms:
   gamma_init: 0.1
@@ -40,6 +54,16 @@ algorithms:
   cosamp_max_iter: 20
   cosamp_tol: 0.0001
   cosamp_lambda_reg: 0.01
+  anc:
+    tuning:
+      trials: 4
+      samples: 4
+      startup_trials: 2
+  gl:
+    tuning:
+      trials: 4
+      samples: 4
+      startup_trials: 2
 tuning:
   reference_snr_db: 12
   reference_pilot_length: 20
@@ -58,5 +82,7 @@ evaluation:
   gamma_distribution_samples: 6
   convergence_sample_offset: 0
 figures:
-  tuning_indices: [0]
-  evaluation_indices: [0]
+  tuning_indices:
+  - 0
+  evaluation_indices:
+  - 0

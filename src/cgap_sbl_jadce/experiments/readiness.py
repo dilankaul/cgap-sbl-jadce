@@ -33,6 +33,17 @@ def blocking_reasons(cfg, task, action='run', conditions=None, methods=None, con
             check(lambda: evaluation_selections(cfg, task, evaluation_conditions(cfg, conditions, method=task)))
         if action == 'tune' and not reasons:
             check(lambda: tuning_conditions(cfg, conditions, task))
+            if task == 'anc':
+                from cgap_sbl_jadce.settings import validate_anc_search
+                check(lambda: validate_anc_search(cfg))
+            if task == 'gl':
+                from cgap_sbl_jadce.settings import validate_gl_search
+                check(lambda: validate_gl_search(cfg))
+    if task == 'anc_grid_study':
+        from cgap_sbl_jadce.settings import grid_study_settings
+        values = grid_study_settings(cfg)
+        check(lambda: validate_communication_dataset(cfg, 'tuning', [(values['pilot_length'], values['snr_db'])]))
+        check(lambda: validate_spatial_dependence_dataset(cfg, 'tuning'))
     if task == 'comparison':
         available = completed_methods(cfg, conditions)
         selected = methods if methods is not None else available
@@ -46,7 +57,7 @@ def blocking_reasons(cfg, task, action='run', conditions=None, methods=None, con
         available = convergence_methods(cfg, condition)
         selected = methods if methods is not None else available
         if not selected:
-            reasons.append('Complete SBL or CGAP-SBL-ANC at this condition, then select it here.')
+            reasons.append('Complete SBL, CGAP-SBL-ANC or CGAP-SBL-GL at this condition, then select it here.')
         for method in selected:
             if method not in available:
                 reasons.append(f'Complete a compatible evaluation run for {ESTIMATORS[method].name}.')

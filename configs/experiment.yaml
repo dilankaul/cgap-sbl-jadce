@@ -36,7 +36,7 @@ algorithms:
     tuning:
       reference_pilot_length: 30
       reference_snr_db: 12.0
-      selection_mode: reference
+      selection_mode: per_condition
       tau_start: 0.0
       tau_stop: 0.5
       tau_step: 0.001
@@ -48,16 +48,38 @@ algorithms:
     tuning:
       reference_pilot_length: 30
       reference_snr_db: 12.0
-      selection_mode: reference
+      selection_mode: per_condition
       tau_start: 0.0
       tau_stop: 0.5
       tau_step: 0.001
-      alpha_start: 0.0
-      alpha_stop: 10.0
-      alpha_step: 1.0
-      beta_start: 0.0
-      beta_stop: 0.1
-      beta_step: 0.01
+      search_method: optuna_tpe
+      alpha_low: 0.0
+      alpha_high: 10.0
+      beta_low: 0.0
+      beta_high: 0.1
+      trials: 50
+      samples: 100
+      startup_trials: 10
+      optuna_seed: 17389
+  gl:
+    solver:
+      gamma_init: 0.1
+      K: 500
+      delta: 0.0001
+    tuning:
+      reference_pilot_length: 30
+      reference_snr_db: 12.0
+      selection_mode: per_condition
+      tau_start: 0.0
+      tau_stop: 0.5
+      tau_step: 0.001
+      search_method: optuna_tpe
+      alpha_low: 0.0
+      alpha_high: 100.0
+      trials: 50
+      samples: 100
+      startup_trials: 10
+      optuna_seed: 17389
 evaluation:
   snr_db: 12.0
   pilot_length: 30
@@ -99,3 +121,16 @@ communication:
   reference:
     reference_pilot_length: 25
     reference_snr_db: 12.0
+anc_grid_study:
+  pilot_length: 30
+  snr_db: 12.0
+  samples: 100
+  alpha_start: 0.0
+  alpha_stop: 10.0
+  alpha_step: 1.0
+  beta_start: 0.0
+  beta_stop: 0.1
+  beta_step: 0.01
+  tau_start: 0.0
+  tau_stop: 0.5
+  tau_step: 0.001

@@ -60,7 +60,7 @@ def checkpointed(stage):
 def scientific_revision():
     root = Path(__file__).parent
     files = list((root / 'models').glob('*.py')) + list((root / 'algorithms').glob('*.py'))
-    files += list((root / 'experiments').glob('*.py')) + [root / name for name in ('metrics.py', 'checkpoints.py', 'additional_conditions.py', 'communication_dataset.py', 'spatial_dependence_dataset.py', 'condition_results.py', 'settings.py', 'config.py', 'compatibility.py')]
+    files += list((root / 'experiments').glob('*.py')) + [root / name for name in ('metrics.py', 'checkpoints.py', 'additional_conditions.py', 'communication_dataset.py', 'spatial_dependence_dataset.py', 'condition_results.py', 'tuning_results.py', 'settings.py', 'config.py', 'compatibility.py')]
     digest = hashlib.sha256()
     for path in sorted(files):
         digest.update(path.relative_to(root).as_posix().encode())

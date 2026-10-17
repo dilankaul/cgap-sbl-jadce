@@ -28,7 +28,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
         command = ('pause' if record.get('portable') else
                    json.loads((jobs.folder / record['id'] / 'control.json').read_text())['command'])
         st.subheader('Task progress')
-        if task in set(ESTIMATORS) | {'communication'} and action == 'run':
+        if task in set(ESTIMATORS) | {'communication'}:
             pairs = record['request'].get('conditions')
             st.caption('Running scope: All conditions' if pairs is None else 'Running scope: ' +
                        ', '.join(f'L={L}, SNR={snr:g} dB' for L, snr in pairs))
@@ -73,10 +73,10 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
     panel()
 
 
-def optional_input_controls(st, cfg, config, jobs, method, pairs):
+def optional_input_controls(st, cfg, config, jobs, method, pairs, action='run'):
     from cgap_sbl_jadce.additional_conditions import input_reasons, input_splits
     from cgap_sbl_jadce.communication_dataset import validate_communication_dataset
-    prefix = f'{config}_{method}_run'
+    prefix = f'{config}_{method}_{action}'
     if st.session_state.get('additional_pair_' + prefix) not in pairs:
         st.session_state.pop('additional_pair_' + prefix, None)
     pair = st.selectbox('Optional condition inputs', pairs, key='additional_pair_' + prefix,
@@ -116,27 +116,38 @@ def optional_input_controls(st, cfg, config, jobs, method, pairs):
     worker_panel(st, jobs, config, 'communication', 'run', [list(pair)])
 
 
-def condition_status_panel(st, cfg, config, jobs, method, plan):
+def condition_status_panel(st, cfg, config, jobs, method, plan, action='run'):
     from cgap_sbl_jadce.additional_conditions import additional_conditions, add_condition, remove_condition
     from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
     from cgap_sbl_jadce.gui.setup_editor import reset_settings_forms
-    prefix = f'{config}_{method}_run'
+    from cgap_sbl_jadce.gui.tuning_conditions import tuning_plan
+    planner = tuning_plan if action == 'tune' else completion_plan
+    prefix = f'{config}_{method}_{action}'
     pairs = [pair for pair in additional_conditions(cfg) if pair not in plan.pairs]
-    optional_plan = completion_plan(config, method, pairs) if pairs else None
+    optional_plan = planner(config, method, pairs) if pairs else None
     with st.expander('Condition status', expanded=True):
+        sweep_pairs = {value[:2] for value in evaluation_conditions(cfg)}
         widths = [1, 1, 1, 2, 1]
         with st.container(border=True, key='condition_status_table'):
             for column, label in zip(st.columns(widths), ['Pilot length L', 'SNR (dB)', 'Type', 'Status', '']):
                 column.markdown('**' + label + '**' if label else '')
-            for current_plan, kind in [(plan, 'Setup' if method == 'communication' else 'Sweep'), (optional_plan, 'Optional')]:
+            for current_plan, kind in [(plan, 'Sweep'), (optional_plan, 'Optional')]:
                 if current_plan is None:
                     continue
                 for pair in current_plan.pairs:
                     status = ('Completed' if pair in current_plan.completed else 'Incompatible' if pair in current_plan.blocked
                               else 'Unfinished' if pair in current_plan.resume else 'Not started')
                     columns = st.columns(widths, vertical_alignment='center')
-                    for column, text in zip(columns, [str(pair[0]), f'{pair[1]:g}', kind, status]):
+                    for column, text in zip(columns, [str(pair[0]), f'{pair[1]:g}', 'Reference' if kind == 'Sweep' and pair not in sweep_pairs else kind, status]):
                         column.write(text)
+                    if action == 'tune' and method in {'anc', 'gl'} and pair not in current_plan.blocked:
+                        from cgap_sbl_jadce.paths import tuning_path
+                        progress_path = tuning_path(cfg, method, 'search_progress.json', pair)
+                        if progress_path.exists():
+                            progress = json.loads(progress_path.read_text())
+                            columns[3].caption(f"Trials: {progress['completed']}/{progress['total']}")
+                    if action == 'tune' and pair in current_plan.blocked:
+                        columns[3].caption(current_plan.blocked[pair])
                     if kind == 'Optional':
                         in_use = any(job['status'] in ACTIVE and job['request'].get('kind') == 'task' and
                             str(job['request']['config']) == str(config) and
@@ -175,24 +186,27 @@ def condition_status_panel(st, cfg, config, jobs, method, plan):
                     except (OSError, ValueError) as error:
                         st.error(str(error))
         if pairs and method != 'communication':
-            optional_input_controls(st, cfg, config, jobs, method, pairs)
+            optional_input_controls(st, cfg, config, jobs, method, pairs, action=action)
 
 
 def task_page(st, cfg, config, jobs, task, action):
     spec = ESTIMATORS.get(task)
-    group = 'Analysis' if task in {'comparison','convergence'} else 'Algorithms' if spec else 'Data preparation'
+    group = 'Analysis' if task in {'comparison','convergence','anc_grid_study'} else 'Algorithms' if spec else 'Data preparation'
     st.caption(f'{group} / {action.capitalize()}')
     description = task_actions(task)[action].description
     st.title(f'{action.capitalize()} {spec.name}' if spec else description[0].upper()+description[1:])
     from cgap_sbl_jadce.gui.setup_editor import edit_settings
     from cgap_sbl_jadce.gui.workflow import numerical_state
     from cgap_sbl_jadce.file_cache import validation_snapshot
-    plan = None
+    plan = tune_plan = None
     with validation_snapshot():
         state = numerical_state(cfg, task, action)
         if (spec or task == 'communication') and action == 'run':
             from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
             plan = completion_plan(config, task)
+        if spec and action == 'tune' and tuning_settings(cfg, task)['selection_mode'] == 'per_condition':
+            from cgap_sbl_jadce.gui.tuning_conditions import tuning_plan
+            tune_plan = tuning_plan(config, task)
     if state.status == 'incompatible':
         st.warning('Saved results are incompatible with this setup.')
         with st.expander('Compatibility details'):
@@ -203,6 +217,11 @@ def task_page(st, cfg, config, jobs, task, action):
         st.progress(len(plan.completed) / max(1, len(plan.pairs)),
                     text=f'{len(plan.completed)}/{len(plan.pairs)} conditions completed')
         condition_status_panel(st, cfg, config, jobs, task, plan)
+    if tune_plan is not None:
+        st.progress(len(tune_plan.completed) / max(1, len(tune_plan.pairs)),
+                    text=f'{len(tune_plan.completed)}/{len(tune_plan.pairs)} conditions tuned')
+        condition_status_panel(st, cfg, config, jobs, task, tune_plan, action='tune')
+        plan = tune_plan
     conditions = condition = methods = q = None
     selectable = (task in ESTIMATORS or task in {'comparison', 'communication'}) and action == 'run' or (
         action == 'tune' and tuning_settings(cfg, task)['selection_mode'] == 'per_condition')
@@ -243,8 +262,13 @@ def task_page(st, cfg, config, jobs, task, action):
     if spec:
         if action == 'tune':
             count = len(conditions) if conditions is not None else (len(tuning_pairs(cfg, task)) if tuning_settings(cfg, task)['selection_mode'] == 'per_condition' else 1)
-            candidates = len(spec.tuning_grid(cfg))
-            st.caption(f'{count} conditions × {candidates} parameter candidates × {cfg["run"]["num_tuning_samples"]} tuning realizations.')
+            if task in {'anc', 'gl'}:
+                from cgap_sbl_jadce.settings import anc_search_settings, gl_search_settings
+                search = gl_search_settings(cfg) if task == 'gl' else anc_search_settings(cfg)
+                st.caption(f"{count} conditions · TPE: {search['trials']} trials × {search['samples']} tuning realizations")
+            else:
+                candidates = len(spec.tuning_grid(cfg))
+                st.caption(f'{count} conditions × {candidates} parameter candidates × {cfg["run"]["num_tuning_samples"]} tuning realizations.')
         if spec.tuning_grid:
             st.caption('Per-condition tuning' if tuning_settings(cfg, task)['selection_mode'] == 'per_condition'
                 else f"Reference tuning: L={tuning_settings(cfg, task)['reference_pilot_length']}, SNR={tuning_settings(cfg, task)['reference_snr_db']:g} dB.")
@@ -258,9 +282,10 @@ def task_page(st, cfg, config, jobs, task, action):
         if value is not None:
             request[key] = value
     busy = jobs.busy() is not None
+    from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
     try:
         if plan is not None:
-            selected_plan = (completion_plan(config, task, conditions) if conditions is not None and
+            selected_plan = (completion_plan(config, task, conditions, action=action) if conditions is not None and
                              not {tuple(pair) for pair in conditions} <= set(plan.pairs) else plan.selected(conditions))
             label = selected_plan.label(selected=conditions is not None)
             st.caption(selected_plan.summary)
@@ -277,7 +302,7 @@ def task_page(st, cfg, config, jobs, task, action):
                 if fresh:
                     jobs.start(request)
                 elif (label == 'Resume' and own and own['status'] in RECOVERABLE | {'paused'} and
-                      set(selected_plan.pairs) == set(completion_plan(config, task, own['request'].get('conditions')).pairs)):
+                      set(selected_plan.pairs) == set(completion_plan(config, task, own['request'].get('conditions'), action=action).pairs)):
                     jobs.resume(own['id'])
                 else:
                     jobs.complete(request)

@@ -13,7 +13,13 @@ PREVIEWS = {
     'communication': 'Communication diagnostics',
     'spatial': 'Spatial dependence matrix',
     'sbl_tune': 'SBL threshold scores',
-    'anc_tune': 'ANC parameter and threshold tuning',
+    'gl_tune': 'GL Optuna tuning',
+    'gl_tuning_sweeps': 'GL selected parameter sweeps',
+    'gl_run': 'GL performance and gamma distribution',
+    'anc_tune': 'ANC Optuna tuning',
+    'anc_tuning_sweeps': 'ANC selected parameter sweeps',
+    'sbl_tuning_sweeps': 'SBL selected threshold sweeps',
+    'anc_grid_study': 'ANC paper grid study',
     'omp_run': 'OMP performance',
     'cosamp_run': 'CoSaMP performance',
     'sbl_run': 'SBL performance and gamma distribution',
@@ -42,15 +48,23 @@ def sample_options(cfg, category, split):
 
 
 def missing_preview_inputs(cfg, category):
+    if category.endswith('_tuning_sweeps'):
+        from cgap_sbl_jadce.figures.estimator_parameter_sweeps import parameter_sweeps
+        method = category.removesuffix('_tuning_sweeps')
+        return [] if parameter_sweeps(cfg, method) else [task_dir(cfg['run']['output_dir'], method) / 'tuning']
+    if category == 'anc_grid_study':
+        path = result_path(cfg['run']['output_dir'], category, 'summary.json')
+        if not path.exists() or json.loads(path.read_text()).get('status') != 'complete':
+            return [path]
     if category.endswith('_tune'):
         method = category.removesuffix('_tune')
-        names = ['thresholds.csv'] + (['alpha_beta.csv'] if method == 'anc' else [])
+        names = ['thresholds.csv'] + (['trials.csv'] if method in {'anc', 'gl'} else [])
         return [tuning_path(cfg, method, name) for name in names if not tuning_path(cfg, method, name).exists()]
     sources = {
         'active_counts': [('activity', 'tuning_activity.npz'), ('activity', 'evaluation_activity.npz')],
         'kappa': [('kappa_calibration', 'kappa_sweep.csv')],
         'sbl_tune': [('sbl', 'tuning/thresholds.csv')],
-        'anc_tune': [('anc', 'tuning/alpha_beta.csv'), ('anc', 'tuning/thresholds.csv')],
+        'anc_grid_study': [('anc_grid_study', 'alpha_beta.csv')],
         'comparison': [('comparison', 'aggregate.csv')],
         'convergence': [('convergence', 'convergence.npz')],
     }
@@ -82,8 +96,14 @@ def render_preview(request, destination):
         if type(index) is not int or not 0 <= index < count:
             raise ValueError(f'Realization index must be within 0..{count - 1}')
     with figure_destination(Path(cfg['run']['output_dir']), Path(destination)):
+        if category.endswith('_tuning_sweeps'):
+            from cgap_sbl_jadce.figures.estimator_parameter_sweeps import plot_tuning_parameter_sweeps
+            return plot_tuning_parameter_sweeps(cfg, category.removesuffix('_tuning_sweeps'), formats='both')
         if category == 'activity':
             return plot_activity_realization(cfg, split, index, formats='both')
+        if category == 'anc_grid_study':
+            from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_anc_grid_study
+            return plot_anc_grid_study(cfg, formats='both')
         if category == 'active_counts':
             return plot_activity_s_distribution(cfg, formats='both')
         if category == 'kappa':

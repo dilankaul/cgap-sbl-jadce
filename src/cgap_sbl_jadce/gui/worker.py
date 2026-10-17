@@ -34,13 +34,12 @@ def run(folder):
         if request['kind'] == 'task':
             if record.get('complete'):
                 from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
-                plan = completion_plan(request['config'], request['task'], request.get('conditions'))
+                plan = completion_plan(request['config'], request['task'], request.get('conditions'), action=request.get('action', 'run'))
                 if plan.blocked:
                     raise ValueError('Some saved conditions are incompatible. Select them and explicitly Rerun.')
             from cgap_sbl_jadce.recovery import begin_recovery
             from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-            reset = (request['task'] in ESTIMATORS and request.get('action', 'run') == 'run'
-                     and not record.get('complete', False))
+            reset = request['task'] in ESTIMATORS and not record.get('complete', False)
             begin_recovery(request, resume=record.get('resume', False), reset=reset)
         update_status(folder, status='running', input_signature=input_signature(request))
         pause_point()
@@ -64,7 +63,7 @@ def run(folder):
             finish_recovery(request)
             if record.get('complete'):
                 from cgap_sbl_jadce.gui.algorithm_actions import clear_finished_recoveries
-                clear_finished_recoveries(request['config'], request['task'])
+                clear_finished_recoveries(request['config'], request['task'], action=request.get('action', 'run'))
         update_status(folder, status='completed', paths=[str(Path(path).resolve()) for path in paths])
         print('Completed.', flush=True)
         return 0

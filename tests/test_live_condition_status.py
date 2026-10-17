@@ -62,6 +62,13 @@ def test_poll_checks_result_metadata_without_reading_arrays_or_unit_checkpoints(
     selection.unlink()
     refresh_results(st, cfg, [])
     assert len(updates) == 2
+    summary = selection.with_name('summary.json')
+    save_json(summary, {'status': 'started'})
+    refresh_results(st, cfg, [])
+    assert len(updates) == 3
+    save_json(summary, {'status': 'complete'})
+    refresh_results(st, cfg, [])
+    assert len(updates) == 4
 
 
 def test_run_all_page_shows_each_completed_condition_before_worker_finishes(saved_data, tmp_path, monkeypatch):

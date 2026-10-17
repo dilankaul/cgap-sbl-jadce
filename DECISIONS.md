@@ -223,3 +223,48 @@
 
 
 106. At the user's request, remove the additional paper activity realization figure, its dedicated renderer/export script, dashboard category, and feature-specific tests. Retain the standard activity realization and active-count figures, interactive activity chart, and standard saved-data PNG/vector-PDF publication exports. No activity probabilities, experiment settings, seeds, or scientific results change. This supersedes the separate paper activity export in earlier figure decisions.
+
+
+107. At the user's request, set algorithms.sbl.tuning.selection_mode and algorithms.anc.tuning.selection_mode to per_condition in the source experiment YAML and current results/experiment/config.yaml. Use the existing condition-specific tuning workflow: SBL selects tau independently and ANC selects alpha, beta and tau independently for each configured L/SNR pair, with optional pairs tuned when explicitly selected. The current sweeps contain 11 unique conditions. Retain parameter grids, solver settings, seeds, independent tuning/evaluation data, and reference-policy support. Do not run tuning or evaluation automatically. This supersedes the reference default in earlier tuning-policy decisions.
+
+
+108. At the user's request, show the shared Condition status table on per-condition SBL/ANC Tune pages. List setup and shared optional L/SNR pairs with tuning-specific Completed, Unfinished, Incompatible and Not started states, plus setup tuning completion counts. Validate completed selections and saved output hashes; distinguish compatible unfinished checkpoints/recoveries from incompatible progress. Refresh when condition tuning summaries commit. Keep the Tune table read-only, with shared condition registration on Run/Communication pages; preserve existing tuning scope/actions, solver behavior and saved results. No experiments run automatically.
+
+
+109. Implement the approved two-stage ANC tuning plan: seeded sequential Optuna TPE, 50 total Stage-1 trials on the same first 20 saved tuning realizations, top 10 distinct alpha/beta pairs reevaluated on the first 100, and one tau optimized across each stage's realizations. Reuse first-stage gamma, NMSE and solver timings in Stage 2. Use continuous linear alpha=0..10 and beta=0..0.1, existing tau=0..0.5/0.001, ten startup trials included in the 50, no pruning, and an alpha=0 baseline included in the budget. Add explicit optimizer seed 17389 under ANC settings; preserve all six activity/communication seeds. Select by mean F1, lower true-active-support NMSE, then recall. ANC Run accepts only Stage-2 Optuna selections. Persist SQLite history and an atomic checkpoint containing sampler state, full trial history and any pending trial; rebuild the database from that snapshot on Resume so a crash between ask/tell and commit preserves the suggestion sequence. Save candidate-level scoring checkpoints as well as individual solver units. Include Optuna version and tuning source identities in compatibility. Keep old data without migration or automatic reruns.
+
+110. Retain grid search as the independent Analysis task ANC parameter grid study, with one configurable fixed L/SNR pair, default 30/12 dB, 100 tuning realizations, its own alpha/beta/tau grids, checkpoints, numerical tables and heatmaps under anc_grid_study/. It does not write selected.json for algorithms. Keep paper-grid settings outside ANC TPE/run compatibility and TPE settings outside paper-grid compatibility. Generate each tuning/study PNG once and collect already committed paths in task orchestration.
+
+111. Enable the shared Add/Delete condition row and optional-input preparation on per-condition Tune pages, using action-specific widget keys while sharing the condition registry across algorithms and Communication. Preserve optional conditions outside All and overall sweep counts. This supersedes the read-only Tune table choice in decision 108.
+
+112. Adopt affected-test checks for small GUI/configuration edits and full local checks for scientific/tuning/recovery changes, with full CI checks before merging. Register unit/gui/integration/plotting groups, add Make targets and pytest-xdist with two isolated workers, and profile full runs with --durations=20. Replace image encoding only in workflow logic tests; dedicated plotting tests retain real PNG/PDF exports, and worker integration still exercises production rendering. Preserve all numerical/reference correctness and recovery checks.
+
+
+113. At the user's request, replace two-stage ANC tuning with full Optuna TPE: 50 total trials, each scored on the same first 100 saved tuning realizations. Optimize one tau per trial using the existing threshold grid and mean F1, without additional solver calls. Keep ten startup trials and the zero-penalty baseline within the budget, continuous alpha/beta bounds, optimizer seed, condition-specific streams and winner tie rules. Remove finalist settings, reevaluation, files and plots; show trial progress and retain per-solver/per-trial atomic checkpoints, sampler/history replay and all compatibility guards. ANC Run accepts only full-TPE selections. Keep the independent fixed-condition paper grid unchanged. Remove current ANC tuning results, figures, checkpoints and tuning recovery/job records while preserving preparation data and other algorithm outputs; do not launch research experiments automatically. This supersedes decision 109's two-stage search.
+
+
+114. Match Tune and Communication condition tables to algorithm Run: SNR sweep first, then pilot-length sweep, one row per shared condition, required references afterward and optional rows last. Use Sweep for sweep rows, Reference only for required pairs outside the sweeps, and Optional for shared additions. Preserve canonical full communication-generation/archive order independently of the display order. Per-condition Tune uses the shared Start/Complete/Resume/Rerun controls and worker completion dispatch. Complete skips compatible finished selections and reuses solver checkpoints; explicit Rerun validates the complete scope before clearing only owned tuning outputs/checkpoints/figures. Journal unfinished reset cleanup, block downstream selection use during reset, preserve unrelated files and conditions, and supersede only overlapping recovery requests.
+
+115. Retain the three ANC tuning diagnostic plots and independently save six alpha/beta/tau-versus-SNR/pilot-length plots from compatible completed selections, plus SBL's two independent tau sweeps. Use configured sweep axes, gaps for incomplete/incompatible points, and numeric point labels. Update PNGs after each completed tuning condition; provide separate interactive sweep figures and native-font PNG/PDF exports without solver calls. Annotate ANC diagnostic plots with selected alpha/beta/tau and condition, and highlight the winning trial/pair. Keep paper-grid outputs separate. At the user's request clear the current unfinished ANC tuning condition, its checkpoints, recovery and stopped job record, preserving preparation data and completed results. No research experiments run automatically.
+
+
+116. Add CGAP-SBL-GL as the fifth estimator alongside OMP, CoSaMP, SBL and ANC.
+Use xi_i=sum_j C_ij including C_ii=1, L_norm=I-Xi^(-1/2) C Xi^(-1/2), and
+lambda=alpha*positive_part(L_norm@gamma_previous). Precompute inverse square-root
+degrees and use one sparse matvec per iteration. Reject non-finite, asymmetric,
+negative-weight or zero-degree graphs; saved model graphs have positive self
+connections. Preserve the shared posterior, stable gamma root, relative stopping
+criterion and final unmasked posterior mean. The normalized null vector is
+sqrt(xi), not generally 1; positive-part lagging is adaptive shrinkage, without a
+new fixed-global objective or convergence guarantee. Do not change ANC solver,
+ANC TPE implementation, existing seeds, preparation data or recorded selections.
+GL owns alpha/tau tuning (no beta), separate full TPE with 50 trials x the same
+100 tuning realizations, ten startup trials, optimizer seed 17389, linear alpha
+bounds initially 0..100 and a zero-penalty first trial when alpha_low=0. Retain
+independent solver/tuning settings and condition-specific selection by default.
+Use existing ranking, tau scoring and crash-consistent sampler replay. Store GL
+outputs under cgap_sbl_gl/, with Tune/Run condition Add/Delete, Complete, Resume
+and scoped Rerun. Include comparison and convergence, three diagnostic plots,
+four alpha/tau sweep plots, standard performance/gamma plots, interactive views,
+PNG previews and saved-data native-font PDF exports. Implement and test outside
+the live workspace while ANC is computing, then apply only after it completes.

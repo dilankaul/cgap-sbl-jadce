@@ -7,3 +7,5 @@ tqdm>=4.66
 streamlit>=1.58,<2
 plotly>=6,<8
 pytest>=8.0
+
+optuna>=4.5,<6

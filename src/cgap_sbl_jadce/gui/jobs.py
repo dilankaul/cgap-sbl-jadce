@@ -156,9 +156,16 @@ class Jobs:
     def _validate_completion(self, request):
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
         from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
-        if request.get('kind') != 'task' or request['task'] not in set(ESTIMATORS) | {'communication'} or request.get('action', 'run') != 'run':
-            raise ValueError('Completion applies only to algorithm evaluation and communication.')
-        plan = completion_plan(request['config'], request['task'], request.get('conditions'))
+        if request.get('kind') != 'task' or request['task'] not in set(ESTIMATORS) | {'communication'} or request.get('action', 'run') not in {'run', 'tune'}:
+            raise ValueError('Completion applies only to condition-specific algorithms and communication.')
+        action = request.get('action', 'run')
+        if action == 'tune':
+            from cgap_sbl_jadce.settings import tuning_settings
+            from cgap_sbl_jadce.config import load_config
+            cfg = load_config(request['config'])
+            if request['task'] not in ESTIMATORS or not ESTIMATORS[request['task']].tuning_grid or tuning_settings(cfg, request['task'])['selection_mode'] != 'per_condition':
+                raise ValueError('Completion requires per-condition tuning.')
+        plan = completion_plan(request['config'], request['task'], request.get('conditions'), action=action)
         if plan.blocked:
             names = ', '.join(f'L={L}, SNR={snr:g} dB' for L, snr in plan.blocked)
             raise ValueError(f'Incompatible saved work at {names}. Select those conditions and explicitly Rerun.')
@@ -177,7 +184,7 @@ class Jobs:
             old = job['request']
             if (job['status'] != 'paused' or old.get('kind') != 'task' or
                     old['config'] != request['config'] or old['task'] != request['task'] or
-                    old.get('action', 'run') != 'run'):
+                    old.get('action', 'run') != request.get('action', 'run')):
                 continue
             old_pairs = self._validate_completion(old).pairs
             if pairs & set(old_pairs):

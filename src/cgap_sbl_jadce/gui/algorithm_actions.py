@@ -75,7 +75,10 @@ def _checkpoint_issue(folder, expected):
 
 
 @validation_snapshot()
-def completion_plan(config, method, conditions=None):
+def completion_plan(config, method, conditions=None, action='run'):
+    if action == 'tune':
+        from cgap_sbl_jadce.gui.tuning_conditions import tuning_plan
+        return tuning_plan(config, method, conditions)
     cfg = load_config(config)
     if method == 'communication':
         from cgap_sbl_jadce.gui.communication_conditions import completion_plan as communication_plan
@@ -158,17 +161,24 @@ def completion_plan(config, method, conditions=None):
     return plan
 
 
-def clear_finished_recoveries(config, method):
+def clear_finished_recoveries(config, method, action='run'):
     from cgap_sbl_jadce.recovery import finish_recovery
     cfg = load_config(config)
-    if method == 'communication':
+    if action == 'tune':
+        from cgap_sbl_jadce.settings import tuning_pairs
+        done = set(completion_plan(config, method, tuning_pairs(cfg, method, include_optional=True), action=action).completed)
+    elif method == 'communication':
         from cgap_sbl_jadce.settings import communication_conditions
         done = set(completion_plan(config, method, communication_conditions(cfg, include_optional=True)).completed)
     else:
         done = {pair for pair, _, _ in completed_conditions(cfg, method)}
-    for saved in load_recoveries(config, method):
+    for saved in load_recoveries(config, method, action):
         try:
-            pairs = (set(communication_conditions(cfg, saved['request'].get('conditions'))) if method == 'communication' else
+            if action == 'tune':
+                from cgap_sbl_jadce.experiments.estimators import tuning_conditions
+                pairs = set(tuning_conditions(cfg, saved['request'].get('conditions'), method))
+            else:
+                pairs = (set(communication_conditions(cfg, saved['request'].get('conditions'))) if method == 'communication' else
                      {value[:2] for value in evaluation_conditions(cfg, saved['request'].get('conditions'), method=method)})
         except (OSError, ValueError, KeyError):
             continue

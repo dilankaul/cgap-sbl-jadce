@@ -80,7 +80,9 @@ def _source_digest(names):
 
 
 def solver_revision(method):
-    names = ['metrics.py', 'algorithms/' + {'anc': 'cgap_sbl', 'cosamp': 'cosamp', 'omp': 'omp', 'sbl': 'sbl'}[method] + '.py']
-    if method in {'sbl', 'anc'}:
+    names = ['metrics.py', 'algorithms/' + {'anc': 'cgap_sbl', 'gl': 'cgap_sbl_gl', 'cosamp': 'cosamp', 'omp': 'omp', 'sbl': 'sbl'}[method] + '.py']
+    if method == 'gl':
+        names.append('algorithms/cgap_sbl.py')
+    if method in {'sbl', 'anc', 'gl'}:
         names.append('algorithms/posterior.py')
     return _source_digest(names)

@@ -7,12 +7,17 @@ from cgap_sbl_jadce.gui.previews import main_realization_index
 CATEGORIES = {
     'kappa_calibration': ['kappa'], 'activity': ['activity', 'active_counts'],
     'communication': ['communication'], 'spatial_dependence': ['spatial'],
+    'anc_grid_study': ['anc_grid_study'],
     'comparison': ['comparison'], 'convergence': ['convergence'],
 }
 
 
 def figure_panel(st, cfg, config, jobs, task, action, state=None):
     categories = CATEGORIES.get(task, [f'{task}_{action}'])
+    if task in {'anc', 'sbl', 'gl'} and action == 'tune':
+        from cgap_sbl_jadce.settings import tuning_settings
+        if tuning_settings(cfg, task)['selection_mode'] == 'per_condition':
+            categories = [*categories, f'{task}_tuning_sweeps']
     from cgap_sbl_jadce.gui.theme import section_heading
     section_heading(st, 'Graph generator')
     from cgap_sbl_jadce.gui.workflow import numerical_state

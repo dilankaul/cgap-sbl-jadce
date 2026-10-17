@@ -16,7 +16,7 @@ Read `DECISIONS.md` before making algorithmic or experimental changes.
 3. Do not silently change experiment definitions, seeds, dimensions, probability models, or hyperparameter meanings.
 4. Preserve existing uncommitted work. Never run `git reset --hard`, `git clean`, or broad `git restore` commands unless explicitly requested.
 5. Do not commit changes unless explicitly asked.
-6. Run relevant tests after edits; before considering a change complete run `PYTHONPATH=src pytest -q`.
+6. Run affected tests after each edit. Small GUI/configuration changes need targeted checks; run the full suite in CI before merging. Scientific, sampling, tuning and recovery changes require a full local `PYTHONPATH=src pytest -q` run before completion. Profile slow tests with `--durations=20`.
 7. Prefer numerically stable linear algebra and avoid explicit matrix inverses.
 8. If code behavior and paper equations disagree, identify the discrepancy instead of silently choosing one.
 
@@ -29,9 +29,9 @@ The GUI overview contains preparation, algorithm and analysis boxes.
 - Communication and spatial dependence each depend on activity and can run independently.
 - OMP/CoSaMP depend on evaluation communication only.
 - SBL has Tune and Run; Run requires its saved tuning selection.
-- ANC has Tune and Run; both also require spatial dependence matrices.
+- ANC and GL each have independent Tune and Run actions; both require spatial dependence matrices.
 - Compare allows any selected completed algorithm, including just one.
-- Convergence allows only completed SBL/ANC runs at the selected condition.
+- Convergence allows only completed SBL/ANC/GL runs at the selected condition.
 
 Tasks automatically save PNG artifacts; the GUI always constructs interactive
 Plotly figures directly from saved numerical data. Publication exports regenerate
@@ -41,13 +41,23 @@ The tasks.py registry owns orchestration. Dependencies determine availability,
 not an ordinal sequence. Algorithm runs support independent L/SNR selections and merge
 completed conditions. SBL/ANC have separate Tune/Run actions and support either
 reference tuning or condition-specific selections, chosen in a setup definition.
+Default SBL and ANC tuning uses per-condition selections for every setup L/SNR pair.
+Per-condition Tune pages show the shared condition table with tuning-specific
+completion, unfinished checkpoint and compatibility status, including shared Add/Delete
+and optional-input preparation controls. ANC shows completed TPE trials. Tune and
+Communication use Run sweep ordering and labels: SNR sweep, pilot-length sweep,
+then required references and optional rows. Tune uses the same Complete/Resume/
+Rerun controls, preserving completed conditions on Complete and resetting only
+the explicit Rerun scope with recoverable cleanup.
+The Analysis ANC parameter grid study has one fixed condition and cannot supply
+algorithm selections. TPE and grid-study settings/results have independent ownership.
 New GUI setups copy default/current settings into isolated results/<name>/config.yaml
 before work starts. That one source config can be edited centrally or within
 its task page; task manifests retain the effective settings that produced results.
 Compatibility is recomputed from relevant values and inputs, and restoring matching
 settings restores eligibility. Preserve incompatible results and block their
 downstream use. Algorithm solver/tuning settings belong to that algorithm only.
-Setup editors expose only fixed-reference sweeps. Algorithm Run and Communication pages manage shared optional
+Setup editors expose only fixed-reference sweeps. Algorithm Tune/Run and Communication pages manage shared optional
 additional L/SNR pairs in the Condition status table, using an empty input row
 with Add and per-row Delete controls, without a separate Save step. They require saved communication inputs and independent
 per-condition tuning when selected. All/Complete all includes only setup sweeps.
@@ -146,7 +156,7 @@ with `K=500`, `delta=1e-4`. Independently retune thresholds and ANC parameters;
 reject old method/setup selections. The final channel estimate is the unmasked
 posterior mean from final gamma.
 
-Tuning: use the saved tuning dataset and the grids in configs/experiment.yaml.
+Tuning: use saved tuning inputs. ANC uses per-condition full Optuna TPE: 50 trials, each on the same 100 saved tuning realizations, optimizing one tau across all realizations within each trial. There is no finalist stage. Keep the fixed-condition paper grid study separate from algorithm selections. SBL retains threshold tuning. Preserve per-condition tuning diagnostics and annotate ANC selections. Save ANC alpha/beta/tau versus SNR and pilot length, plus independent SBL tau sweeps, from compatible completed selections; show missing conditions as gaps. Provide PNG previews, interactive plots and native-font PDF exports without solver calls.
 Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
 Convergence: L=30, 12 dB. Use the six explicit independent seeds.
 Activity generation saves event-driven tuning and evaluation supports. Communication generation saves all
@@ -158,7 +168,15 @@ Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need 
 SBL tunes tau independently; ANC tunes its own alpha, beta and tau.
 Record true-active-support NMSE and solver-call runtimes. Algorithm comparison compares only
 compatible completed results.
-The independent estimator registry should also support a future GL solver.
+CGAP-SBL-GL is the fifth independent estimator. Retain C's diagonal, define
+xi=C@1 and r=xi**(-1/2), and use lambda=alpha*positive_part(gamma-r*(C@(r*gamma))).
+Require symmetric finite nonnegative C and positive degrees. Reuse the unchanged
+CGAP posterior/update engine without forming a dense Laplacian. GL tunes alpha
+and tau independently with full TPE (50 x 100 by default), no beta; its initial
+editable alpha bounds are 0..100. Keep its Tune/Run data and checkpoints under
+cgap_sbl_gl/, with the same condition table and recovery controls as other algorithms.
+Provide GL TPE diagnostics, alpha/tau sweeps, performance, gamma and convergence
+plots from saved data. Preserve ANC solver/search code and selections unchanged.
 
 ## Spatial activity model
 

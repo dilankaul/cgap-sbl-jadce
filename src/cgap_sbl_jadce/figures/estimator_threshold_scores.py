@@ -11,6 +11,8 @@ def plot_threshold_tuning(cfg: dict, method: str, formats: str = "png") -> list[
     out = Path(cfg["run"]["output_dir"])
     paths: list[Path] = []
     spec = ESTIMATORS[method]
+    from cgap_sbl_jadce.figures.estimator_parameter_sweeps import selected_parameter_label
+    context = selected_parameter_label(cfg, method).replace(' · ', '\n')
     label = spec.name
     stem = f"{method}_threshold_scores"
     df = pd.read_csv(tuning_path(cfg, method, "thresholds.csv")).sort_values("tau").reset_index(drop=True)
@@ -27,6 +29,6 @@ def plot_threshold_tuning(cfg: dict, method: str, formats: str = "png") -> list[
     ax.axvline(best["tau"], linestyle="--", linewidth=1.0, label=fr"Selected $\tau={best['tau']:.3g}$")
     ax.set_xlim(sweep_limits(df["tau"]))
     ax.set_xlabel(r"Threshold $\tau$"); ax.set_ylabel("Score"); ax.set_ylim(-0.02, 1.02)
-    ax.set_title(label + "\n" + r"Detection Scores vs Threshold $\tau$"); ax.grid(True, alpha=0.2); ax.legend()
+    ax.set_title(label + "\n" + r"Detection Scores vs Threshold $\tau$" + ("\n" + context if context else "")); ax.grid(True, alpha=0.2); ax.legend()
     _apply_figure_style(fig, figure_style); fig.tight_layout(); paths.extend(_save(fig, tuning_figure_path(cfg, method, stem), formats))
     return paths

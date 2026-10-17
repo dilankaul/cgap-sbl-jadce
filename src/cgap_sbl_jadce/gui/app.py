@@ -145,11 +145,14 @@ def dashboard():
             card(st, 'Communication dataset', 'communication')
             card(st, 'Spatial dependence matrix C', 'spatial_dependence')
             section_heading(st, 'Algorithms')
-            cols = st.columns(4)
-            for col, task, title in zip(cols, ('omp','cosamp','sbl','anc'), ('OMP','CoSaMP','SBL','CGAP-SBL-ANC')):
-                card(col, title, task, parent=task in {'sbl','anc'}, key='algorithm_'+task)
+            from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
+            cols = st.columns(len(ESTIMATORS))
+            for col, (task, spec) in zip(cols, ESTIMATORS.items()):
+                title = {'omp': 'OMP', 'cosamp': 'CoSaMP'}.get(task, spec.name)
+                card(col, title, task, parent=bool(spec.tuning_grid), key='algorithm_'+task)
             section_heading(st, 'Analysis')
-            cols = st.columns(2)
+            cols = st.columns(3)
+            card(cols[2], 'ANC parameter grid study', 'anc_grid_study')
             card(cols[0], 'Compare algorithms', 'comparison')
             card(cols[1], 'Analyze convergence', 'convergence')
         overview()

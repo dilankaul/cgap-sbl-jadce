@@ -1,0 +1,57 @@
+{
+  "definition": {
+    "code": "b18b29532c14bf5258d83f2a92a08d57e58fa5814a8b4a6c6c680fe984ebe692",
+    "communication": {
+      "M": 4,
+      "N": 500,
+      "activity_sha256": {
+        "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
+      },
+      "arrays_sha256": "b0187acb0b6107924989f1e6e8915d88f96ac70127dcd7ef43be0b8d5cc8b74f",
+      "code": "f643d8e4f01b586e1f712d22bbad6d032f6d1f179ac5a7ffd1c27a0a2331be61",
+      "condition": [
+        25,
+        12.0
+      ],
+      "schema": 3,
+      "seed": 4283
+    },
+    "condition": [
+      25,
+      12.0
+    ],
+    "method": "SBL",
+    "nmse_scope": "true_active_support",
+    "parameters": [
+      {}
+    ],
+    "revision": 2,
+    "samples": 100,
+    "search_code": "a30cde421b72e19d6095d3f74f12deb98587b2e618ee09226b87bae78536fd91",
+    "solver": {
+      "K": 500,
+      "delta": 0.0001,
+      "gamma_init": 0.1
+    },
+    "tau_grid": {
+      "start": 0.0,
+      "step": 0.001,
+      "stop": 0.5
+    }
+  },
+  "parameters": {
+    "tau": 0.233
+  },
+  "reference_pilot_length": 25,
+  "reference_snr_db": 12.0,
+  "tuning_scores": {
+    "f1": 0.6260689278246097,
+    "iterations": 500.0,
+    "nmse": 0.47905870880229573,
+    "precision": 0.6804004459163128,
+    "recall": 0.5845,
+    "samples": 100,
+    "solver_runtime_s": 23.782824657004312,
+    "tau": 0.233
+  }
+}

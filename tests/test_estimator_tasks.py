@@ -38,12 +38,12 @@ def test_independent_tasks_use_saved_inputs_and_comparison_runs_no_solvers(saved
             assert 'B_q' not in df
             assert result_path(saved_data['run']['output_dir'], method, 'gamma_distribution.npz').exists()
 
-    assert all(count >= 4 for count in expected_inputs.values())
+    assert all(count >= len(estimators.ESTIMATORS) for count in expected_inputs.values())
     estimators.convergence_stage(saved_data, show_progress=False)
     for method, spec in list(estimators.ESTIMATORS.items()):
         monkeypatch.setitem(estimators.ESTIMATORS, method, replace(spec, solve=forbidden))
     result = estimators.comparison_stage(saved_data, show_progress=False)
-    assert result['metric_rows'] == 32
+    assert result['metric_rows'] == 8 * len(estimators.ESTIMATORS)
     from cgap_sbl_jadce.figures.algorithm_performance import make_performance_figures
     paths = make_performance_figures(saved_data, show_progress=False)
     assert len(paths) == 6 and all(path.exists() for path in paths)
@@ -84,7 +84,8 @@ def test_sbl_tunes_independently_without_anc_or_C(saved_data, monkeypatch):
 
 
 def test_method_specific_tuning_and_figures(saved_data):
-    from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_alpha_beta_tau_tuning
+    from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_anc_grid_study
+    from cgap_sbl_jadce.experiments.anc_grid_study import anc_grid_study_stage
     from cgap_sbl_jadce.figures.estimator_threshold_scores import plot_threshold_tuning
     from cgap_sbl_jadce.figures.estimator_gamma_distribution import plot_gamma_distribution
     for method in ['sbl', 'anc']:
@@ -97,11 +98,12 @@ def test_method_specific_tuning_and_figures(saved_data):
         assert selected['parameters']['tau'] == pytest.approx(best.tau)
         paths = plot_threshold_tuning(saved_data, method) + plot_gamma_distribution(saved_data, method)
         assert len(paths) == 2 and all(path.exists() for path in paths)
-    scores = pd.read_csv(result_path(saved_data['run']['output_dir'], 'anc', 'tuning/alpha_beta_tau_scores.csv'))
+    anc_grid_study_stage(saved_data, False)
+    scores = pd.read_csv(result_path(saved_data['run']['output_dir'], 'anc_grid_study', 'alpha_beta_tau_scores.csv'))
     assert len(scores) == 4 * 201
     zero = scores[scores.alpha.eq(0)]
     np.testing.assert_allclose(zero[zero.beta.eq(0)].f1, zero[zero.beta.eq(.1)].f1)
-    assert len(plot_alpha_beta_tau_tuning(saved_data)) == 3
+    assert len(plot_anc_grid_study(saved_data)) == 3
     path = result_path(saved_data['run']['output_dir'], 'anc', 'tuning/selected.json')
     old = json.loads(path.read_text())
     old['definition'].pop('nmse_scope')

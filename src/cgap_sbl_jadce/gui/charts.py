@@ -156,6 +156,17 @@ def interactive_figures(request):
     if category.endswith('_tune'):
         from cgap_sbl_jadce.gui.previews import tuning_preview_config
         cfg = tuning_preview_config(cfg, category.removesuffix('_tune'), request)
+    if category.endswith('_tuning_sweeps'):
+        from cgap_sbl_jadce.figures.estimator_parameter_sweeps import parameter_sweeps
+        curves = parameter_sweeps(cfg, category.removesuffix('_tuning_sweeps'))
+        figures = []
+        for curve in curves:
+            fig = go.Figure(go.Scatter(x=curve['x'], y=curve['y'], mode='lines+markers+text',
+                text=[f'{value:.6g}' if np.isfinite(value) else '' for value in curve['y']],
+                textposition='top center', connectgaps=False, name=f"Selected {curve['symbol']}"))
+            figures.append((curve['label'], _line_style(fig, curve['label'] + '<br>' + curve['fixed'],
+                curve['xlabel'], f"Selected {curve['symbol']}", xlim=sweep_limits(curve['x']))))
+        return figures
     if category == 'activity':
         return _activity(cfg, request)
     if category == 'communication':
@@ -190,16 +201,43 @@ def interactive_figures(request):
         method = category.removesuffix('_tune')
         figures = []
         label = ESTIMATORS[method].name
+        from cgap_sbl_jadce.figures.estimator_parameter_sweeps import selected_parameter_label
+        context = selected_parameter_label(cfg, method)
+        subtitle = '<br>' + context.replace(' · ', '<br>') if context else ''
         if method == 'anc':
-            df = pd.read_csv(tuning_path(cfg, method, 'alpha_beta.csv'))
-            for metric, title, cmap in [('f1', 'Mean Detection F₁', 'Viridis'), ('nmse', 'Mean Channel Estimation NMSE', 'Magma'), ('tau', 'Selected Threshold τ', 'OrRd')]:
-                pivot = df.pivot(index='alpha', columns='beta', values=metric).sort_index().sort_index(axis=1)
-                values = pivot.to_numpy()
-                color = np.log10(np.where(values > 0, values, np.nan)) if metric == 'nmse' else values
-                fig = go.Figure(go.Heatmap(x=pivot.columns, y=pivot.index, z=color, customdata=values,
-                    colorscale=cmap, colorbar={'title': 'log₁₀ NMSE' if metric == 'nmse' else metric},
-                    xgap=1, ygap=1, hovertemplate='α=%{y}, β=%{x}<br>Value=%{customdata:.5g}<extra></extra>'))
-                figures.append((title, _style(fig, label + ' α-β Tuning<br>' + title, 'β', 'α')))
+            trials = pd.read_csv(tuning_path(cfg, method, 'trials.csv')).sort_values('trial')
+            selected = json.loads(tuning_path(cfg, method, 'selected.json').read_text())
+            parameters, score = selected['parameters'], selected['tuning_scores']
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1, mode='markers', name='Trial F1'))
+            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1.cummax(), mode='lines', name='Best F1 so far'))
+            fig.add_trace(go.Scatter(x=[score['trial'] + 1], y=[score['f1']], mode='markers', name='Selected trial',
+                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
+            figures.append(('TPE search history', _line_style(fig, 'ANC TPE search history' + subtitle, 'Trial', 'Mean F1')))
+            fig = go.Figure(go.Scatter(x=trials.beta, y=trials.alpha, mode='markers',
+                marker={'color': trials.f1, 'colorscale': 'Viridis', 'showscale': True, 'colorbar': {'title': 'Mean F1'}},
+                customdata=trials[['trial', 'tau']].to_numpy(),
+                hovertemplate='Trial %{customdata[0]}<br>α=%{y}<br>β=%{x}<br>τ=%{customdata[1]}<extra></extra>'))
+            fig.add_trace(go.Scatter(x=[parameters['beta']], y=[parameters['alpha']], mode='markers', name='Selected pair',
+                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
+            figures.append(('Sampled parameter pairs', _style(fig, 'ANC TPE parameter samples' + subtitle, 'β', 'α')))
+        if method == 'gl':
+            trials = pd.read_csv(tuning_path(cfg, method, 'trials.csv')).sort_values('trial')
+            selected = json.loads(tuning_path(cfg, method, 'selected.json').read_text())
+            parameters, score = selected['parameters'], selected['tuning_scores']
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1, mode='markers', name='Trial F1'))
+            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1.cummax(), mode='lines', name='Best F1 so far'))
+            fig.add_trace(go.Scatter(x=[score['trial'] + 1], y=[score['f1']], mode='markers', name='Selected trial',
+                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
+            figures.append(('TPE search history', _line_style(fig, 'GL TPE search history' + subtitle, 'Trial', 'Mean F1')))
+            fig = go.Figure(go.Scatter(x=trials.alpha, y=trials.tau, mode='markers',
+                marker={'color': trials.f1, 'colorscale': 'Viridis', 'showscale': True, 'colorbar': {'title': 'Mean F1'}},
+                customdata=trials[['trial', 'f1']].to_numpy(),
+                hovertemplate='Trial %{customdata[0]}<br>α=%{x}<br>τ=%{y}<br>F1=%{customdata[1]}<extra></extra>'))
+            fig.add_trace(go.Scatter(x=[parameters['alpha']], y=[parameters['tau']], mode='markers', name='Selected trial',
+                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
+            figures.append(('Sampled alpha and threshold', _style(fig, 'GL TPE parameter samples' + subtitle, 'α', 'τ')))
         df = pd.read_csv(tuning_path(cfg, method, 'thresholds.csv')).sort_values('tau')
         best = df.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
         fig = go.Figure()
@@ -208,7 +246,19 @@ def interactive_figures(request):
             fig.add_trace(go.Scatter(x=[best.tau], y=[best[metric]], mode='markers', showlegend=False,
                                     marker={'size': 9, 'line': {'color': 'black', 'width': 1}}))
         fig.add_vline(x=best.tau, line_dash='dash', annotation_text=f'Selected τ={best.tau:g}')
-        figures.append(('Threshold scores', _line_style(fig, label + ' Detection Scores vs Threshold τ', 'Threshold τ', 'Score')))
+        figures.append(('Threshold scores', _line_style(fig, label + ' Detection Scores vs Threshold τ' + subtitle, 'Threshold τ', 'Score')))
+        return figures
+    if category == 'anc_grid_study':
+        df = pd.read_csv(result_path(out, 'anc_grid_study', 'alpha_beta.csv'))
+        figures = []
+        for metric, title, cmap in [('f1', 'Mean F1', 'Viridis'), ('nmse', 'Mean NMSE', 'Magma'), ('tau', 'Selected threshold', 'OrRd')]:
+            pivot = df.pivot(index='alpha', columns='beta', values=metric).sort_index().sort_index(axis=1)
+            values = pivot.to_numpy()
+            color = np.log10(np.where(values > 0, values, np.nan)) if metric == 'nmse' else values
+            fig = go.Figure(go.Heatmap(x=pivot.columns, y=pivot.index, z=color, customdata=values,
+                colorscale=cmap, colorbar={'title': 'log₁₀ NMSE' if metric == 'nmse' else metric},
+                xgap=1, ygap=1, hovertemplate='α=%{y}, β=%{x}<br>Value=%{customdata:.5g}<extra></extra>'))
+            figures.append((title, _style(fig, 'ANC paper grid study · ' + title, 'β', 'α')))
         return figures
     if category.endswith('_run') or category == 'comparison':
         method = category.removesuffix('_run') if category != 'comparison' else 'comparison'
@@ -298,13 +348,20 @@ def source_version(request):
         folder = task_dir(out, task_id) / request['split']
         paths += ([folder / f"{request['index']:04d}" / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')]
                   if task_id == 'communication' else [folder / f"{request['index']:04d}.npz"])
+    elif category.endswith('_tuning_sweeps'):
+        method = category.removesuffix('_tuning_sweeps')
+        from cgap_sbl_jadce.settings import tuning_pairs
+        for pair in tuning_pairs(cfg, method):
+            paths += [tuning_path(cfg, method, name, pair) for name in ('selected.json', 'summary.json')]
+    elif category == 'anc_grid_study':
+        paths += [result_path(out, category, name) for name in ('alpha_beta.csv', 'summary.json')]
     elif category.endswith('_run') and request.get('condition'):
         from cgap_sbl_jadce.paths import run_path
         paths += [run_path(cfg, category.removesuffix('_run'), name, request['condition'])
                   for name in ('per_sample.csv', 'summary.json', 'gamma_distribution.npz')]
     elif category.endswith('_tune'):
         method = category.removesuffix('_tune')
-        paths += [tuning_path(cfg, method, name, request.get('condition')) for name in ('selected.json', 'thresholds.csv', 'alpha_beta.csv')]
+        paths += [tuning_path(cfg, method, name, request.get('condition')) for name in ('selected.json', 'thresholds.csv', 'trials.csv')]
     else:
         group = {'kappa': 'kappa_calibration', 'convergence': 'convergence'}.get(category, category.removesuffix('_run'))
         paths += [result_path(out, group, name) for name in ('aggregate.csv', 'summary.json', 'run_summary.json', 'gamma_distribution.npz', 'convergence.npz', 'kappa_sweep.csv')]

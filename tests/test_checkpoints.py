@@ -147,7 +147,7 @@ def test_tuning_restart_reuses_completed_solver_outputs(saved_data, monkeypatch)
     monkeypatch.setitem(estimators.ESTIMATORS, method, replace(spec, solve=resumed))
     selected = estimators.tune_estimator_stage(saved_data, method, show_progress=False, resume=True)
     assert len(calls) == 6
-    scores = pd.read_csv(result_path(saved_data['run']['output_dir'], method, 'tuning/alpha_beta.csv'))
+    scores = pd.read_csv(result_path(saved_data['run']['output_dir'], method, 'tuning/trials.csv'))
     assert len(scores) == 4
     assert selected['parameters']['tau'] in np.arange(201) / 1000
 

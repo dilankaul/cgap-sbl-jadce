@@ -1,0 +1,67 @@
+{
+  "candidate_count": 1,
+  "outputs": {
+    "../../figures/tuning/L0030_snr8dB/sbl_threshold_scores.png": "3085bb863c1b921ee24eb0e43b5cb4259baf2997f2ae7166f36b7ad5e3b84fb3",
+    "selected.json": "faa3d89b9063aa472b0c31830a2259b57dd3c28767587f57755a0ab9bec18fae",
+    "thresholds.csv": "362f9715d7b937d526ea85bc63d5cd25939f645d9bace72df963a91f0f87beee"
+  },
+  "selected": {
+    "definition": {
+      "code": "b18b29532c14bf5258d83f2a92a08d57e58fa5814a8b4a6c6c680fe984ebe692",
+      "communication": {
+        "M": 4,
+        "N": 500,
+        "activity_sha256": {
+          "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
+        },
+        "arrays_sha256": "fa9f2090d271413395b69429fa33850ae2787cf0faa24b818ee03b1440c65131",
+        "code": "f643d8e4f01b586e1f712d22bbad6d032f6d1f179ac5a7ffd1c27a0a2331be61",
+        "condition": [
+          30,
+          8.0
+        ],
+        "schema": 3,
+        "seed": 4283
+      },
+      "condition": [
+        30,
+        8.0
+      ],
+      "method": "SBL",
+      "nmse_scope": "true_active_support",
+      "parameters": [
+        {}
+      ],
+      "revision": 2,
+      "samples": 100,
+      "search_code": "a30cde421b72e19d6095d3f74f12deb98587b2e618ee09226b87bae78536fd91",
+      "solver": {
+        "K": 500,
+        "delta": 0.0001,
+        "gamma_init": 0.1
+      },
+      "tau_grid": {
+        "start": 0.0,
+        "step": 0.001,
+        "stop": 0.5
+      }
+    },
+    "parameters": {
+      "tau": 0.275
+    },
+    "reference_pilot_length": 30,
+    "reference_snr_db": 8.0,
+    "tuning_scores": {
+      "f1": 0.643912587395572,
+      "iterations": 499.86,
+      "nmse": 0.4571850355282328,
+      "precision": 0.7194772678358119,
+      "recall": 0.5884999999999998,
+      "samples": 100,
+      "solver_runtime_s": 26.858633202007695,
+      "tau": 0.275
+    }
+  },
+  "status": "complete",
+  "tau_candidates": 501
+}

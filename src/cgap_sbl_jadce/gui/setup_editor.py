@@ -22,7 +22,7 @@ def _numbers(st, values, keys, prefix, labels=None):
         if name in {'S', 'R', 'D', 'reference_snr_db', 'snr_db', 'gamma_init', 'delta', 'cosamp_tol', 'cosamp_lambda_reg',
                     'tau_start', 'tau_stop', 'tau_step', 'calibration_tolerance'} or any(
                     name == parameter + '_' + part for parameter in ('alpha', 'beta', 'kappa', 'snr')
-                    for part in ('start', 'stop', 'step')):
+                    for part in ('start', 'stop', 'step', 'low', 'high')):
             value = float(value)
         step = 1 if type(value) is int else value if name in {'delta', 'cosamp_tol'} and value > 0 else .001
         values[name] = columns[i % 2].number_input((labels or {}).get(name, LABELS.get(name, name.replace('_', ' ').capitalize())),
@@ -107,13 +107,26 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
                 tune['selection_mode'] = st.radio(name + ' tuning policy', ['reference', 'per_condition'],
                     index=int(tune['selection_mode'] == 'per_condition'), key=prefix + '_' + method + '_policy',
                     format_func=lambda value: 'One reference selection' if value == 'reference' else 'Separate selection per condition')
-                tuning_label = 'Alpha-beta tuning' if method == 'anc' else 'Threshold tuning'
+                tuning_label = 'Alpha-beta tuning' if method == 'anc' else 'Alpha tuning' if method == 'gl' else 'Threshold tuning'
                 _numbers(st, tune, ['reference_pilot_length', 'reference_snr_db', 'tau_start', 'tau_stop', 'tau_step'], prefix + '_' + method + '_tuning',
                     {'reference_pilot_length': tuning_label + ' pilot length L', 'reference_snr_db': tuning_label + ' SNR (dB)'})
-                for parameter in ('alpha', 'beta'):
-                    if parameter + '_start' in tune or parameter + '_values' in tune:
-                        _range(st, tune, parameter, prefix + '_' + method)
-    if task is None or task in {'convergence', 'sbl', 'anc'}:
+                if method == 'anc':
+                    st.caption('Full Optuna TPE')
+                    _numbers(st, tune, ['alpha_low', 'alpha_high', 'beta_low', 'beta_high', 'trials',
+                        'samples', 'startup_trials', 'optuna_seed'],
+                        prefix + '_anc_search')
+                if method == 'gl':
+                    st.caption('Full Optuna TPE')
+                    _numbers(st, tune, ['alpha_low', 'alpha_high', 'trials', 'samples', 'startup_trials', 'optuna_seed'],
+                             prefix + '_gl_search')
+    if task is None or task == 'anc_grid_study':
+        with st.expander('ANC paper grid study', expanded=task == 'anc_grid_study'):
+            study = cfg['anc_grid_study']
+            _numbers(st, study, ['pilot_length', 'snr_db', 'samples'], prefix + '_grid_reference',
+                     {'pilot_length': 'Grid study pilot length L', 'snr_db': 'Grid study SNR (dB)', 'samples': 'Grid study tuning realizations'})
+            for parameter in ('alpha', 'beta', 'tau'):
+                _range(st, study, parameter, prefix + '_grid_' + parameter)
+    if task is None or task in {'convergence', 'sbl', 'anc', 'gl'}:
         with st.expander('Analysis and diagnostics'):
             _numbers(st, cfg['evaluation'], ['gamma_distribution_samples', 'convergence_sample_offset'], prefix + '_analysis')
     seed_names = {'kappa_calibration': ['kappa_calibration', 'kappa_validation'], 'activity': ['activity_tuning', 'activity_evaluation'],

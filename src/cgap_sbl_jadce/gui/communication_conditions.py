@@ -59,9 +59,11 @@ def completion_plan(cfg, conditions=None):
 def condition_rows(cfg):
     pairs = communication_conditions(cfg, include_optional=True)
     plan = completion_plan(cfg, pairs)
+    from cgap_sbl_jadce.experiments.estimators import evaluation_conditions
     setup = set(communication_conditions(cfg))
+    sweep = {value[:2] for value in evaluation_conditions(cfg)}
     rows = [{'Pilot length L': pair[0], 'SNR (dB)': pair[1],
-             'Type': 'Setup' if pair in setup else 'Optional',
+             'Type': 'Sweep' if pair in sweep else 'Reference' if pair in setup else 'Optional',
              'Status': ('Completed' if pair in plan.completed else 'Incompatible' if pair in plan.blocked
                         else 'Unfinished' if pair in plan.resume else 'Not started')}
             for pair in pairs]

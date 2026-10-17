@@ -1,0 +1,13 @@
+{
+  "config_digest": "60f68f9827f8728503ca7642cda01fd6d03d69c260897b744855b571f1738071",
+  "created": 1792202441.7416036,
+  "input_signature": "995ba314b61f0286cc657ed0b9f8cb6232995b63ea35f9b01ed8190d427324e3",
+  "job_id": "20261017T020040-e069ad29",
+  "request": {
+    "action": "tune",
+    "config": "../../../../configs/experiment.yaml",
+    "kind": "task",
+    "task": "gl"
+  },
+  "schema": 2
+}

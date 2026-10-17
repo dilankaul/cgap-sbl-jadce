@@ -42,11 +42,15 @@ def refresh_results(st, cfg, records, rerun=True):
     paths = [Path(cfg['run']['output_dir']) / 'additional_conditions.json']
     for task in TASK_FOLDERS:
         folder = task_dir(cfg['run']['output_dir'], task)
-        paths.extend(folder / name for name in ('summary.json', 'run_summary.json'))
-        paths.append(folder / 'tuning' / 'selected.json')
+        paths.extend(folder / name for name in ('summary.json', 'run_summary.json', 'progress.json'))
+        paths.extend(folder / 'tuning' / name for name in ('selected.json', 'summary.json'))
         paths.extend(folder.glob('tuning/L*_snr*dB/selected.json'))
+        paths.extend(folder.glob('tuning/L*_snr*dB/summary.json'))
+        paths.append(folder / 'tuning' / 'search_progress.json')
+        paths.extend(folder.glob('tuning/L*_snr*dB/search_progress.json'))
         paths.extend(folder.glob('run/L*_snr*dB/summary.json'))
         paths.extend(folder.glob('run/.resets/[0-9a-f]*.json'))
+        paths.extend(folder.glob('tuning/.resets/[0-9a-f]*.json'))
     versions = []
     for path in paths:
         try:
@@ -141,6 +145,12 @@ def numerical_state(cfg, task, action='run'):
                 for split in ('tuning', 'evaluation'):
                     validate_preparation(cfg, task, split)
                 return CardState('completed', 'Tuning and evaluation activity saved', 1.)
+            if task == 'anc_grid_study':
+                from cgap_sbl_jadce.experiments.anc_grid_study import grid_definition
+                require_match(data.get('definition'), grid_definition(cfg), 'ANC parameter grid study')
+                if data.get('status') == 'complete':
+                    return CardState('completed', 'Fixed-condition grid saved', 1.)
+                return CardState('partial', 'Grid study unfinished')
             if task == 'communication':
                 from cgap_sbl_jadce.gui.communication_conditions import completion_plan
                 plan = completion_plan(cfg)

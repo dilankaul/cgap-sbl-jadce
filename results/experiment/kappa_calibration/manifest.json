@@ -45,15 +45,20 @@
           "gamma_init": 0.1
         },
         "tuning": {
-          "alpha_start": 0.0,
-          "alpha_step": 1.0,
-          "alpha_stop": 10.0,
-          "beta_start": 0.0,
-          "beta_step": 0.01,
-          "beta_stop": 0.1,
+          "alpha_high": 10.0,
+          "alpha_low": 0.0,
+          "beta_high": 0.1,
+          "beta_low": 0.0,
+          "optuna_seed": 17389,
           "reference_pilot_length": 30,
           "reference_snr_db": 12.0,
-          "selection_mode": "reference",
+          "search_method": "optuna_tpe_two_stage",
+          "selection_mode": "per_condition",
+          "stage1_samples": 20,
+          "stage1_trials": 50,
+          "stage2_candidates": 10,
+          "stage2_samples": 100,
+          "startup_trials": 10,
           "tau_start": 0.0,
           "tau_step": 0.001,
           "tau_stop": 0.5
@@ -78,12 +83,26 @@
         "tuning": {
           "reference_pilot_length": 30,
           "reference_snr_db": 12.0,
-          "selection_mode": "reference",
+          "selection_mode": "per_condition",
           "tau_start": 0.0,
           "tau_step": 0.001,
           "tau_stop": 0.5
         }
       }
+    },
+    "anc_grid_study": {
+      "alpha_start": 0.0,
+      "alpha_step": 1.0,
+      "alpha_stop": 10.0,
+      "beta_start": 0.0,
+      "beta_step": 0.01,
+      "beta_stop": 0.1,
+      "pilot_length": 30,
+      "samples": 100,
+      "snr_db": 12.0,
+      "tau_start": 0.0,
+      "tau_step": 0.001,
+      "tau_stop": 0.5
     },
     "communication": {
       "reference": {

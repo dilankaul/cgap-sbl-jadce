@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import numpy as np
 import pandas as pd
-from cgap_sbl_jadce.paths import tuning_path, tuning_figure_path
+from cgap_sbl_jadce.paths import tuning_path, tuning_figure_path, result_path, figure_path
 from cgap_sbl_jadce.figures.common import _apply_figure_style, _save
 
 
-def plot_alpha_beta_tau_tuning(cfg: dict, formats: str = "png") -> list[Path]:
+def plot_alpha_beta_tau_tuning(cfg: dict, formats: str = "png", study: bool = False) -> list[Path]:
     out = Path(cfg["run"]["output_dir"])
-    df = pd.read_csv(tuning_path(cfg, "anc", "alpha_beta.csv"))
+    df = pd.read_csv(result_path(out, "anc_grid_study", "alpha_beta.csv") if study else tuning_path(cfg, "anc", "alpha_beta.csv"))
     figure_style = {"axes.titlesize": 12, "axes.labelsize": 12,
                     "xtick.labelsize": 10, "ytick.labelsize": 10,
                     "legend.fontsize": 10.5, "colorbar.labelsize": 12,
@@ -46,5 +46,11 @@ def plot_alpha_beta_tau_tuning(cfg: dict, formats: str = "png") -> list[Path]:
         ax.set_title(title)
         _apply_figure_style(fig, figure_style)
         fig.tight_layout()
-        paths.extend(_save(fig, tuning_figure_path(cfg, "anc", f"anc_parameter_tuning_{metric}"), formats))
+        stem = (figure_path(out, "anc_grid_study", f"anc_parameter_tuning_{metric}") if study else
+                tuning_figure_path(cfg, "anc", f"anc_parameter_tuning_{metric}"))
+        paths.extend(_save(fig, stem, formats))
     return paths
+
+
+def plot_anc_grid_study(cfg, formats='png'):
+    return plot_alpha_beta_tau_tuning(cfg, formats=formats, study=True)

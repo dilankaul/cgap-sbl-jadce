@@ -20,18 +20,18 @@ def input_signature(request, portable=False):
     if task in {'communication', 'spatial_dependence'}:
         paths += [result_path(out, 'activity', f'{split}_activity.npz') for split in ('tuning', 'evaluation')]
         paths.append(result_path(out, 'activity', 'summary.json'))
-    if task in {'omp', 'cosamp', 'sbl', 'anc', 'comparison', 'convergence'}:
+    if task in {'omp', 'cosamp', 'sbl', 'anc', 'gl', 'comparison', 'convergence'}:
         split = 'tuning' if action == 'tune' else 'evaluation'
         folder = task_dir(out, 'communication') / split
         count = cfg['run'][f'num_{split}_samples']
         for q in range(count):
             paths += [folder / f'{q:04d}' / name for name in ('channels.npz', 'pilots.npz', 'observations.npz')]
-        if task == 'anc' or task == 'convergence' and 'anc' in request.get('methods', ['sbl','anc']):
+        if task in {'anc', 'gl'} or task == 'convergence' and set(request.get('methods', ['sbl','anc','gl'])) & {'anc', 'gl'}:
             paths += [task_dir(out, 'spatial_dependence') / split / f'{q:04d}.npz' for q in range(count)]
         if action == 'run':
-            methods = [task] if task in {'sbl', 'anc'} else request.get('methods', ['sbl', 'anc']) if task == 'convergence' else []
+            methods = [task] if task in {'sbl', 'anc', 'gl'} else request.get('methods', ['sbl', 'anc', 'gl']) if task == 'convergence' else []
             for method in methods:
-                if method not in {'sbl', 'anc'}:
+                if method not in {'sbl', 'anc', 'gl'}:
                     continue
                 if tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
                     if task == 'convergence':
@@ -43,8 +43,11 @@ def input_signature(request, portable=False):
                         paths.append(tuning_path(cfg, method, 'selected.json', condition))
                 else:
                     paths.append(tuning_path(cfg, method, 'selected.json'))
+    if task == 'anc_grid_study':
+        from cgap_sbl_jadce.experiments.anc_grid_study import grid_definition
+        return hashlib.sha256(json.dumps([scientific_revision(), grid_definition(cfg)], sort_keys=True).encode()).hexdigest()
     if task == 'comparison':
-        for method in request.get('methods', ['omp', 'cosamp', 'sbl', 'anc']):
+        for method in request.get('methods', ['omp', 'cosamp', 'sbl', 'anc', 'gl']):
             paths += [result_path(out, method, name) for name in ('per_sample.csv', 'run_summary.json')]
     from cgap_sbl_jadce.experiments.estimators import ESTIMATORS, evaluation_conditions, tuning_conditions
     identities = []

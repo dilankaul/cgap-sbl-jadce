@@ -1,0 +1,67 @@
+{
+  "candidate_count": 1,
+  "outputs": {
+    "../../figures/tuning/L0030_snr20dB/sbl_threshold_scores.png": "b8e5703bd6183d3788900ebe99963f1a29aa87676256b5ea78fa7d69f930279b",
+    "selected.json": "64a8f01858cda9aa97932f8d4afc4239b598a5f4d244fc9bb4c0e04f68967ba9",
+    "thresholds.csv": "d0d0d279f006e46a165b06255c93e9d6c46f46942efcbdc7bdf938e6c930793f"
+  },
+  "selected": {
+    "definition": {
+      "code": "b18b29532c14bf5258d83f2a92a08d57e58fa5814a8b4a6c6c680fe984ebe692",
+      "communication": {
+        "M": 4,
+        "N": 500,
+        "activity_sha256": {
+          "tuning": "3cac51f6e7dbb2d8cd52ba13485d86a960469a527b9baf2f6f210871a85616a8"
+        },
+        "arrays_sha256": "2f16537598584a98ebc87ee800a6a573bf29e14017cbf2ce76d2aa7b29c9fda9",
+        "code": "f643d8e4f01b586e1f712d22bbad6d032f6d1f179ac5a7ffd1c27a0a2331be61",
+        "condition": [
+          30,
+          20.0
+        ],
+        "schema": 3,
+        "seed": 4283
+      },
+      "condition": [
+        30,
+        20.0
+      ],
+      "method": "SBL",
+      "nmse_scope": "true_active_support",
+      "parameters": [
+        {}
+      ],
+      "revision": 2,
+      "samples": 100,
+      "search_code": "a30cde421b72e19d6095d3f74f12deb98587b2e618ee09226b87bae78536fd91",
+      "solver": {
+        "K": 500,
+        "delta": 0.0001,
+        "gamma_init": 0.1
+      },
+      "tau_grid": {
+        "start": 0.0,
+        "step": 0.001,
+        "stop": 0.5
+      }
+    },
+    "parameters": {
+      "tau": 0.09
+    },
+    "reference_pilot_length": 30,
+    "reference_snr_db": 20.0,
+    "tuning_scores": {
+      "f1": 0.9956410256410254,
+      "iterations": 410.89,
+      "nmse": 0.02861207744474055,
+      "precision": 0.9973684210526315,
+      "recall": 0.9940000000000001,
+      "samples": 100,
+      "solver_runtime_s": 22.039311778011324,
+      "tau": 0.09
+    }
+  },
+  "status": "complete",
+  "tau_candidates": 501
+}
