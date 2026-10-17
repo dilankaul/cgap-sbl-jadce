@@ -157,3 +157,11 @@ Current experimental results were cleared as requested. A recoverable /tmp copy
 was verified against all 16,069 inventoried files (537,780,036 bytes); the active
 results tree contains no files. Source settings remain. No new research runs
 were launched. The obsolete AGA worker was stopped after a completed-unit pause.
+
+
+2026-10-17 GUI follow-up: 23 targeted GUI checks passed in 23.36 s.
+Communication previews now wait for a saved condition even when the split already
+reports its sample count, and recover when conditions appear or are cleared.
+Completed job records no longer appear as live task progress. Regression coverage
+checks retained history after output deletion and preserves active/recoverable
+worker controls. No scientific settings or generated preparation files changed.

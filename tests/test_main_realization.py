@@ -59,3 +59,39 @@ figure_panel(st, cfg, 'test.yaml', jobs, 'activity', 'run', SimpleNamespace(stat
     app.run()
     assert not app.exception
     assert app.number_input[0].value == 294
+
+
+def test_communication_preview_waits_for_first_saved_condition(monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    import cgap_sbl_jadce.gui.figure_panel as panel
+
+    pairs = []
+    monkeypatch.setattr(panel, 'missing_preview_inputs', lambda *args: [])
+    monkeypatch.setattr(panel, 'sample_options', lambda *args: (1000, list(pairs)))
+    requests = []
+    monkeypatch.setattr(panel, 'interactive_figures', lambda request: requests.append(request) or [])
+    monkeypatch.setattr(panel, 'source_version', lambda *args: 'test')
+    app = AppTest.from_string('''
+import streamlit as st
+from types import SimpleNamespace
+from cgap_sbl_jadce.gui.figure_panel import figure_panel
+cfg = {'figures': {'evaluation_main_index': 458}}
+jobs = SimpleNamespace(busy=lambda: None, records=lambda: [])
+figure_panel(st, cfg, 'test.yaml', jobs, 'communication', 'run', SimpleNamespace(status='partial'))
+''').run()
+    assert not app.exception
+    assert any(info.value == 'No saved communication conditions in this split.' for info in app.info)
+    assert not requests
+    assert next(b for b in app.button if b.label == 'Regenerate publication exports').disabled
+    assert not any(w.label == 'Saved L / SNR' for w in app.selectbox)
+
+    pairs.append((20, 4.))
+    app.run()
+    assert not app.exception
+    assert requests[-1]['condition'] == [20, 4.]
+    assert not next(b for b in app.button if b.label == 'Regenerate publication exports').disabled
+
+    pairs.clear()
+    app.run()
+    assert not app.exception
+    assert next(b for b in app.button if b.label == 'Regenerate publication exports').disabled

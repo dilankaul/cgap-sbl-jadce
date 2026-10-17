@@ -24,7 +24,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
             active = jobs.task_job(config, task, action)
             if active and active['status'] in ACTIVE:
                 record = active
-        if not record:
+        if not record or record['status'] == 'completed':
             return
         status = record['status']
         command = ('pause' if record.get('portable') else

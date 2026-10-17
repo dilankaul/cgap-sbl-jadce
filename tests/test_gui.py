@@ -375,6 +375,10 @@ worker_panel(st, Jobs({str(tmp_path)!r}), {str(config)!r}, 'omp', 'run')
 """
     app = AppTest.from_string(source).run()
     assert not app.exception
+    if status == 'completed':
+        assert not app.button
+        assert not any(item.value == 'Task progress' for item in app.subheader)
+        return
     assert [button.label for button in app.button] == ['Pause', 'Resume', 'Stop']
     resume = next(button for button in app.button if button.label == 'Resume')
     assert resume.disabled == (not enabled)

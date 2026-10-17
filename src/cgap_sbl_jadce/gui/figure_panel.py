@@ -50,12 +50,16 @@ def figure_panel(st, cfg, config, jobs, task, action, state=None):
             count, pairs = sample_options(cfg, category, split)
             if count < 1:
                 raise ValueError('No saved realizations in this split.')
+            if category == 'communication' and not pairs:
+                raise ValueError('No saved communication conditions in this split.')
             main_index = main_realization_index(cfg, split, count)
             q = selectors[1].number_input('Realization index (zero-based)', min_value=0, max_value=count - 1,
                 value=main_index, step=1, key=f'index_{config}_{category}_{split}_{count}_{main_index}')
             request.update(split=split, index=int(q))
             if category == 'communication':
                 pair = selectors[2].selectbox('Saved L / SNR', pairs, format_func=lambda pair: f'L={pair[0]}, SNR={pair[1]:g} dB')
+                if pair is None:
+                    raise ValueError('Select a saved communication condition.')
                 request['condition'] = list(pair)
             else:
                 selectors[2].metric('Saved realizations', count)

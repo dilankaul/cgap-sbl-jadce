@@ -98,3 +98,41 @@ def test_run_all_page_shows_each_completed_condition_before_worker_finishes(save
         assert jobs.records()[0]['status'] == 'running'
         assert any(element.proto.text == f'{count}/3 conditions completed' for element in app.get('progress'))
         assert sum(item.value == 'Completed' for item in app.markdown) == count
+
+
+def test_cleared_results_do_not_show_completed_job_as_live_progress(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+    from cgap_sbl_jadce.config import load_config
+    from cgap_sbl_jadce.gui.workflow import card_state
+    from cgap_sbl_jadce.io import save_yaml
+    from cgap_sbl_jadce.paths import task_dir
+    import shutil
+
+    config = tmp_path / 'source.yaml'
+    cfg = load_config('tests/fixtures/small_experiment.yaml')
+    cfg['run']['output_dir'] = str(tmp_path / 'results')
+    save_yaml(config, cfg)
+    output = task_dir(cfg['run']['output_dir'], 'communication')
+    save_json(output / 'summary.json', {'status': 'complete'})
+    shutil.rmtree(cfg['run']['output_dir'])
+    jobs = Jobs(tmp_path)
+    folder = jobs.folder / 'previous-completed-job'
+    folder.mkdir()
+    save_json(folder / 'job.json', {'id': folder.name, 'status': 'completed', 'created': time.time(),
+        'request': {'kind': 'task', 'task': 'communication', 'action': 'run', 'config': str(config)}})
+    save_json(folder / 'control.json', {'command': 'run'})
+    (folder / 'worker.log').write_text('Communication generation complete.\n')
+    before = {path: path.read_bytes() for path in folder.iterdir()}
+    monkeypatch.setattr(Jobs, 'log', lambda *args: (_ for _ in ()).throw(AssertionError('Rendered old completion log')))
+    app = AppTest.from_string(f'''
+import streamlit as st
+from cgap_sbl_jadce.gui.jobs import Jobs
+from cgap_sbl_jadce.gui.task_page import worker_panel
+worker_panel(st, Jobs({str(tmp_path)!r}), {str(config)!r}, 'communication', 'run')
+''').run()
+    assert not app.exception
+    assert not app.button and not app.get('progress')
+    assert not any(item.value == 'Completed' for item in app.markdown)
+    assert card_state(cfg, config, 'communication', jobs).status == 'blocked'
+    assert {path: path.read_bytes() for path in folder.iterdir()} == before
+    assert not Path(cfg['run']['output_dir']).exists()
