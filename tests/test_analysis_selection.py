@@ -29,7 +29,7 @@ def test_one_completed_greedy_method_can_be_compared_but_not_converged(saved_dat
 
 def test_convergence_requires_run_not_just_tuning_and_can_use_sbl_alone(saved_data):
     estimators.tune_estimator_stage(saved_data, 'sbl', show_progress=False)
-    estimators.tune_estimator_stage(saved_data, 'anc', show_progress=False)
+    estimators.tune_estimator_stage(saved_data, 'glc', show_progress=False)
     assert analysis_options(saved_data, 'convergence') == []
     estimators.run_estimator_stage(saved_data, 'sbl', show_progress=False)
     shutil.rmtree(task_dir(saved_data['run']['output_dir'],'spatial_dependence'))
@@ -38,7 +38,7 @@ def test_convergence_requires_run_not_just_tuning_and_can_use_sbl_alone(saved_da
     summary = estimators.convergence_stage(saved_data, methods=['sbl'], realization_index=0, show_progress=False)
     assert summary['methods'] == ['sbl']
     with np.load(result_path(saved_data['run']['output_dir'],'convergence','convergence.npz')) as data:
-        assert 'sbl_nmse_history' in data and 'anc_nmse_history' not in data
+        assert 'sbl_nmse_history' in data and 'glc_nmse_history' not in data
     from cgap_sbl_jadce.figures.algorithm_convergence import plot_convergence
     from cgap_sbl_jadce.gui.charts import interactive_figures
     from cgap_sbl_jadce.io import save_yaml

@@ -83,8 +83,9 @@ def reset_tuning_results(cfg, method, pairs, definitions, resume):
         if target.is_symlink() or not (target == folder or target.resolve().parent == folder.resolve()):
             raise ValueError('Reset target is outside the selected algorithm run folder.')
         files = [target / name for name in ('summary.json', 'selected.json', 'thresholds.csv', 'trials.csv',
+                                           'row_norm_thresholds.csv', 'row_norm_threshold_summary.json', 'selected_channel_energy.npz',
                                            'study.sqlite3', 'study.sqlite3-shm', 'study.sqlite3-wal',
-                                           'sampler.pkl', 'search_progress.json')]
+                                           'sampler.pkl', 'search_progress.json', 'search_space.json', 'assignment.csv', 'final_estimates.npz', 'condition_scores.csv')]
 
         directories = []
         for metadata in target.glob('.checkpoints/*/definition.json'):
@@ -99,8 +100,13 @@ def reset_tuning_results(cfg, method, pairs, definitions, resume):
         figure_root = tuning_figure_path(condition_config(cfg, pair, method), method, '')
         if figure_root.is_symlink() or not figure_root.resolve().is_relative_to(folder.parent.resolve()):
             raise ValueError('Tuning figures are outside the selected algorithm folder.')
-        plots = [figure_root / f'{stem}.{suffix}' for stem in (
-            f'{method}_threshold_scores', f'{method}_optuna_search_history', f'{method}_optuna_parameter_samples')
+        from cgap_sbl_jadce.figures.spatial_optuna_tuning import sample_axes
+        from cgap_sbl_jadce.variants import SPATIAL_METHODS
+        stems = [f'{method}_pooled_samples', f'{method}_pooled_f1', f'{method}_threshold_scores_row_norm', f'{method}_threshold_scores', f'{method}_optuna_search_history', f'{method}_optuna_parameter_samples']
+        if method in SPATIAL_METHODS:
+            stems.extend(f'{method}_optuna_parameter_samples_{x}' for x, _ in sample_axes(method)[1:])
+        stems.extend(path.stem for path in figure_root.glob(f'{method}_channel_energy_*.png'))
+        plots = [figure_root / f'{stem}.{suffix}' for stem in stems
             for suffix in ('png', 'pdf')]
         if any(not path.resolve().is_relative_to(figure_root.resolve()) for path in plots):
             raise ValueError('A tuning figure points outside its condition folder.')

@@ -32,7 +32,11 @@ def test_conditions_complete_individually_and_rerun_does_not_use_finished_checkp
         folder = run_path(saved_data, 'omp', condition=pair)
         assert json.loads((folder / 'summary.json').read_text())['status'] == 'complete'
         assert (folder / 'figures/realization_scores.png').exists()
-        assert not list(folder.rglob('*.npz'))
+        assert set(folder.rglob('*.npz')) == {folder / 'selected_channel_energy.npz', folder / 'final_estimates.npz'}
+        with np.load(folder / 'final_estimates.npz') as data:
+            assert data['Z_hat'].shape == (2, 20, 3)
+            np.testing.assert_array_equal(data['q'], [0, 1])
+        assert not list(folder.rglob('.checkpoints/*/*.npz'))
     assert summary['status'] == 'complete' and len(summary['completed_pairs']) == 3
     assert len(calls) == 6
     untouched = run_path(saved_data, 'omp', 'per_sample.csv', (5, 12)).read_bytes()
@@ -134,7 +138,7 @@ def test_condition_graphs_and_export_use_numerical_results(saved_data, tmp_path,
     request = {'config': str(config), 'category': 'omp_run', 'condition': [7, 8]}
     monkeypatch.setattr(estimators, 'run_estimator_stage', lambda *a, **k: pytest.fail('Graph ran solver'))
     charts = interactive_figures(request)
-    assert len(charts) == 3 and charts[1][1].layout.yaxis.type == 'log'
+    assert len(charts) == 4 and charts[1][1].layout.yaxis.type == 'log'
     assert list(charts[0][1].data[0].x) == [0, 1]
     paths = render_preview(request, tmp_path / 'exports')
     assert {path.suffix for path in paths} == {'.pdf', '.png'}

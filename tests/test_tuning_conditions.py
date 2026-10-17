@@ -14,7 +14,7 @@ from cgap_sbl_jadce.paths import tuning_path
 from cgap_sbl_jadce.settings import grouped_config
 
 
-@pytest.mark.parametrize('method', ['sbl', 'anc'])
+@pytest.mark.parametrize('method', ['sbl', 'glc'])
 def test_tune_table_tracks_conditions_checkpoints_compatibility_and_optional_pairs(saved_data, tmp_path, monkeypatch, method):
     cfg = grouped_config(saved_data)
     cfg['algorithms'][method]['tuning']['selection_mode'] = 'per_condition'

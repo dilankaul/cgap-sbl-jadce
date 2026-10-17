@@ -80,9 +80,12 @@ def _source_digest(names):
 
 
 def solver_revision(method):
-    names = ['metrics.py', 'algorithms/' + {'anc': 'cgap_sbl', 'gl': 'cgap_sbl_gl', 'cosamp': 'cosamp', 'omp': 'omp', 'sbl': 'sbl'}[method] + '.py']
-    if method == 'gl':
-        names.append('algorithms/cgap_sbl.py')
-    if method in {'sbl', 'anc', 'gl'}:
-        names.append('algorithms/posterior.py')
+    from cgap_sbl_jadce.variants import SPATIAL_METHODS
+    if method in SPATIAL_METHODS:
+        names = ['metrics.py', 'algorithms/cgap_sbl.py', 'algorithms/cgap_variants.py',
+                 'algorithms/graph_interactions.py', 'algorithms/posterior.py']
+    else:
+        names = ['metrics.py', 'algorithms/' + {'cosamp': 'cosamp', 'omp': 'omp', 'sbl': 'sbl'}[method] + '.py']
+        if method == 'sbl':
+            names.append('algorithms/posterior.py')
     return _source_digest(names)

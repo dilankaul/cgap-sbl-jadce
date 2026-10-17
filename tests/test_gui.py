@@ -165,13 +165,13 @@ def test_dashboard_navigation_does_not_launch_work(tmp_path, monkeypatch):
     monkeypatch.setenv('CGAP_GUI_CONFIG', str(config))
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30).run()
     assert not app.exception
-    app.button(key='open_algorithm_anc').click().run()
+    app.button(key='open_algorithm_glc').click().run()
     assert not app.exception
-    assert app.button(key='open_anc_tune')
-    app.button(key='open_anc_run').click().run()
+    assert app.button(key='open_glc_tune')
+    app.button(key='open_glc_run').click().run()
     assert not app.exception
     assert app.button(key='task_action').disabled
-    assert next(widget for widget in app.selectbox if widget.label == 'Figure type').options == ['ANC performance and gamma distribution']
+    assert next(widget for widget in app.selectbox if widget.label == 'Figure type').options == ['GLC performance and gamma distribution']
     app.sidebar.button[0].click().run()
     app.button(key='open_convergence_run').click().run()
     assert not app.exception
@@ -285,7 +285,7 @@ def test_back_button_returns_from_every_page_to_its_parent(tmp_path, monkeypatch
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30).run()
     assert not app.exception
     assert not [button for button in app.button if button.label == 'Back']
-    for method in ('sbl', 'anc'):
+    for method in ('sbl', 'glc'):
         app.button(key=f'open_algorithm_{method}').click().run()
         for action in ('tune', 'run'):
             app.button(key=f'open_{method}_{action}').click().run()

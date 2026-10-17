@@ -25,30 +25,32 @@ def test_grouping_preserves_values_and_independent_parameter_ownership(saved_dat
     grouped = grouped_config(saved_data)
     assert 'tuning' not in grouped and 'alpha_values' not in grouped['algorithms']['sbl']['tuning']
     assert estimators.evaluation_conditions(grouped) == estimators.evaluation_conditions(saved_data)
-    for method in ('omp', 'cosamp', 'sbl', 'anc'):
-        if method in {'sbl', 'anc'}:
+    for method in ('omp', 'cosamp', 'sbl', 'glc'):
+        if method in {'sbl', 'glc'}:
             assert estimators.tuning_definition(grouped, method) == estimators.tuning_definition(saved_data, method)
-        assert estimators._anc_grid(grouped) == estimators._anc_grid(saved_data)
+        assert estimators._glc_grid(grouped) == estimators._glc_grid(saved_data)
     grouped['algorithms']['future'] = {'solver': {'K': 17}, 'tuning': {'alpha_values': [0, 3]}}
     assert grouped_config(grouped)['algorithms']['future'] == grouped['algorithms']['future']
 
 
-def test_anc_edit_invalidates_only_anc_and_reverting_restores_results(saved_data):
+def test_glc_edit_invalidates_only_glc_and_reverting_restores_results(saved_data):
     cfg = grouped_config(saved_data)
-    for method in ('sbl', 'anc', 'gl'):
+    for method in estimators.ESTIMATORS:
+        if not estimators.ESTIMATORS[method].tuning_grid:
+            continue
         estimators.tune_estimator_stage(cfg, method, False)
     for method in estimators.ESTIMATORS:
         estimators.run_estimator_stage(cfg, method, False, conditions=[[7, 8]])
-    before = run_path(cfg, 'anc', 'summary.json', (7, 8)).read_bytes()
-    cfg['algorithms']['anc']['tuning']['alpha_high'] = 4.
-    assert set(estimators.completed_methods(cfg, [[7, 8]])) == {'omp', 'cosamp', 'sbl', 'gl'}
-    assert numerical_state(cfg, 'anc', 'tune').status == 'incompatible'
-    assert numerical_state(cfg, 'anc').status == 'incompatible'
-    assert blocking_reasons(cfg, 'anc', conditions=[[7, 8]])
-    cfg['algorithms']['anc']['tuning']['alpha_high'] = 2.
+    before = run_path(cfg, 'glc', 'summary.json', (7, 8)).read_bytes()
+    cfg['algorithms']['glc']['tuning']['alpha_high'] = 4.
+    assert set(estimators.completed_methods(cfg, [[7, 8]])) == set(estimators.ESTIMATORS) - {'glc'}
+    assert numerical_state(cfg, 'glc', 'tune').status == 'incompatible'
+    assert numerical_state(cfg, 'glc').status == 'incompatible'
+    assert blocking_reasons(cfg, 'glc', conditions=[[7, 8]])
+    cfg['algorithms']['glc']['tuning']['alpha_high'] = 2.
     assert set(estimators.completed_methods(cfg, [[7, 8]])) == set(estimators.ESTIMATORS)
-    assert not blocking_reasons(cfg, 'anc', conditions=[[7, 8]])
-    assert run_path(cfg, 'anc', 'summary.json', (7, 8)).read_bytes() == before
+    assert not blocking_reasons(cfg, 'glc', conditions=[[7, 8]])
+    assert run_path(cfg, 'glc', 'summary.json', (7, 8)).read_bytes() == before
 
 
 def test_added_conditions_keep_finished_pairs_without_repeated_solves(saved_data, monkeypatch):
@@ -81,12 +83,12 @@ def test_sweep_subset_preserves_completed_measurements(saved_data):
 def test_separate_algorithm_tuning_policies_and_reference_conditions(saved_data):
     cfg = grouped_config(saved_data)
     cfg['algorithms']['sbl']['tuning']['selection_mode'] = 'per_condition'
-    cfg['algorithms']['anc']['tuning'].update(reference_pilot_length=7, reference_snr_db=8.)
+    cfg['algorithms']['glc']['tuning'].update(reference_pilot_length=7, reference_snr_db=8.)
     pipeline.communication_stage(cfg, False)
     assert tuning_pairs(cfg, 'sbl') == [(7, 8.), (7, 12.), (5, 12.)]
-    assert tuning_pairs(cfg, 'anc') == [(7, 8.)]
-    estimators.tune_estimator_stage(cfg, 'anc', False)
-    assert estimators.load_selection(cfg, 'anc')['definition']['condition'] == [7, 8.]
+    assert tuning_pairs(cfg, 'glc') == [(7, 8.)]
+    estimators.tune_estimator_stage(cfg, 'glc', False)
+    assert estimators.load_selection(cfg, 'glc')['definition']['condition'] == [7, 8.]
     estimators.tune_estimator_stage(cfg, 'sbl', False, conditions=[[7, 12]])
     assert not blocking_reasons(cfg, 'sbl', conditions=[[7, 12]])
     assert blocking_reasons(cfg, 'sbl', conditions=[[7, 8]])
@@ -100,7 +102,7 @@ def test_figure_and_unrelated_solver_edits_leave_omp_and_recovery_compatible(sav
     begin_recovery(request)
     digest, signature = config_digest(config, request), input_signature(request, portable=True)
     cfg['figures']['evaluation_indices'] = [1]
-    cfg['algorithms']['anc']['solver']['K'] += 1
+    cfg['algorithms']['glc']['solver']['K'] += 1
     cfg['evaluation']['pilot_length_stop'] = 9
     update_setup(config, cfg)
     config.write_text(config.read_text() + '\n# Formatting changes are harmless.\n')
@@ -122,8 +124,8 @@ def test_existing_setup_edit_preserves_identity_results_and_recovery_files(saved
     save_yaml(path, cfg)
     result = run_path(cfg, 'omp', 'summary.json', (7, 8))
     save_json(result, {'status': 'example'})
-    cfg['algorithms']['anc']['tuning']['beta_high'] = .2
-    assert update_setup(path, cfg) == ['algorithms.anc.tuning.beta_high']
+    cfg['algorithms']['glc']['tuning']['beta_high'] = .2
+    assert update_setup(path, cfg) == ['algorithms.glc.tuning.beta_high']
     assert json.loads(result.read_text()) == {'status': 'example'}
     bad = deepcopy(cfg); bad['run']['output_dir'] = str(tmp_path / 'other')
     with pytest.raises(ValueError, match='identity'):
@@ -136,7 +138,7 @@ def test_active_settings_guard_allows_unrelated_changes_and_requires_pause(saved
     request = {'kind': 'task', 'task': 'omp', 'action': 'run', 'config': str(config), 'conditions': [[7, 8]]}
     job = {'status': 'running', 'request': request}
     jobs = SimpleNamespace(records=lambda: [job])
-    cfg['algorithms']['anc']['tuning']['beta_high'] = .2
+    cfg['algorithms']['glc']['tuning']['beta_high'] = .2
     update_setup(config, cfg, jobs)
     cfg['system']['M'] += 1
     with pytest.raises(ValueError, match='Pause'):
@@ -165,21 +167,21 @@ def test_setup_and_task_editors_share_settings_without_running_tasks(saved_data,
     next(b for b in app.sidebar.button if b.label == 'Experiment setups').click().run()
     assert not any('All pilot lengths' in str(widget.options) for widget in app.radio)
     assert len([w for w in app.number_input if w.label == 'Alpha start']) == 1
-    next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).set_value(4)
+    next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).set_value(4)
     assert not app.error, [error.value for error in app.error]
-    assert load_config(config)['algorithms']['anc']['solver']['K'] == 3
+    assert load_config(config)['algorithms']['glc']['solver']['K'] == 3
     next(b for b in app.button if b.label == 'Save changes').click().run()
-    assert load_config(config)['algorithms']['anc']['solver']['K'] == 4
+    assert load_config(config)['algorithms']['glc']['solver']['K'] == 4
     app.button(key='go_back').click().run()
-    app.button(key='open_algorithm_anc').click().run()
-    app.button(key='open_anc_tune').click().run()
+    app.button(key='open_algorithm_glc').click().run()
+    app.button(key='open_glc_tune').click().run()
     assert not app.exception
     assert not [w for w in app.number_input if w.label == 'Alpha start']
     assert len([w for w in app.number_input if w.label == 'Alpha low']) == 1
-    next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).set_value(3)
+    next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).set_value(3)
     next(b for b in app.button if b.label == 'Save changes').click().run()
     assert not app.exception
-    assert load_config(config)['algorithms']['anc']['solver']['K'] == 3
+    assert load_config(config)['algorithms']['glc']['solver']['K'] == 3
     assert not list((tmp_path / '.gui').glob('*/job.json'))
 
 

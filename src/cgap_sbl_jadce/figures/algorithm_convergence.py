@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from cgap_sbl_jadce.labels import display_label
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,7 +21,7 @@ def plot_convergence(cfg: dict, formats: str = "png") -> list[Path]:
         if f'{method}_nmse_history' in conv:
             history = conv[f'{method}_nmse_history']
             iterations = conv[f'{method}_iteration_history'] if f'{method}_iteration_history' in conv else np.arange(1, len(history) + 1)
-            ax.plot(iterations, history, label=spec.name)
+            ax.plot(iterations, history, label=display_label(spec.name))
     if ax.lines:
         ax.set_xlim(sweep_limits([value for line in ax.lines for value in line.get_xdata()]))
     ax.set_xlabel("Iteration"); ax.set_ylabel(r"$\mathrm{NMSE}$"); ax.set_yscale("log")

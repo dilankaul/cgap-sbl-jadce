@@ -55,7 +55,7 @@ def test_poll_checks_result_metadata_without_reading_arrays_or_unit_checkpoints(
     monkeypatch.setattr(Path, 'read_bytes', lambda path: (_ for _ in ()).throw(AssertionError('Read array data')))
     refresh_results(st, cfg, [])
     assert updates == []
-    selection = task_dir(tmp_path, 'anc') / 'tuning/L0025_snr12dB/selected.json'
+    selection = task_dir(tmp_path, 'glc') / 'tuning/L0025_snr12dB/selected.json'
     save_json(selection, {'status': 'complete'})
     refresh_results(st, cfg, [])
     assert len(updates) == 1

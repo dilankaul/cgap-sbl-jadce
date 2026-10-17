@@ -61,18 +61,18 @@ def test_setup_requires_save_and_reset_discards_invalid_draft(saved_data, tmp_pa
 
 def test_task_settings_reset_on_back_without_saving(saved_data, tmp_path, monkeypatch):
     app, config = dashboard(saved_data, tmp_path, monkeypatch)
-    app.button(key='open_algorithm_anc').click().run()
-    app.button(key='open_anc_tune').click().run()
+    app.button(key='open_algorithm_glc').click().run()
+    app.button(key='open_glc_tune').click().run()
     original = config.read_bytes()
-    next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).set_value(4).run()
+    next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).set_value(4).run()
     assert config.read_bytes() == original
     next(b for b in app.button if b.label == 'Reset').click().run()
-    assert next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).value == 3
-    next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).set_value(5).run()
+    assert next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).value == 3
+    next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).set_value(5).run()
     app.button(key='go_back').click().run()
-    app.button(key='open_anc_tune').click().run()
+    app.button(key='open_glc_tune').click().run()
     assert not app.exception
-    assert next(w for w in app.number_input if w.key.endswith('_anc_solver_K')).value == 3
+    assert next(w for w in app.number_input if w.key.endswith('_glc_solver_K')).value == 3
     assert config.read_bytes() == original
 
 
@@ -110,9 +110,9 @@ def test_new_setup_reset_and_optional_conditions_need_explicit_add(saved_data, t
 def test_tuning_and_sweep_anchors_can_be_saved_independently(saved_data, tmp_path, monkeypatch):
     app, config = dashboard(saved_data, tmp_path, monkeypatch)
     next(b for b in app.sidebar.button if b.label == 'Experiment setups').click().run()
-    assert len([w for w in app.number_input if w.label == 'Alpha-beta tuning pilot length L']) == 1
-    next(w for w in app.number_input if w.label == 'Alpha-beta tuning pilot length L').set_value(9)
-    next(w for w in app.number_input if w.label == 'Alpha-beta tuning SNR (dB)').set_value(10.)
+    assert len([w for w in app.number_input if (w.key or '').endswith('_glc_tuning_reference_pilot_length')]) == 1
+    next(w for w in app.number_input if (w.key or '').endswith('_glc_tuning_reference_pilot_length')).set_value(9)
+    next(w for w in app.number_input if (w.key or '').endswith('_glc_tuning_reference_snr_db')).set_value(10.)
     next(w for w in app.number_input if w.label == 'Pilot length for SNR sweep').set_value(6)
     next(w for w in app.number_input if w.label == 'SNR for pilot-length sweep').set_value(14.)
     original = config.read_bytes()
@@ -120,8 +120,8 @@ def test_tuning_and_sweep_anchors_can_be_saved_independently(saved_data, tmp_pat
     next(b for b in app.button if b.label == 'Save changes').click().run()
     assert not app.exception
     cfg = load_config(config)
-    assert cfg['algorithms']['anc']['tuning']['reference_pilot_length'] == 9
-    assert cfg['algorithms']['anc']['tuning']['reference_snr_db'] == 10.
+    assert cfg['algorithms']['glc']['tuning']['reference_pilot_length'] == 9
+    assert cfg['algorithms']['glc']['tuning']['reference_snr_db'] == 10.
     assert cfg['evaluation']['pilot_length'] == 6
     assert cfg['evaluation']['snr_db'] == 14.
     assert cfg['algorithms']['sbl']['tuning']['reference_pilot_length'] == 5

@@ -128,7 +128,7 @@ def test_generation_restart_skips_committed_units_and_fresh_rerun_rebuilds_outpu
 
 
 def test_tuning_restart_reuses_completed_solver_outputs(saved_data, monkeypatch):
-    method = 'anc'
+    method = 'glc'
     spec = estimators.ESTIMATORS[method]
     calls = []
     def solve(*args, **kwargs):
@@ -187,18 +187,18 @@ def test_evaluation_continues_in_fresh_process_with_identical_scores(saved_data,
 
 
 def test_convergence_reuses_completed_trace_after_failure(saved_data, monkeypatch):
-    for method in ['sbl', 'anc']:
+    for method in ['sbl', 'glc']:
         estimators.tune_estimator_stage(saved_data, method, show_progress=False)
         estimators.run_estimator_stage(saved_data, method, show_progress=False)
-    spec = estimators.ESTIMATORS['anc']
-    monkeypatch.setitem(estimators.ESTIMATORS, 'anc', replace(spec, solve=lambda *a, **k: (_ for _ in ()).throw(Crash())))
+    spec = estimators.ESTIMATORS['glc']
+    monkeypatch.setitem(estimators.ESTIMATORS, 'glc', replace(spec, solve=lambda *a, **k: (_ for _ in ()).throw(Crash())))
     with pytest.raises(Crash):
         estimators.convergence_stage(saved_data, show_progress=False)
-    monkeypatch.setitem(estimators.ESTIMATORS, 'anc', spec)
+    monkeypatch.setitem(estimators.ESTIMATORS, 'glc', spec)
     sb = estimators.ESTIMATORS['sbl']
     monkeypatch.setitem(estimators.ESTIMATORS, 'sbl', replace(sb, solve=lambda *a, **k: pytest.fail('Repeated completed trace')))
     summary = estimators.convergence_stage(saved_data, show_progress=False, resume=True)
-    assert set(summary['scores']) == {'sbl', 'anc'}
+    assert set(summary['scores']) == {'sbl', 'glc'}
 
 
 def test_abrupt_exit_during_write_keeps_previous_checkpoint(tmp_path):

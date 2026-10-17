@@ -14,10 +14,10 @@ from cgap_sbl_jadce.paths import tuning_path, tuning_figure_path
 from cgap_sbl_jadce.settings import grouped_config, communication_conditions
 
 
-def config_for(saved_data, method='anc'):
+def config_for(saved_data, method='glc'):
     cfg = grouped_config(saved_data)
     cfg['algorithms'][method]['tuning']['selection_mode'] = 'per_condition'
-    cfg['algorithms']['anc']['tuning'].update(trials=2, samples=2, startup_trials=1)
+    cfg['algorithms']['glc']['tuning'].update(trials=2, samples=2, startup_trials=1)
     return cfg
 
 
@@ -36,7 +36,7 @@ def test_tune_and_communication_follow_run_sweep_order(saved_data, tmp_path):
     path = tmp_path / 'source.yaml'
     save_yaml(path, cfg)
     expected = list(dict.fromkeys(value[:2] for value in estimators.evaluation_conditions(cfg)))
-    assert tuning_plan(path, 'anc').pairs == expected
+    assert tuning_plan(path, 'glc').pairs == expected
     assert communication_conditions(cfg) == expected
     from cgap_sbl_jadce.gui.communication_conditions import condition_rows
     rows, issues = condition_rows(cfg)
@@ -50,18 +50,18 @@ def test_tune_complete_worker_preserves_completed_condition_and_finishes_the_res
     path = tmp_path / 'source.yaml'
     save_yaml(path, cfg)
     first = (7, 8.)
-    estimators.tune_estimator_stage(cfg, 'anc', False, conditions=[first])
-    folder = tuning_path(cfg, 'anc', '', first)
+    estimators.tune_estimator_stage(cfg, 'glc', False, conditions=[first])
+    folder = tuning_path(cfg, 'glc', '', first)
     before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in folder.rglob('*') if p.is_file()}
     jobs = Jobs(tmp_path)
-    record = jobs.complete({'kind': 'task', 'config': str(path), 'task': 'anc', 'action': 'tune'})
+    record = jobs.complete({'kind': 'task', 'config': str(path), 'task': 'glc', 'action': 'tune'})
     try:
         state = wait(jobs, record)
         assert state['status'] == 'completed', jobs.log(record['id'])[0]
-        assert tuning_plan(path, 'anc').label() == 'Rerun all'
+        assert tuning_plan(path, 'glc').label() == 'Rerun all'
         assert all(p.read_bytes() == contents and p.stat().st_mtime_ns == modified
                    for p, (contents, modified) in before.items())
-        assert len(state['paths']) == 3 * 3 + 6
+        assert len(state['paths']) == 5 * 3 + 6
     finally:
         if jobs.busy():
             jobs.control(record['id'], 'stop')
@@ -140,18 +140,18 @@ def test_parameter_sweep_exports_use_saved_selections_and_keep_existing_plots(sa
     from cgap_sbl_jadce.gui.charts import interactive_figures
     from cgap_sbl_jadce.gui.previews import render_preview
     cfg = config_for(saved_data)
-    estimators.tune_estimator_stage(cfg, 'anc', False, conditions=[(7, 8.), (5, 12.)])
+    estimators.tune_estimator_stage(cfg, 'glc', False, conditions=[(7, 8.), (5, 12.)])
     path = tmp_path / 'source.yaml'
     save_yaml(path, cfg)
-    monkeypatch.setitem(estimators.ESTIMATORS, 'anc', replace(estimators.ESTIMATORS['anc'], solve=lambda *a, **k: pytest.fail('Plotting ran solver')))
-    curves = parameter_sweeps(cfg, 'anc')
+    monkeypatch.setitem(estimators.ESTIMATORS, 'glc', replace(estimators.ESTIMATORS['glc'], solve=lambda *a, **k: pytest.fail('Plotting ran solver')))
+    curves = parameter_sweeps(cfg, 'glc')
     assert len(curves) == 6
-    selected = estimators.load_selection(cfg, 'anc', (7, 8.))['parameters']
+    selected = estimators.load_selection(cfg, 'glc', (7, 8.))['parameters']
     for curve in curves[:3]:
         assert curve['x'] == [8., 12.]
         assert curve['y'][0] == selected[curve['parameter']]
         assert np.isnan(curve['y'][1])
-    request = {'config': str(path), 'category': 'anc_tuning_sweeps'}
+    request = {'config': str(path), 'category': 'glc_tuning_sweeps'}
     figures = interactive_figures(request)
     assert len(figures) == 6
     for (_, figure), curve in zip(figures, curves):
@@ -161,14 +161,14 @@ def test_parameter_sweep_exports_use_saved_selections_and_keep_existing_plots(sa
     outputs = render_preview(request, tmp_path / 'sweep_exports')
     assert len(outputs) == 12 and {p.suffix for p in outputs} == {'.png', '.pdf'}
     assert all(p.exists() and p.stat().st_size > 100 for p in outputs)
-    request.update(category='anc_tune', condition=[7, 8.])
+    request.update(category='glc_tune', condition=[7, 8.])
     diagnostics = interactive_figures(request)
-    assert len(diagnostics) == 3
+    assert len(diagnostics) == 5
     assert all('Selected α=' in figure.layout.title.text and 'β=' in figure.layout.title.text for _, figure in diagnostics)
     outputs = render_preview(request, tmp_path / 'diagnostic_exports')
-    assert len(outputs) == 6 and all(p.exists() for p in outputs)
-    cfg['algorithms']['anc']['solver']['delta'] *= 2
-    assert parameter_sweeps(cfg, 'anc') == []
+    assert len(outputs) == 10 and all(p.exists() for p in outputs)
+    cfg['algorithms']['glc']['solver']['delta'] *= 2
+    assert parameter_sweeps(cfg, 'glc') == []
 
 
 def test_stopped_tune_shows_resume_and_rerun_selected(saved_data, tmp_path, monkeypatch):

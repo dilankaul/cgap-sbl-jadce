@@ -2,9 +2,9 @@ from cgap_sbl_jadce.paths import result_path, figure_path, task_dir, tuning_figu
 
 
 def test_artifacts_are_assigned_to_their_producing_tasks(tmp_path):
-    for method in ('omp','cosamp','sbl','anc'):
+    for method in ('omp','cosamp','sbl','glc'):
         assert result_path(tmp_path, method, 'per_sample.csv') == task_dir(tmp_path, method) / 'per_sample.csv'
-    assert task_dir(tmp_path, 'anc').name == 'cgap_sbl_anc'
+    assert task_dir(tmp_path, 'glc').name == 'cgap_sbl_glc'
     assert result_path(tmp_path, 'comparison', 'aggregate.csv').parent.name == 'comparison'
     for split in ('tuning','evaluation'):
         assert result_path(tmp_path, 'activity', f'{split}_activity.npz') == tmp_path / 'activity' / split / f'{split}_activity.npz'
@@ -19,5 +19,5 @@ def test_realization_figures_share_padded_folders(tmp_path):
 
 def test_tuning_and_analysis_figures_have_descriptive_owners(tmp_path):
     cfg = {'run':{'output_dir':str(tmp_path)}, 'tuning':{'selection_mode':'reference'}}
-    assert tuning_figure_path(cfg, 'anc', 'threshold_scores').parent == task_dir(tmp_path, 'anc') / 'figures' / 'tuning'
+    assert tuning_figure_path(cfg, 'glc', 'threshold_scores').parent == task_dir(tmp_path, 'glc') / 'figures' / 'tuning'
     assert figure_path(tmp_path, 'comparison', 'f1_vs_snr', section='evaluation').parent.name == 'evaluation'

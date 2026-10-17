@@ -1,3 +1,5 @@
+from cgap_sbl_jadce.variants import SPATIAL_METHODS, TUNED_METHODS, parameters, PARAMETER_LABELS
+from cgap_sbl_jadce.labels import display_label
 from pathlib import Path
 
 from cgap_sbl_jadce.config import load_config
@@ -12,14 +14,18 @@ LABELS = {'N': 'MTDs N', 'M': 'BS antennas M', 'S': 'Target mean active S', 'R':
           'reference_pilot_length': 'Reference pilot length L', 'reference_snr_db': 'Reference SNR (dB)',
           'pilot_length': 'Pilot length for SNR sweep', 'snr_db': 'SNR for pilot-length sweep',
           'snr_start': 'SNR start', 'snr_stop': 'SNR stop', 'snr_step': 'SNR step',
-          'cosamp_lambda_reg': 'Ridge regularization lambda (0 = unregularized)'}
+          'cosamp_lambda_reg': 'Ridge regularization lambda (0 = unregularized)',
+          'graph_kappa_low': 'Graph coupling κ_g lower bound', 'graph_kappa_high': 'Graph coupling κ_g upper bound',
+          'diffusion_time_low': 'Diffusion time t lower bound', 'diffusion_time_high': 'Diffusion time t upper bound',
+          'affinity_bandwidth_low': 'Affinity bandwidth h lower bound', 'affinity_bandwidth_high': 'Affinity bandwidth h upper bound',
+          'gamma_log_floor': 'Gamma floor for logarithms ε_γ'}
 
 
 def _numbers(st, values, keys, prefix, labels=None):
     columns = st.columns(2)
     for i, name in enumerate(keys):
         value = values[name]
-        if name in {'S', 'R', 'D', 'reference_snr_db', 'snr_db', 'gamma_init', 'delta', 'cosamp_tol', 'cosamp_lambda_reg',
+        if name.endswith(('_low', '_high')) or name == 'gamma_log_floor' or name in {'S', 'R', 'D', 'reference_snr_db', 'snr_db', 'gamma_init', 'delta', 'cosamp_tol', 'cosamp_lambda_reg',
                     'tau_start', 'tau_stop', 'tau_step', 'calibration_tolerance'} or any(
                     name == parameter + '_' + part for parameter in ('alpha', 'beta', 'kappa', 'snr')
                     for part in ('start', 'stop', 'step', 'low', 'high')):
@@ -57,6 +63,23 @@ def _range(st, settings, name, prefix, values_key=None, integer=False):
         settings.update(proposed)
 
 
+def _analysis_fields(st, values, prefix):
+    modes = ['gamma', 'z', 'top_k']
+    values['detection_mode'] = st.selectbox('Detection rule', modes, index=modes.index(values['detection_mode']),
+        format_func=lambda value: {'gamma': 'Gamma threshold', 'z': 'Z row-norm threshold', 'top_k': 'Top-K'}[value], key=prefix + '_mode')
+    for key, label in [('gamma_threshold', 'Gamma threshold'), ('z_threshold', 'Z row-norm threshold')]:
+        automatic = st.checkbox(label + ' from tuning', value=values.get(key) is None, key=prefix + '_auto_' + key)
+        value = st.number_input(label, min_value=0., value=float(values.get(key) or 0.), step=.001,
+            key=prefix + '_' + key)
+        values[key] = None if automatic else value
+    _numbers(st, values, ['top_k'], prefix)
+    scores = ['gamma', 'z']
+    values['top_k_score'] = st.selectbox('Top-K ranking', scores, index=scores.index(values['top_k_score']), key=prefix + '_score')
+    modes = ['unmasked', 'support_masked']
+    values['nmse_mode'] = st.selectbox('Channel estimate for NMSE', modes, index=modes.index(values['nmse_mode']),
+        format_func=lambda value: {'unmasked': 'Unmasked estimate', 'support_masked': 'Zero undetected rows'}[value], key=prefix + '_nmse')
+
+
 def settings_fields(st, cfg, prefix, task=None, action='run'):
     lists = []
     if task is None or task in {'kappa_calibration', 'activity'}:
@@ -90,13 +113,42 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
             _numbers(st, evaluation, ['pilot_length', 'snr_db'], prefix + '_evaluation')
             _range(st, evaluation, 'pilot_length', prefix + '_evaluation', 'pilot_lengths', integer=True)
             _range(st, evaluation, 'snr', prefix + '_evaluation', 'snr_values')
+    if task is None or task == 'communication':
+        with st.expander('Communication grid', expanded=task == 'communication'):
+            grid = cfg['communication'].setdefault('grid', {key: value for key, value in cfg['evaluation'].items()
+                if key.startswith(('pilot_length_', 'snr_')) and key.endswith(('start', 'stop', 'step'))})
+            if not grid:
+                grid.update(pilot_lengths=cfg['evaluation']['pilot_lengths'], snr_values=cfg['evaluation']['snr_values'])
+            _range(st, grid, 'pilot_length', prefix + '_communication_grid', 'pilot_lengths', integer=True)
+            _range(st, grid, 'snr', prefix + '_communication_grid', 'snr_values')
+    if task is None or task in TUNED_METHODS:
+        with st.expander('Pooled tuning grid'):
+            grid = cfg.setdefault('tuning_grid', dict(pilot_length_start=20, pilot_length_stop=40, pilot_length_step=10,
+                snr_start=4., snr_stop=20., snr_step=8.))
+            _range(st, grid, 'pilot_length', prefix + '_tuning_grid', 'pilot_lengths', integer=True)
+            _range(st, grid, 'snr', prefix + '_tuning_grid', 'snr_values')
+    if task is None or task == 'comparison' or task in cfg['algorithms'] and action == 'run':
+        from cgap_sbl_jadce.settings import analysis_settings
+        with st.expander('Detection and NMSE', expanded=task == 'comparison'):
+            analysis = cfg['analysis'] = {**analysis_settings(cfg), **cfg.get('analysis', {})}
+            _analysis_fields(st, analysis, prefix + '_detector')
+            if task == 'comparison':
+                overrides = analysis.setdefault('methods', {})
+                for method in cfg['algorithms']:
+                    with st.expander(method.upper() + ' detection'):
+                        enabled = st.checkbox('Use separate settings', value=method in overrides, key=prefix + '_override_' + method)
+                        if enabled:
+                            values = overrides.setdefault(method, analysis_settings(cfg, method))
+                            _analysis_fields(st, values, prefix + '_detector_' + method)
+                        else:
+                            overrides.pop(method, None)
     for method, values in cfg['algorithms'].items():
         if not values.get('solver') and not values.get('tuning'):
             continue
         if task is not None and task != method:
             continue
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-        name = ESTIMATORS[method].name if method in ESTIMATORS else method.upper()
+        name = display_label(ESTIMATORS[method].name) if method in ESTIMATORS else method.upper()
         with st.expander(name + ' settings', expanded=task == method):
             if values.get('solver'):
                 st.caption('Solver')
@@ -104,29 +156,33 @@ def settings_fields(st, cfg, prefix, task=None, action='run'):
             tune = values.get('tuning')
             if tune:
                 st.caption('Tuning')
-                tune['selection_mode'] = st.radio(name + ' tuning policy', ['reference', 'per_condition'],
-                    index=int(tune['selection_mode'] == 'per_condition'), key=prefix + '_' + method + '_policy',
-                    format_func=lambda value: 'One reference selection' if value == 'reference' else 'Separate selection per condition')
-                tuning_label = 'Alpha-beta tuning' if method == 'anc' else 'Alpha tuning' if method == 'gl' else 'Threshold tuning'
-                _numbers(st, tune, ['reference_pilot_length', 'reference_snr_db', 'tau_start', 'tau_stop', 'tau_step'], prefix + '_' + method + '_tuning',
+                tune['selection_mode'] = st.radio(name + ' tuning policy', ['pooled', 'reference', 'per_condition'],
+                    index=['pooled', 'reference', 'per_condition'].index(tune['selection_mode']), key=prefix + '_' + method + '_policy',
+                    format_func=lambda value: {'pooled': 'One selection across the tuning grid', 'reference': 'One reference selection', 'per_condition': 'Separate selection per condition'}[value])
+                tuning_label = 'Parameter tuning' if method in SPATIAL_METHODS else 'Threshold tuning'
+                fields = ['tau_start', 'tau_stop', 'tau_step']
+                if tune['selection_mode'] != 'pooled':
+                    fields = ['reference_pilot_length', 'reference_snr_db'] + fields
+                _numbers(st, tune, fields, prefix + '_' + method + '_tuning',
                     {'reference_pilot_length': tuning_label + ' pilot length L', 'reference_snr_db': tuning_label + ' SNR (dB)'})
-                if method == 'anc':
+                if method in SPATIAL_METHODS:
                     st.caption('Full Optuna TPE')
-                    _numbers(st, tune, ['alpha_low', 'alpha_high', 'beta_low', 'beta_high', 'trials',
-                        'samples', 'startup_trials', 'optuna_seed'],
-                        prefix + '_anc_search')
-                if method == 'gl':
-                    st.caption('Full Optuna TPE')
-                    _numbers(st, tune, ['alpha_low', 'alpha_high', 'trials', 'samples', 'startup_trials', 'optuna_seed'],
-                             prefix + '_gl_search')
-    if task is None or task == 'anc_grid_study':
-        with st.expander('ANC paper grid study', expanded=task == 'anc_grid_study'):
-            study = cfg['anc_grid_study']
+                    fields = [name + '_' + bound for name in parameters(method) for bound in ('low', 'high')]
+                    _numbers(st, tune, fields + ['trials', 'startup_trials', 'optuna_seed'] + ([] if tune['selection_mode'] == 'pooled' else ['samples']),
+                             prefix + '_' + method + '_search')
+                    for parameter in parameters(method):
+                        tune[parameter + '_log'] = st.checkbox('Logarithmic sampling: ' + PARAMETER_LABELS[parameter],
+                            value=tune[parameter + '_log'], key=prefix + '_' + method + '_search_' + parameter + '_log')
+                    if method == 'rgl':
+                        st.caption('The upper setting 1 excludes the exact GL boundary from RGL sampling.')
+    if task is None or task == 'glc_grid_study':
+        with st.expander('GLC paper grid study', expanded=task == 'glc_grid_study'):
+            study = cfg['glc_grid_study']
             _numbers(st, study, ['pilot_length', 'snr_db', 'samples'], prefix + '_grid_reference',
                      {'pilot_length': 'Grid study pilot length L', 'snr_db': 'Grid study SNR (dB)', 'samples': 'Grid study tuning realizations'})
             for parameter in ('alpha', 'beta', 'tau'):
                 _range(st, study, parameter, prefix + '_grid_' + parameter)
-    if task is None or task in {'convergence', 'sbl', 'anc', 'gl'}:
+    if task is None or task in set(TUNED_METHODS) | {'convergence'}:
         with st.expander('Analysis and diagnostics'):
             _numbers(st, cfg['evaluation'], ['gamma_distribution_samples', 'convergence_sample_offset'], prefix + '_analysis')
     seed_names = {'kappa_calibration': ['kappa_calibration', 'kappa_validation'], 'activity': ['activity_tuning', 'activity_evaluation'],

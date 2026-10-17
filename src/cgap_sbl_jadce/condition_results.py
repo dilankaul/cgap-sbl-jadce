@@ -85,8 +85,10 @@ def reset_run_results(cfg, method, pairs, definitions, resume):
         if target.is_symlink() or target.resolve().parent != folder.resolve():
             raise ValueError('Reset target is outside the selected algorithm run folder.')
         files = [target / name for name in ('summary.json', 'per_sample.csv', 'aggregate.csv',
-                                           'runtime_summary.csv', 'gamma_distribution.npz')]
+                                           'runtime_summary.csv', 'gamma_distribution.npz', 'selected_channel_energy.npz', 'final_estimates.npz')]
         files.extend(target / 'figures' / f'realization_scores.{suffix}' for suffix in ('png', 'pdf'))
+        files.extend(path for path in (target / 'figures').glob('channel_energy_*')
+                     if path.suffix in {'.png', '.pdf'})
         directories = []
         for metadata in target.glob('.checkpoints/*/definition.json'):
             saved = json.loads(metadata.read_text())['definition']

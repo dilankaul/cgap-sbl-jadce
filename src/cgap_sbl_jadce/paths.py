@@ -3,8 +3,9 @@ from pathlib import Path
 TASK_FOLDERS = {
     'kappa_calibration': 'kappa_calibration', 'activity': 'activity',
     'communication': 'communication', 'spatial_dependence': 'spatial_dependence',
-    'omp': 'omp', 'cosamp': 'cosamp', 'sbl': 'sbl', 'anc': 'cgap_sbl_anc', 'gl': 'cgap_sbl_gl',
-    'anc_grid_study': 'anc_grid_study',
+    'omp': 'omp', 'cosamp': 'cosamp', 'sbl': 'sbl', 'glc': 'cgap_sbl_glc', 'gl': 'cgap_sbl_gl',
+    **{method: 'cgap_sbl_' + method for method in ('nglc', 'rgl', 'gd', 'aga')},
+    'glc_grid_study': 'glc_grid_study',
     'comparison': 'comparison', 'convergence': 'convergence',
 }
 
@@ -33,6 +34,8 @@ def tuning_path(cfg, method, filename, condition=None):
     folder = task_dir(cfg['run']['output_dir'], method) / 'tuning'
     from cgap_sbl_jadce.settings import tuning_settings
     tune = tuning_settings(cfg, method)
+    if tune['selection_mode'] == 'pooled':
+        folder /= 'pooled'
     if tune['selection_mode'] == 'per_condition':
         L, snr = condition or (tune['reference_pilot_length'], tune['reference_snr_db'])
         folder /= f'L{int(L):04d}_snr{float(snr):g}dB'

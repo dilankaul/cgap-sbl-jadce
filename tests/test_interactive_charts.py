@@ -67,20 +67,21 @@ def test_optional_condition_heatmaps_and_independent_tuning_use_saved_data(saved
     cfg['tuning']['selection_mode'] = 'per_condition'
     pipeline.communication_stage(cfg, False)
     from cgap_sbl_jadce.additional_conditions import add_condition
-    add_condition(cfg, 'anc', (5, 8.))
-    pipeline.communication_stage(cfg, False, conditions=[[5, 8]], methods=['anc'])
-    estimators.tune_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
-    estimators.run_estimator_stage(cfg, 'anc', False, conditions=[[5, 8]])
-    request = request_file(cfg, tmp_path, category='anc_tune', condition=[5, 8])
+    add_condition(cfg, 'glc', (5, 8.))
+    pipeline.communication_stage(cfg, False, conditions=[[5, 8]], methods=['glc'])
+    estimators.tune_estimator_stage(cfg, 'glc', False, conditions=[[5, 8]])
+    estimators.run_estimator_stage(cfg, 'glc', False, conditions=[[5, 8]])
+    request = request_file(cfg, tmp_path, category='glc_tune', condition=[5, 8])
     assert [label for label, _ in interactive_figures(request)] == [
-        'TPE search history', 'Sampled parameter pairs', 'Threshold scores']
-    request['category'] = 'anc_run'
+        'TPE search history', 'Sampled parameter pairs', 'Threshold scores',
+        'Row norm threshold scores', 'Effective-channel energy · tuning realization 0']
+    request['category'] = 'glc_run'
     request.pop('condition')
     figures = interactive_figures(request)
     assert len(figures) == 3
     assert all(figure.data[0].type == 'heatmap' for label, figure in figures)
     from cgap_sbl_jadce.figures.algorithm_performance import make_performance_figures
-    assert len(make_performance_figures(cfg, method='anc', show_progress=False)) == 3
+    assert len(make_performance_figures(cfg, method='glc', show_progress=False)) == 3
 
 
 def test_square_matrix_cells_preserve_complex_matrix_proportions_and_entries(saved_data, tmp_path):

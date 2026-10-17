@@ -48,7 +48,7 @@ def validate_setup(cfg):
         tune = settings.get('tuning')
         if not tune:
             continue
-        if tune['selection_mode'] not in {'reference', 'per_condition'}:
+        if tune['selection_mode'] not in {'reference', 'per_condition', 'pooled'}:
             raise ValueError(f'Unknown {method} tuning policy')
         positive(tune['reference_pilot_length'], 'Reference pilot length', integer=True)
         if not math.isfinite(tune['reference_snr_db']):
@@ -57,10 +57,10 @@ def validate_setup(cfg):
         for name in ('alpha', 'beta'):
             if name + '_values' in tune or name + '_start' in tune:
                 sequence(range_values(tune, name), f'{method}.{name}', zero=True)
-    from cgap_sbl_jadce.settings import validate_anc_search, grid_study_settings
-    validate_anc_search(cfg)
-    from cgap_sbl_jadce.settings import validate_gl_search
-    validate_gl_search(cfg)
+    from cgap_sbl_jadce.settings import validate_spatial_search, grid_study_settings
+    from cgap_sbl_jadce.variants import SPATIAL_METHODS
+    for method in SPATIAL_METHODS:
+        validate_spatial_search(cfg, method)
     study = grid_study_settings(cfg)
     positive(study['pilot_length'], 'Grid study pilot length', integer=True)
     positive(study['samples'], 'Grid study samples', integer=True)
@@ -79,6 +79,13 @@ def validate_setup(cfg):
     sequence(evaluation['pilot_lengths'], 'Pilot lengths', integer=True)
     if not evaluation['snr_values'] or len(evaluation['snr_values']) != len(set(evaluation['snr_values'])) or any(not math.isfinite(v) for v in evaluation['snr_values']):
         raise ValueError('SNR values need distinct finite values')
+    from cgap_sbl_jadce.settings import condition_grid, pooled_assignment, analysis_settings
+    if 'grid' in cfg.get('communication', {}):
+        condition_grid(cfg['communication']['grid'], 'Communication grid')
+    if any(settings.get('tuning', {}).get('selection_mode') == 'pooled' for settings in cfg['algorithms'].values()):
+        pooled_assignment(cfg)
+    for method in cfg['algorithms']:
+        analysis_settings(cfg, method)
     seeds = list(cfg['seeds'].values())
     if len(seeds) != 6 or any(type(v) is not int or v < 0 for v in seeds) or len(set(seeds)) != len(seeds):
         raise ValueError('Use six distinct non-negative integer seeds')

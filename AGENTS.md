@@ -29,9 +29,9 @@ The GUI overview contains preparation, algorithm and analysis boxes.
 - Communication and spatial dependence each depend on activity and can run independently.
 - OMP/CoSaMP depend on evaluation communication only.
 - SBL has Tune and Run; Run requires its saved tuning selection.
-- ANC and GL each have independent Tune and Run actions; both require spatial dependence matrices.
+- GLC/NGLC/RGL/GL/GD/AGA each have independent Tune/Run actions and require C.
 - Compare allows any selected completed algorithm, including just one.
-- Convergence allows only completed SBL/ANC/GL runs at the selected condition.
+- Convergence allows only completed SBL-family runs at the selected condition.
 
 Tasks automatically save PNG artifacts; the GUI always constructs interactive
 Plotly figures directly from saved numerical data. Publication exports regenerate
@@ -39,17 +39,17 @@ native-font PDF figures from data. Launch through cgap-sbl-lab (or python -m
 cgap_sbl_jadce); the old curses menu, task_cli module and cgap-sbl command are removed.
 The tasks.py registry owns orchestration. Dependencies determine availability,
 not an ordinal sequence. Algorithm runs support independent L/SNR selections and merge
-completed conditions. SBL/ANC have separate Tune/Run actions and support either
+completed conditions. SBL and all spatial variants have separate Tune/Run actions and support either
 reference tuning or condition-specific selections, chosen in a setup definition.
-Default SBL and ANC tuning uses per-condition selections for every setup L/SNR pair.
+Default SBL and spatial-variant tuning uses one pooled selection across the configurable tuning grid; reference and per-condition modes remain available. See decision 124.
 Per-condition Tune pages show the shared condition table with tuning-specific
 completion, unfinished checkpoint and compatibility status, including shared Add/Delete
-and optional-input preparation controls. ANC shows completed TPE trials. Tune and
+and optional-input preparation controls. All spatial variants show completed TPE trials. Tune and
 Communication use Run sweep ordering and labels: SNR sweep, pilot-length sweep,
 then required references and optional rows. Tune uses the same Complete/Resume/
 Rerun controls, preserving completed conditions on Complete and resetting only
 the explicit Rerun scope with recoverable cleanup.
-The Analysis ANC parameter grid study has one fixed condition and cannot supply
+The Analysis GLC parameter grid study has one fixed condition and cannot supply
 algorithm selections. TPE and grid-study settings/results have independent ownership.
 New GUI setups copy default/current settings into isolated results/<name>/config.yaml
 before work starts. That one source config can be edited centrally or within
@@ -147,36 +147,46 @@ Zero penalty recovers conventional SBL exactly. Never upper-clip gamma.
 The general interaction is finite and symmetric, not necessarily PSD. It is a
 Gaussian-inspired design for iteration-specific penalization, not a proper
 Gaussian hyperprior or a fixed-global MAP/MM convergence guarantee.
-The ANC matrix is `Omega_ANC = alpha*(beta*1-C)` with its diagonal retained;
+The GLC matrix is `Omega_GLC = alpha*(beta*1-C)` with its diagonal retained;
 `1` means all ones. Compute `lambda = alpha*positive_part(beta*sum(gamma)-C@gamma)`
 without constructing dense Omega. Match `rho=kappa`, `U=D` from saved Activity generation data.
 
 Use the relative stopping criterion `norm(gamma_new-gamma)/norm(gamma) < delta`,
-with `K=500`, `delta=1e-4`. Independently retune thresholds and ANC parameters;
+with `K=500`, `delta=1e-4`. Independently retune thresholds and GLC parameters;
 reject old method/setup selections. The final channel estimate is the unmasked
 posterior mean from final gamma.
 
-Tuning: use saved tuning inputs. ANC uses per-condition full Optuna TPE: 50 trials, each on the same 100 saved tuning realizations, optimizing one tau across all realizations within each trial. There is no finalist stage. Keep the fixed-condition paper grid study separate from algorithm selections. SBL retains threshold tuning. Preserve per-condition tuning diagnostics and annotate ANC selections. Save ANC alpha/beta/tau versus SNR and pilot length, plus independent SBL tau sweeps, from compatible completed selections; show missing conditions as gaps. Provide PNG previews, interactive plots and native-font PDF exports without solver calls.
+Tuning: use saved tuning inputs. Default pooled tuning assigns the 100 unique realizations across configurable anchor conditions, with 11 per cell and 12 at the center for the default 3x3 grid. Each spatial variant independently tunes its parameters by top-S gamma mean F1 with its configured trial budget, then calibrates thresholds from cached winning outputs. SBL prepares its assigned outputs once. One pooled selection serves all evaluation pairs. Reference/per-condition modes retain their previous objectives. There is no finalist stage. Keep the fixed-condition paper grid study separate from algorithm selections. Threshold calibration uses tuning data only; analysis can explore alternative thresholds/K from saved final estimates. Preserve per-condition tuning diagnostics and annotate GLC selections. Save GLC alpha/beta/tau versus SNR and pilot length, plus independent SBL tau sweeps, from compatible completed selections; show missing conditions as gaps. Provide PNG previews, interactive plots and native-font PDF exports without solver calls.
 Evaluation: Q=1000, L=20:5:45 at 12 dB, SNR=4:4:24 at L=30.
 Convergence: L=30, 12 dB. Use the six explicit independent seeds.
 Activity generation saves event-driven tuning and evaluation supports. Communication generation saves all
 communication inputs; downstream tasks load them and never regenerate data.
-Both communication splits cover every configured sweep condition and
+Both communication splits cover the configurable full Cartesian communication grid, every configured sweep condition and
 independent algorithm/preview reference conditions outside the sweeps,
 regardless of tuning selection policy. Optional pairs retain explicit input preparation.
 Spatial dependence generation owns spatial dependence matrices. OMP/CoSaMP need no tuning or C;
-SBL tunes tau independently; ANC tunes its own alpha, beta and tau.
-Record true-active-support NMSE and solver-call runtimes. Algorithm comparison compares only
+SBL tunes tau independently; each spatial variant tunes its own parameters and tau.
+Save every final complex Z_hat and SBL-family gamma. Record unmasked and support-masked true-active-support NMSE and solver-call runtimes. Analysis detector/NMSE settings never invalidate solver results. Algorithm comparison compares only
 compatible completed results.
-CGAP-SBL-GL is the fifth independent estimator. Retain C's diagonal, define
-xi=C@1 and r=xi**(-1/2), and use lambda=alpha*positive_part(gamma-r*(C@(r*gamma))).
-Require symmetric finite nonnegative C and positive degrees. Reuse the unchanged
-CGAP posterior/update engine without forming a dense Laplacian. GL tunes alpha
-and tau independently with full TPE (50 x 100 by default), no beta; its initial
-editable alpha bounds are 0..100. Keep its Tune/Run data and checkpoints under
-cgap_sbl_gl/, with the same condition table and recovery controls as other algorithms.
-Provide GL TPE diagnostics, alpha/tau sweeps, performance, gamma and convergence
-plots from saved data. Preserve ANC solver/search code and selections unchanged.
+Spatial methods are GLC, NGLC, RGL, GL, GD and AGA (no MGLC), each with independent
+full TPE, condition-local outputs under cgap_sbl_<method>/, recovery and plots.
+Use J=11^T/N, xi=C@1, Xi=diag(xi), F=Xi^(-1/2) C Xi^(-1/2), L_norm=I-F.
+Retain C's diagonal; require finite real symmetric nonnegative C and positive degrees.
+Interactions: GLC alpha*(beta*11^T-C), NGLC alpha*(beta*J-F),
+RGL alpha*(I-graph_kappa*F), GL alpha*(I-F), GD alpha*(I-T_t),
+AGA alpha*(beta*J-F_AGA_k). Graph coupling kappa_g satisfies 0<=kappa_g<1;
+GL is the boundary at 1, distinct from activity-model kappa.
+T_t=exp[-t*(I-F)] with t>=0; compute sparse exponential actions without dense T_t.
+Use T_t rather than H_t (H denotes physical channel), and A_k rather than W_k
+(W denotes noise) for AGA affinity C_ij*exp[-(log(gamma_bar_i)-log(gamma_bar_j))^2/(2*h^2)].
+AGA recomputes degrees and normalized affinity from previous gamma every iteration,
+h>0 and gamma_bar=max(gamma,epsilon_gamma) for logs only; never floor actual gamma.
+All variants share unchanged E/M updates, relative stopping and final unmasked posterior.
+Alpha=0 exactly recovers SBL; GD t=0 does too. No new global convergence claim.
+Editable defaults for every spatial method: alpha 0.001..1000 logarithmic; beta 0..5 linear where applicable; RGL graph_kappa 0..1 linear with the upper endpoint excluded; GD t 0.01..10 logarithmic; AGA h 0.01..10 logarithmic, gamma_log_floor=1e-12. Bounds and boolean log sampling flags belong independently to each algorithm/parameter. Log sampling requires positive lower bounds; h remains strictly positive and graph_kappa remains below 1. See decision 125.
+Every variant saves TPE history, parameter samples, threshold scores and sweeps
+of every tuned parameter and tau versus SNR/pilot length, including selected values.
+AGA includes alpha-beta and alpha-h diagnostics. PNG/Plotly/native-font PDF use saved data.
 
 ## Spatial activity model
 
@@ -208,8 +218,8 @@ joint-support and uses explicit ridge regularization in both merged and pruned
 support fits, solved as augmented SVD least squares. Configure
 `algorithms.cosamp.solver.cosamp_lambda_reg` (default 0.01; zero is unregularized).
 For realization `q`, OMP and CoSaMP use the feasible oracle sparsity budget
-`B_q = min(S_q, L, N)`. Record whether capping occurs. CGAP-SBL and SBL never
-receive `S_q` or `B_q`.
+`B_q = min(S_q, L, N)`. Record whether capping occurs. CGAP-SBL and SBL solvers never
+receive `S_q` or `B_q`; pooled top-S scoring uses configured S only.
 
 ## Activity figures
 
@@ -244,7 +254,7 @@ not save enormous per-iteration histories for every realization.
 
 Important tests include matrix dimensions, system-model identity, complex
 Gaussian generation, optimized posterior vs a full reference, conventional SBL,
-stable CGAP-SBL root, nonnegative lagged `lambda`, ANC/spatial dependence construction, activity
+stable CGAP-SBL root, nonnegative lagged `lambda`, GLC/spatial dependence construction, activity
 cutoff, multi-event probability, deterministic seeds, simple noiseless baseline
 support recovery, and plotting that does not modify probability values.
 
@@ -260,3 +270,8 @@ The dashboard shows controls, settings, progress and necessary error messages;
 avoid tutorials and repeated explanations. Keep workflow rationale and future
 plans in these project documents rather than code comments. Scientific equations
 and short notes on non-obvious numerical behavior may remain in code.
+
+
+Canonical CGAP identifiers are glc, nglc, rgl, gl, gd and aga; GLC replaces anc.
+Preserve existing result bytes without migration. New code/settings incompatibility
+blocks old selections and checkpoints. See README spatial notation and decision 118.

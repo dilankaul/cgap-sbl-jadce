@@ -1,4 +1,7 @@
 from __future__ import annotations
+from cgap_sbl_jadce.variants import SPATIAL_METHODS
+
+from cgap_sbl_jadce.labels import display_label
 
 from functools import partial
 from dataclasses import dataclass
@@ -10,11 +13,11 @@ from cgap_sbl_jadce.figures.activity_realizations import plot_activity_realizati
 from cgap_sbl_jadce.figures.active_mtd_count_distribution import plot_activity_s_distribution
 from cgap_sbl_jadce.figures.communication_diagnostics import plot_communication_preview
 from cgap_sbl_jadce.figures.spatial_dependence import plot_spatial_dependence
-from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_anc_grid_study
-from cgap_sbl_jadce.figures.anc_optuna_tuning import plot_anc_optuna_tuning
-from cgap_sbl_jadce.figures.gl_optuna_tuning import plot_gl_optuna_tuning
+from cgap_sbl_jadce.figures.glc_parameter_tuning import plot_glc_grid_study
+from cgap_sbl_jadce.figures.glc_optuna_tuning import plot_glc_optuna_tuning
+from cgap_sbl_jadce.figures.spatial_optuna_tuning import plot_spatial_optuna_tuning
 from cgap_sbl_jadce.figures.estimator_parameter_sweeps import plot_tuning_parameter_sweeps
-from cgap_sbl_jadce.experiments.anc_grid_study import anc_grid_study_stage
+from cgap_sbl_jadce.experiments.glc_grid_study import glc_grid_study_stage
 from cgap_sbl_jadce.figures.estimator_threshold_scores import plot_threshold_tuning
 from cgap_sbl_jadce.figures.estimator_gamma_distribution import plot_gamma_distribution
 from cgap_sbl_jadce.figures.algorithm_convergence import plot_convergence
@@ -44,11 +47,10 @@ TASKS = {
     'sbl': Task("run SBL", partial(estimators.run_estimator_stage, method="sbl"),
             (partial(plot_gamma_distribution, method="sbl"),
              partial(make_performance_figures, method="sbl")), True),
-    'anc': Task("run CGAP-SBL-ANC", partial(estimators.run_estimator_stage, method="anc"),
-            (partial(plot_gamma_distribution, method="anc"), partial(make_performance_figures, method="anc")), True),
-    'gl': Task('run CGAP-SBL-GL', partial(estimators.run_estimator_stage, method='gl'),
-            (partial(plot_gamma_distribution, method='gl'), partial(make_performance_figures, method='gl')), True),
-    'anc_grid_study': Task('study ANC parameter grid', anc_grid_study_stage, (plot_anc_grid_study,), True),
+    **{method: Task('run CGAP-SBL-' + method.upper(), partial(estimators.run_estimator_stage, method=method),
+            (partial(plot_gamma_distribution, method=method), partial(make_performance_figures, method=method)), True)
+       for method in SPATIAL_METHODS},
+    'glc_grid_study': Task('study GLC parameter grid', glc_grid_study_stage, (plot_glc_grid_study,), True),
     'comparison': Task("compare algorithms", estimators.comparison_stage, (make_performance_figures,), True),
     'convergence': Task("analyze convergence", estimators.convergence_stage, (plot_convergence,), True),
 }
@@ -58,12 +60,10 @@ def task_actions(task_id: str) -> dict[str, Task]:
     for method, spec in estimators.ESTIMATORS.items():
         if spec.task == task_id and spec.tuning_grid:
             plots = (partial(plot_threshold_tuning, method=method),)
-            if method == 'anc':
-                plots = (plot_anc_optuna_tuning,) + plots
-            if method == 'gl':
-                plots = (plot_gl_optuna_tuning,) + plots
+            if method in SPATIAL_METHODS:
+                plots = (partial(plot_spatial_optuna_tuning, method=method),) + plots
             return {
-                'tune': Task(f'tune {spec.name}', partial(estimators.tune_estimator_stage, method=method), plots, True),
+                'tune': Task(f'tune {display_label(spec.name)}', partial(estimators.tune_estimator_stage, method=method), plots, True),
                 'run': TASKS[task_id],
             }
     return {'run': TASKS[task_id]}
@@ -107,7 +107,7 @@ def run_task(task_id: str, cfg: dict, action: str = "run", show_progress: bool =
     task.stage(cfg, **kwargs)
     paths = []
     owned_plots = (action == 'tune' and task.stage.func is estimators.tune_estimator_stage
-                   if isinstance(task.stage, partial) else task.stage is anc_grid_study_stage)
+                   if isinstance(task.stage, partial) else task.stage is glc_grid_study_stage)
     if owned_plots:
         import json
         from pathlib import Path

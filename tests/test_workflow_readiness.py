@@ -15,7 +15,7 @@ def test_fresh_setup_blocks_dependent_tasks_and_algorithm_parents(tmp_path):
         state = numerical_state(cfg, task)
         assert state.status == 'blocked', task
         assert state.detail
-    for method in ('sbl', 'anc', 'gl'):
+    for method in ('sbl', 'glc', 'gl'):
         states = [numerical_state(cfg, method, action) for action in ('tune', 'run')]
         assert all(state.status == 'blocked' for state in states)
         assert combined(states).status == 'blocked'
@@ -30,7 +30,7 @@ def test_badges_unlock_only_when_each_algorithm_own_inputs_are_ready(saved_data)
     assert numerical_state(saved_data, 'sbl', 'tune').status == 'ready'
     assert numerical_state(saved_data, 'sbl', 'run').status == 'blocked'
     assert combined([numerical_state(saved_data, 'sbl', action) for action in ('tune', 'run')]).status == 'ready'
-    assert combined([numerical_state(saved_data, 'anc', action) for action in ('tune', 'run')]).status == 'blocked'
+    assert combined([numerical_state(saved_data, 'glc', action) for action in ('tune', 'run')]).status == 'blocked'
     assert combined([numerical_state(saved_data, 'gl', action) for action in ('tune', 'run')]).status == 'blocked'
     estimators.tune_estimator_stage(saved_data, 'sbl', show_progress=False)
     assert numerical_state(saved_data, 'sbl', 'tune').status == 'completed'

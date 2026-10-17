@@ -4,11 +4,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.sparse import csr_matrix
 
 from cgap_sbl_jadce.algorithms.posterior import posterior_mmv
 from cgap_sbl_jadce.metrics import nmse
-from cgap_sbl_jadce.models.spatial_dependence import anc_penalty
 
 
 @dataclass(frozen=True)
@@ -93,18 +91,10 @@ def cgap_sbl(
     )
 
 
-def cgap_sbl_anc(
+def cgap_sbl_glc(
     Theta: np.ndarray, Y: np.ndarray, sigma2: float, C: np.ndarray,
     alpha: float, beta: float, **kwargs,
 ) -> CGAPSBLResult:
-    C = csr_matrix(C, dtype=float)
-    if C.shape != (Theta.shape[1], Theta.shape[1]):
-        raise ValueError("C must have shape (N, N)")
-    difference = C - C.T
-    if not np.all(np.isfinite(C.data)) or (difference.nnz and np.max(np.abs(difference.data)) > 1e-10):
-        raise ValueError("C must be finite and symmetric")
-    if not np.isfinite(alpha) or not np.isfinite(beta) or alpha < 0 or beta < 0:
-        raise ValueError("ANC alpha and beta must be non-negative")
-    return _run_cgap_sbl(
-        Theta, Y, sigma2, lambda gamma: anc_penalty(C, gamma, alpha, beta), **kwargs,
-    )
+    from cgap_sbl_jadce.algorithms.graph_interactions import spatial_penalty
+    penalty = spatial_penalty(C, Theta.shape[1], 'glc', alpha, beta=beta)
+    return _run_cgap_sbl(Theta, Y, sigma2, penalty, **kwargs)

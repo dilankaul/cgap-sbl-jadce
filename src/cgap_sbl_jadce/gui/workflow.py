@@ -1,3 +1,4 @@
+from cgap_sbl_jadce.labels import display_label
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -20,6 +21,9 @@ class CardState:
     status: str
     detail: str = ''
     fraction: float = 0.
+
+    def __post_init__(self):
+        self.detail = display_label(self.detail)
 
     @property
     def summary(self):
@@ -44,6 +48,7 @@ def refresh_results(st, cfg, records, rerun=True):
         folder = task_dir(cfg['run']['output_dir'], task)
         paths.extend(folder / name for name in ('summary.json', 'run_summary.json', 'progress.json'))
         paths.extend(folder / 'tuning' / name for name in ('selected.json', 'summary.json'))
+        paths.extend(folder.glob('tuning/pooled/*.json'))
         paths.extend(folder.glob('tuning/L*_snr*dB/selected.json'))
         paths.extend(folder.glob('tuning/L*_snr*dB/summary.json'))
         paths.append(folder / 'tuning' / 'search_progress.json')
@@ -145,9 +150,9 @@ def numerical_state(cfg, task, action='run'):
                 for split in ('tuning', 'evaluation'):
                     validate_preparation(cfg, task, split)
                 return CardState('completed', 'Tuning and evaluation activity saved', 1.)
-            if task == 'anc_grid_study':
-                from cgap_sbl_jadce.experiments.anc_grid_study import grid_definition
-                require_match(data.get('definition'), grid_definition(cfg), 'ANC parameter grid study')
+            if task == 'glc_grid_study':
+                from cgap_sbl_jadce.experiments.glc_grid_study import grid_definition
+                require_match(data.get('definition'), grid_definition(cfg), 'GLC parameter grid study')
                 if data.get('status') == 'complete':
                     return CardState('completed', 'Fixed-condition grid saved', 1.)
                 return CardState('partial', 'Grid study unfinished')
@@ -173,6 +178,11 @@ def numerical_state(cfg, task, action='run'):
                     else:
                         pairs = list(dict.fromkeys(tuple(value[:2]) for value in data['conditions']))
                         require_match(definitions, [evaluation_definition(cfg, method, condition=pair) for pair in pairs], 'Comparison')
+                if task == 'comparison':
+                    from cgap_sbl_jadce.settings import analysis_settings
+                    from cgap_sbl_jadce.experiments.postprocessing import analysis_revision
+                    require_match(data.get('analysis_code'), analysis_revision(), 'Comparison analysis code')
+                    require_match(data.get('analysis', {}), {method: analysis_settings(cfg, method) for method in data['methods']}, 'Comparison detection settings')
                 eligible = completed_methods(cfg, list(dict.fromkeys(tuple(value[:2]) for value in data['conditions']))) if task == 'comparison' else completed_methods(cfg, [(data['L'], data['snr_db'])])
                 if not set(data['methods']) <= set(eligible):
                     return CardState('incompatible', 'Source algorithm results no longer match the setup')

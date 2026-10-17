@@ -37,14 +37,14 @@ def test_nmse_rejects_mismatched_dimensions(estimate, active):
 @pytest.mark.parametrize('method', ['sbl', 'cgap'])
 def test_convergence_nmse_history_uses_true_active_rows(method):
     from cgap_sbl_jadce.algorithms.sbl import sbl
-    from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl_anc
+    from cgap_sbl_jadce.algorithms.cgap_sbl import cgap_sbl_glc
     from cgap_sbl_jadce.algorithms.posterior import posterior_mmv
     theta = np.array([[1, 1, 1], [1, 1j, -1]], dtype=complex) / np.sqrt(2)
     true = np.array([[1 + 1j], [0], [0]], dtype=complex)
     y = theta @ true + np.array([[0.1j], [0.1]])
     options = dict(K=3, delta=1e-12, keep_history=True, Z_true=true)
     result = (sbl(theta, y, .1, **options) if method == 'sbl'
-              else cgap_sbl_anc(theta, y, .1, np.eye(3), 2., .1, **options))
+              else cgap_sbl_glc(theta, y, .1, np.eye(3), 2., .1, **options))
     previous = np.vstack([np.full(3, .1), result.gamma_history[:-1]])
     expected = []
     for gamma in previous:

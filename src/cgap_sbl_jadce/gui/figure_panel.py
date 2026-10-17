@@ -1,3 +1,4 @@
+from cgap_sbl_jadce.variants import TUNED_METHODS
 from pathlib import Path
 from cgap_sbl_jadce.gui.previews import (PREVIEWS, SAMPLE_PREVIEWS, sample_options,
                                        missing_preview_inputs)
@@ -7,14 +8,14 @@ from cgap_sbl_jadce.gui.previews import main_realization_index
 CATEGORIES = {
     'kappa_calibration': ['kappa'], 'activity': ['activity', 'active_counts'],
     'communication': ['communication'], 'spatial_dependence': ['spatial'],
-    'anc_grid_study': ['anc_grid_study'],
+    'glc_grid_study': ['glc_grid_study'],
     'comparison': ['comparison'], 'convergence': ['convergence'],
 }
 
 
 def figure_panel(st, cfg, config, jobs, task, action, state=None):
     categories = CATEGORIES.get(task, [f'{task}_{action}'])
-    if task in {'anc', 'sbl', 'gl'} and action == 'tune':
+    if task in set(TUNED_METHODS) and action == 'tune':
         from cgap_sbl_jadce.settings import tuning_settings
         if tuning_settings(cfg, task)['selection_mode'] == 'per_condition':
             categories = [*categories, f'{task}_tuning_sweeps']
@@ -35,7 +36,7 @@ def figure_panel(st, cfg, config, jobs, task, action, state=None):
         options = stored_tuning_options(cfg, method)
         if options:
             layout, L, snr = st.selectbox('Saved tuning results', options,
-                format_func=lambda item: f'{"Reference" if item[0] == "reference" else "Condition"} tuning: L={item[1]}, SNR={item[2]:g} dB')
+                format_func=lambda item: 'Pooled tuning grid' if item[0] == 'pooled' else f'{"Reference" if item[0] == "reference" else "Condition"} tuning: L={item[1]}, SNR={item[2]:g} dB')
             request.update(tuning_layout=layout, condition=[L, snr])
             plot_cfg = tuning_preview_config(cfg, method, request)
     missing = missing_preview_inputs(plot_cfg, category)

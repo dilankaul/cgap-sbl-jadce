@@ -7,7 +7,7 @@ from cgap_sbl_jadce.config import load_config
 from cgap_sbl_jadce.settings import (range_values, grouped_config, calibration_settings,
                                      evaluation_settings, tuning_settings, grid_study_settings)
 from cgap_sbl_jadce.gui.setups import validate_setup
-from cgap_sbl_jadce.experiments.estimators import _anc_grid, evaluation_conditions
+from cgap_sbl_jadce.experiments.estimators import _glc_grid, evaluation_conditions
 from cgap_sbl_jadce.io import save_yaml
 
 
@@ -20,7 +20,7 @@ def test_default_sweeps_keep_all_original_values_and_inclusive_endpoints():
     assert range_values(tune, 'beta') == [i / 100 for i in range(11)]
     assert evaluation['pilot_lengths'] == list(range(20, 46, 5))
     assert evaluation['snr_values'] == list(range(4, 25, 4))
-    assert len(_anc_grid(cfg)) == 121
+    assert len(_glc_grid(cfg)) == 121
     assert len({value[:2] for value in evaluation_conditions(cfg)}) == 11
     validate_setup(cfg)
 
@@ -57,16 +57,16 @@ def test_fractional_pilot_length_range_is_rejected():
 
 def test_old_explicit_grids_remain_readable_and_regular_grids_migrate_exactly(saved_data):
     cfg = grouped_config(saved_data)
-    assert _anc_grid(cfg) == _anc_grid(saved_data)
+    assert _glc_grid(cfg) == _glc_grid(saved_data)
     assert evaluation_conditions(cfg) == evaluation_conditions(saved_data)
     assert calibration_settings(cfg) == calibration_settings(saved_data)
-    assert 'alpha_values' not in cfg['algorithms']['anc']['tuning']
+    assert 'alpha_values' not in cfg['algorithms']['glc']['tuning']
     assert 'pilot_lengths' not in cfg['evaluation']
 
     assert cfg['kappa_calibration']['kappa_scan'] == saved_data['activity']['kappa_scan']
     original = deepcopy(saved_data)
     original['tuning']['alpha_values'] = [0., 2., 7.]
-    assert _anc_grid(grouped_config(original)) == _anc_grid(original)
+    assert _glc_grid(grouped_config(original)) == _glc_grid(original)
 
 
 def test_gui_exposes_all_range_controls_and_saves_edited_grid(saved_data, tmp_path, monkeypatch):

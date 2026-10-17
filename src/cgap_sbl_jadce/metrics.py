@@ -58,3 +58,15 @@ def nmse(Z_true: np.ndarray, Z_hat: np.ndarray, a_true: np.ndarray | None = None
     if denom == 0.0:
         return float("nan")
     return float(np.linalg.norm(reference - Z_hat[active]) ** 2 / denom)
+
+
+def support_from_scores(scores: np.ndarray, K: int) -> np.ndarray:
+    scores = np.asarray(scores)
+    if scores.ndim != 1 or not np.isfinite(scores).all():
+        raise ValueError('Support scores must be a finite vector.')
+    if type(K) is not int or not 0 <= K <= len(scores):
+        raise ValueError('K must be an integer within 0..N.')
+    support = np.zeros(len(scores), dtype=bool)
+    # Stable sorting makes equal scores reproducible by device index.
+    support[np.argsort(-scores, kind='stable')[:K]] = True
+    return support

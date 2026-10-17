@@ -18,7 +18,7 @@ def test_reference_policy_still_saves_every_sweep_condition_in_both_splits(saved
     expected = {(5, 12.), (7, 8.), (7, 12.)}
     out = saved_data['run']['output_dir']
     assert all(tuning_settings(saved_data, method)['selection_mode'] == 'reference'
-               for method in ('sbl', 'anc'))
+               for method in ('sbl', 'glc'))
     for split in ('tuning', 'evaluation'):
         folder = validate_communication_dataset(saved_data, split)
         for q in range(2):
@@ -37,7 +37,7 @@ def test_tuning_coverage_includes_references_without_changing_selection_policy(s
     from cgap_sbl_jadce.communication_dataset import communication_definition
     cfg = grouped_config(saved_data)
     cfg['algorithms']['sbl']['tuning'].update(reference_pilot_length=6, reference_snr_db=10.)
-    cfg['algorithms']['anc']['tuning'].update(reference_pilot_length=8, reference_snr_db=16.)
+    cfg['algorithms']['glc']['tuning'].update(reference_pilot_length=8, reference_snr_db=16.)
     expected = {(5, 12.), (7, 8.), (7, 12.), (6, 10.), (8, 16.)}
     assert set(communication_pairs(cfg, 'tuning')) == expected
     assert set(communication_pairs(cfg, 'evaluation')) == expected
@@ -45,7 +45,7 @@ def test_tuning_coverage_includes_references_without_changing_selection_policy(s
     request = {'kind': 'task', 'task': 'communication', 'action': 'run'}
     assert set(request_settings(cfg, request)['tuning_pairs']) == expected
     assert tuning_pairs(cfg, 'sbl') == [(6, 10.)]
-    assert tuning_pairs(cfg, 'anc') == [(8, 16.)]
+    assert tuning_pairs(cfg, 'glc') == [(8, 16.)]
 
 
 def test_expanding_old_reference_only_coverage_preserves_condition_identities(saved_data):

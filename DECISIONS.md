@@ -268,3 +268,141 @@ and scoped Rerun. Include comparison and convergence, three diagnostic plots,
 four alpha/tau sweep plots, standard performance/gamma plots, interactive views,
 PNG previews and saved-data native-font PDF exports. Implement and test outside
 the live workspace while ANC is computing, then apply only after it completes.
+
+
+117. Rename the public ANC algorithm to CGAP-SBL-GLC (Global–Local Contrast),
+distinct from the fifth estimator CGAP-SBL-GL. Update dashboard cards, task and
+settings pages, selectors, diagnostic/performance/convergence figures, progress
+views and reports. Retain the `anc` task/configuration keys, solver API, storage
+paths and recorded scientific method identity. This is a presentation rename;
+no numerical code, seeds, parameters, saved result bytes, selection digests,
+checkpoint identities or preparation data change. Existing stored figures retain
+their original provenance; interactive views and regenerated exports use GLC.
+Do not migrate results or rerun research experiments for a naming change.
+
+
+118. At the user's request implement six CGAP spatial variants GLC/NGLC/RGL/GL/GD/AGA,
+excluding optional MGLC. Canonicalize ANC to glc in APIs, task/configuration keys and
+future cgap_sbl_glc paths; this supersedes decision 117's presentation-only identity
+and decision 116's restriction on changing ANC search code. Preserve old saved numerical
+files on disk without migration and reject incompatible old selections/checkpoints.
+Reuse the unchanged posterior, penalized M-step, convergence rule and detection.
+Use J=11^T/N, xi=C@1, Xi=diag(xi), F=Xi^(-1/2) C Xi^(-1/2), retaining C's diagonal.
+GLC uses alpha*(beta*11^T-C); NGLC alpha*(beta*J-F); RGL alpha*(I-kappa_g*F);
+GL alpha*(I-F); GD alpha*(I-T_t), T_t=exp[-t*(I-F)]; AGA alpha*(beta*J-F_AGA_k).
+Use kappa_g for graph coupling (0<=kappa_g<1), distinct from activity kappa; GL is
+the boundary at 1. Use T_t, not channel H, for diffusion, and A_k, not noise W,
+for AGA affinity. AGA rebuilds weighted affinities and normalized degrees from preceding
+gamma; floor gamma only inside logarithms, epsilon_gamma=1e-12 by default. GD uses
+sparse expm_multiply, no dense exponential. Zero alpha recovers SBL exactly; GD also
+at t=0. Preserve shared E/M updates and do not assert a fixed-global convergence guarantee.
+All variants independently use full TPE 50 x 100, ten startup trials, the existing
+within-trial tau grid, deterministic condition streams and durable optimizer/solver
+checkpoints. Keep GLC's paper grid separately owned, canonical glc_grid_study.
+Editable initial bounds: GLC alpha 0..10 beta 0..0.1; NGLC alpha 0..100 beta 0..2;
+RGL alpha 0..100 kappa_g 0..0.999; GL alpha 0..100; GD alpha 0..100 t 0..10;
+AGA alpha 0..100 beta 0..2 h 0.1..5. These are declared search choices, not tuned claims.
+Keep seeds, dimensions and saved data definitions unchanged. Nine algorithm cards use
+three columns; every spatial method has its own settings and full condition controls.
+Retain all previous diagnostics and provide each tuned parameter/tau sweep, AGA alpha-h
+samples, selected-value annotations, performance/gamma/convergence, interactive views
+and PNG/native-font PDF exports from saved data. No research runs or result deletion.
+
+
+119. Add a GLC tuning-only posterior row-norm threshold diagnostic after selecting the
+winning alpha/beta using the existing gamma-based full TPE. Sweep tau_Z=0..1
+inclusive at 0.001 spacing on norm(mu_i)/sqrt(M), with >= detection and the same
+saved tuning realizations. Save mean precision/recall/F1 and the best diagnostic
+threshold independently; leave Run detection and selected gamma tau unchanged.
+Cache row norms with solver units to avoid additional solves. Save CSV/JSON, PNG,
+interactive Plotly and saved-data native-font PDF exports; include diagnostic
+outputs in completion hashes and scoped tuning cleanup. At the user's request
+remove current algorithm-related results and job records, preserving preparation
+data, setup configuration and shared optional conditions. No experiments launched.
+
+120. For the selected GLC alpha/beta and tuning condition, save original and
+estimated effective-channel row energies sum_m |Z_im|^2 for configured
+figures.tuning_indices within the tuning sample count. Cache estimated energies
+with solver units and save selected-realization arrays for PNG, Plotly and
+native-font PDF regeneration without additional solves. Annotate realization,
+condition and selected parameters; use final unmasked posterior estimates.
+
+121. Extend original/estimated effective-channel row-energy comparisons to all
+algorithm Run results at each condition using figures.evaluation_indices. Save
+selected energies with atomic solver checkpoints and condition-local NPZ output;
+regenerate PNG, Plotly and native-font PDF without solver calls. Include condition
+and saved method parameters; use unmasked posterior means for SBL-family methods
+and native channel estimates for greedy baselines. Own energy files/figures in
+scoped Run cleanup and completion hashes. Increment evaluation format revision.
+
+122. Extend tuning energy comparisons to SBL and all six spatial methods, using
+each method's final winning parameters on configured tuning realizations. The
+additional 0..1 posterior row-norm threshold diagnostic remains GLC-only.
+
+123. Extend the tuning-only 0..1 row-norm threshold sweep to SBL and all six
+spatial variants, each at its own winning tuning parameters. Preserve existing
+gamma-based tuning selection and Run detection. Greedy OMP/CoSaMP retain oracle
+support budgets and have no tuning stage. Supersedes the GLC-only scope above.
+
+
+124. At the user's request add pooled top-S tuning as the default experiment
+policy, superseding the per-condition default and within-trial threshold objective
+for this policy. Independently editable communication.grid prepares the Cartesian
+L=20:5:45, SNR=4:4:24 grid for both saved splits. Evaluation retains independent
+fixed-reference sweeps and optional conditions. Independently editable tuning_grid
+uses L={20,30,40}, SNR={4,12,20}; assign the existing 100 unique tuning indices once,
+11 per cell and 12 at the center. Use an explicit deterministic child of the
+existing communication tuning SeedSequence; do not alter activity/communication
+input streams or seeds. General grids balance sample counts with center-first
+remainders and require at least one sample per condition. Every method/trial uses
+the same assignment. Each spatial method has one independent full TPE study and
+one parameter set for all evaluation pairs. Retain configured trial budgets and
+bounds; pooled sample count is the setup tuning count, not a method subset.
+Select top configured integer S by final gamma for mean-F1 scoring (stable device
+index ties); use NMSE then recall for winner ties. Known S is scoring-only, never
+an SBL solver input. With variable activity this is a fixed target-S ranking rule,
+not access to each realization's true active count. SBL prepares its final tuning
+outputs once without a parameter search. Preserve solver equations and stopping.
+After choosing pooled spatial parameters, calibrate gamma and normalized Z-row
+thresholds from cached winner outputs; thresholds never select trial parameters.
+Keep reference/per-condition policies and the independently owned paper grid.
+Save assignment, per-cell scores and winning complex estimates/gamma, plus TPE
+history and calibration diagnostics. Pooled folders own separate recoverable
+resets/checkpoints; preserve existing result bytes without migration.
+All new evaluation conditions save every final unmasked complex Z_hat and every
+SBL-family gamma, masks and realization IDs; shared saved inputs supply ground
+truth and their identities remain in manifests. Save unmasked NMSE and NMSE after
+zeroing undetected rows, always on true-active support. Comparison can rescore
+from these archives using gamma >= tau, norm(Z_hat_i)/sqrt(M) >= tau_Z, or top-K
+(gamma or Z ranking), and can choose either estimate for NMSE, without solvers.
+Record shared/per-method analysis settings. Greedy methods have no gamma and keep
+native oracle support under the common gamma rule; Z thresholding requires an
+explicit threshold, while top-K uses their channel rows. Threshold/K/estimate-mode
+changes invalidate only analysis, never completed solver runs or checkpoints.
+GUI settings retain explicit Save/reset/navigation behavior. PNG/Plotly/native-font
+PDF diagnostics regenerate from saved data. Version new result contracts and
+reject old incompatible selections/checkpoints; do not launch research runs.
+
+
+125. At the user's request use alpha=0.001..1000 logarithmic for every spatial
+method; beta=0..5 linear where present; RGL graph_kappa=0..1 linear; GD diffusion
+time=0.01..10 logarithmic; AGA affinity bandwidth=0.01..10 logarithmic. Every tuned
+parameter has independent editable lower/upper bounds and a boolean <parameter>_log
+under its algorithm, exposed in setup/task forms with explicit Save. Validate boolean
+flags and strictly positive lower bounds for logarithmic domains. Linear alpha=0
+and diffusion time=0 remain valid scientific choices; h must always be positive.
+Existing explicit zero lower bounds without a log flag imply linear sampling.
+RGL's mathematical domain remains 0<=kappa_g<1, distinct from GL at 1. Accept the
+user's nominal upper setting 1 and sample with effective high=nextafter(1,0);
+never send kappa_g=1 to its solver. Save actual FloatDistribution bounds/log flags
+in search_space.json and the Optuna database, guarded by owned completion hashes,
+recoverable cleanup and selection/checkpoint identities. Parameter-sample figures
+use logarithmic axes where the selected sampling flags request them. Preserve
+independent trial budgets, seeds, posterior/penalty equations and convergence.
+
+126. At the user's request clear all current generated experimental results,
+including preparation data, algorithm results, plots and checkpoints. Retain the
+source configuration and any named setup definitions. Clear the active results
+folders through a recoverable /tmp backup; do not restore results or migrate them.
+GUI job history remains separate from experimental numerical results. Do not
+launch new research computations as part of implementing or validating the changes.

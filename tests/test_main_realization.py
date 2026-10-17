@@ -29,7 +29,7 @@ def test_display_defaults_preserve_scientific_request_settings():
     cfg = load_config('configs/experiment.yaml')
     changed = deepcopy(cfg)
     changed['figures']['evaluation_main_index'] = 294
-    for task in ('kappa_calibration', 'activity', 'communication', 'spatial_dependence', 'omp', 'cosamp', 'sbl', 'anc'):
+    for task in ('kappa_calibration', 'activity', 'communication', 'spatial_dependence', 'omp', 'cosamp', 'sbl', 'glc'):
         request = {'kind': 'task', 'task': task, 'action': 'run'}
         assert request_settings(cfg, request) == request_settings(changed, request)
 

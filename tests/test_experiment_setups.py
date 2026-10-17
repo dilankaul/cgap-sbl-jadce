@@ -87,7 +87,7 @@ def per_condition_data(cfg):
     return cfg
 
 
-@pytest.mark.parametrize('method', ['sbl', 'anc'])
+@pytest.mark.parametrize('method', ['sbl', 'glc'])
 def test_per_condition_tuning_and_runs_need_only_requested_selections(saved_data, method, monkeypatch):
     cfg = per_condition_data(saved_data)
     spec = estimators.ESTIMATORS[method]
@@ -115,8 +115,8 @@ def test_algorithms_and_selected_condition_comparison_have_no_order_dependency(s
     assert not blocking_reasons(saved_data, 'sbl', conditions=[[7, 8]])
 
     estimators.run_estimator_stage(saved_data, 'sbl', False, conditions=[[7, 8]])
-    estimators.tune_estimator_stage(saved_data, 'anc', False)
-    for method in ('anc', 'cosamp', 'omp'):
+    estimators.tune_estimator_stage(saved_data, 'glc', False)
+    for method in ('glc', 'cosamp', 'omp'):
         estimators.run_estimator_stage(saved_data, method, False, conditions=[[7, 8]])
     assert not blocking_reasons(saved_data, 'comparison', conditions=[[7, 8]])
     assert blocking_reasons(saved_data, 'comparison', conditions=[[5, 12]])
@@ -150,9 +150,11 @@ def test_condition_tune_dispatch_and_pdf_export_use_selected_scope(saved_data, t
     from cgap_sbl_jadce.io import save_yaml
     cfg = per_condition_data(saved_data)
     paths = run_task('sbl', cfg, action='tune', show_progress=False, conditions=[[7, 8]])
-    assert len(paths) == 3 and 'L0007_snr8dB' in str(paths[0])
-    assert {path.name for path in paths[1:]} == {'sbl_tau_vs_snr.png', 'sbl_tau_vs_pilot_length.png'}
-    assert all(path.parent.name == 'sweeps' for path in paths[1:])
+    assert len(paths) == 5 and all('L0007_snr8dB' in str(path) for path in paths[:3])
+    assert {path.name for path in paths[:3]} == {
+        'sbl_threshold_scores.png', 'sbl_threshold_scores_row_norm.png', 'sbl_channel_energy_0000.png'}
+    assert {path.name for path in paths[3:]} == {'sbl_tau_vs_snr.png', 'sbl_tau_vs_pilot_length.png'}
+    assert all(path.parent.name == 'sweeps' for path in paths[3:])
     config = tmp_path / 'input.yaml'
     save_yaml(config, cfg)
     exported = render_preview({'config': str(config), 'category': 'sbl_tune', 'condition': [7, 8]}, tmp_path / 'export')

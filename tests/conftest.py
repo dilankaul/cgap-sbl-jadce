@@ -15,11 +15,10 @@ def saved_data(tmp_path):
     cfg['run'].update(output_dir=str(tmp_path), num_tuning_samples=2, num_evaluation_samples=2)
     cfg['system'].update(N=20, M=3, pilot_lengths=[5, 7], snr_db=[8, 12])
     cfg['algorithms']['K'] = 3
-    cfg['algorithms'].setdefault('anc', {}).setdefault('tuning', {}).update(
-        trials=4, samples=2, startup_trials=2,
-        alpha_low=0., alpha_high=2., beta_low=0., beta_high=.1)
-    cfg['algorithms'].setdefault('gl', {}).setdefault('tuning', {}).update(
-        trials=4, samples=2, startup_trials=2, alpha_low=0., alpha_high=2.)
+    from cgap_sbl_jadce.variants import SPATIAL_METHODS
+    for method in SPATIAL_METHODS:
+        cfg['algorithms'].setdefault(method, {}).setdefault('tuning', {}).update(
+            trials=4, samples=2, startup_trials=2, alpha_low=0., alpha_high=2.)
     cfg['activity'].update(kappa_source='configured', kappa=3.78)
     cfg['tuning'].update(reference_pilot_length=5, alpha_values=[0, 2], beta_values=[0, .1])
     cfg['evaluation'].update(pilot_length=7, gamma_distribution_samples=2)
@@ -38,11 +37,11 @@ def saved_data(tmp_path):
 
 GUI_MODULES = {'test_gui', 'test_settings_forms', 'test_setting_ranges', 'test_experiment_setups',
                'test_live_condition_status', 'test_main_realization', 'test_tuning_conditions',
-               'test_communication_conditions', 'test_editable_settings'}
+               'test_communication_conditions', 'test_editable_settings', 'test_glc_labels'}
 INTEGRATION_MODULES = {'test_checkpoints', 'test_condition_lifecycle', 'test_run_reset',
                        'test_algorithm_actions', 'test_additional_conditions', 'test_estimator_tasks',
                        'test_communication_dataset', 'test_spatial_dependence_dataset', 'test_analysis_selection',
-                       'test_optuna_tuning', 'test_tuning_lifecycle', 'test_gl_workflow'}
+                       'test_optuna_tuning', 'test_tuning_lifecycle', 'test_gl_workflow', 'test_variant_workflow'}
 
 
 def pytest_collection_modifyitems(items):

@@ -1,3 +1,4 @@
+from cgap_sbl_jadce.labels import display_label
 import argparse
 import os
 from pathlib import Path
@@ -146,13 +147,15 @@ def dashboard():
             card(st, 'Spatial dependence matrix C', 'spatial_dependence')
             section_heading(st, 'Algorithms')
             from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
-            cols = st.columns(len(ESTIMATORS))
-            for col, (task, spec) in zip(cols, ESTIMATORS.items()):
-                title = {'omp': 'OMP', 'cosamp': 'CoSaMP'}.get(task, spec.name)
-                card(col, title, task, parent=bool(spec.tuning_grid), key='algorithm_'+task)
+            entries = list(ESTIMATORS.items())
+            for start in range(0, len(entries), 3):
+                cols = st.columns(3)
+                for col, (task, spec) in zip(cols, entries[start:start + 3]):
+                    title = {'omp': 'OMP', 'cosamp': 'CoSaMP'}.get(task, spec.name)
+                    card(col, title, task, parent=bool(spec.tuning_grid), key='algorithm_'+task)
             section_heading(st, 'Analysis')
             cols = st.columns(3)
-            card(cols[2], 'ANC parameter grid study', 'anc_grid_study')
+            card(cols[2], 'GLC parameter grid study', 'glc_grid_study')
             card(cols[0], 'Compare algorithms', 'comparison')
             card(cols[1], 'Analyze convergence', 'convergence')
         overview()
@@ -166,7 +169,10 @@ def dashboard():
         task = st.session_state['current_task']
         from cgap_sbl_jadce.experiments.estimators import ESTIMATORS
         st.markdown('<div class="eyebrow">ALGORITHMS</div>', unsafe_allow_html=True)
-        st.title(ESTIMATORS[task].name)
+        st.title(display_label(ESTIMATORS[task].name))
+        from cgap_sbl_jadce.variants import VARIANTS
+        if task in VARIANTS:
+            st.caption(VARIANTS[task][0])
         cols = st.columns(2)
         card(cols[0], 'Tune', task, 'tune')
         card(cols[1], 'Run', task, 'run')

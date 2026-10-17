@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cgap-sbl-jadce"
 version = "0.1.0"
-description = "Reproducible CGAP-SBL-ANC experiments for JADCE in machine-type communications"
+description = "Reproducible CGAP-SBL spatial-variant experiments for JADCE in machine-type communications"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

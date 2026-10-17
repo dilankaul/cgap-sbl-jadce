@@ -36,9 +36,9 @@ def test_conditions_passed_to_only_selected_algorithm(monkeypatch):
 
 
 def test_future_algorithm_exposes_tune_and_run(monkeypatch):
-    spec = replace(tasks.estimators.ESTIMATORS['anc'], task='gl', name='CGAP-SBL-GL')
+    spec = replace(tasks.estimators.ESTIMATORS['glc'], task='gl', name='CGAP-SBL-GL')
     monkeypatch.setitem(tasks.estimators.ESTIMATORS, 'gl', spec)
-    monkeypatch.setitem(tasks.TASKS, 'gl', replace(tasks.TASKS['anc'], description='run CGAP-SBL-GL'))
+    monkeypatch.setitem(tasks.TASKS, 'gl', replace(tasks.TASKS['glc'], description='run CGAP-SBL-GL'))
     assert list(tasks.task_actions('gl')) == ['tune', 'run']
     assert list(tasks.task_actions('omp')) == ['run']
 

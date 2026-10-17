@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from cgap_sbl_jadce.labels import display_label
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -19,7 +21,7 @@ def _line_plot(df: pd.DataFrame, x: str, y: str, title: str, xlabel: str, ylabel
     for algorithm, group in df.groupby("algorithm"):
         group = group.sort_values(x)
         ax.plot(group[x], group[y], marker="s" if algorithm.startswith("SBL") else "o",
-                label=algorithm)
+                label=display_label(algorithm))
     ax.set_xlim(xlim)
     if y == "nmse":
         ax.set_yscale("log")
@@ -40,11 +42,13 @@ def make_performance_figures(cfg: dict, formats: str = "png", show_progress: boo
     prefix = method or "comparison"
     snr = df[df["sweep"] == "snr_sweep"]
     pilot = df[df["sweep"] == "pilot_sweep"]
+    nmse_label = (r'Support-masked $\mathrm{NMSE}$' if 'nmse_mode' in df and df.nmse_mode.eq('support_masked').all()
+                  else r'$\mathrm{NMSE}$' if 'nmse_mode' not in df or df.nmse_mode.eq('unmasked').all() else 'NMSE (estimate mode per method)')
     jobs = [
         (snr, "snr_db", "f1", r"Activity Detection vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", r"$F_1$ score", figure_path(out, task, f"{prefix}_f1_vs_snr")),
-        (snr, "snr_db", "nmse", r"Channel Estimation vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", r"$\mathrm{NMSE}$", figure_path(out, task, f"{prefix}_nmse_vs_snr")),
+        (snr, "snr_db", "nmse", r"Channel Estimation vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", nmse_label, figure_path(out, task, f"{prefix}_nmse_vs_snr")),
         (pilot, "L", "f1", r"Activity Detection vs Pilot Length $L$", r"Pilot length $L$", r"$F_1$ score", figure_path(out, task, f"{prefix}_f1_vs_pilot_length")),
-        (pilot, "L", "nmse", r"Channel Estimation vs Pilot Length $L$", r"Pilot length $L$", r"$\mathrm{NMSE}$", figure_path(out, task, f"{prefix}_nmse_vs_pilot_length")),
+        (pilot, "L", "nmse", r"Channel Estimation vs Pilot Length $L$", r"Pilot length $L$", nmse_label, figure_path(out, task, f"{prefix}_nmse_vs_pilot_length")),
         (snr, "snr_db", "runtime_s", r"Runtime vs $\mathrm{SNR}$", r"$\mathrm{SNR}$ (dB)", "Mean runtime (s)", figure_path(out, task, f"{prefix}_runtime_vs_snr")),
         (pilot, "L", "runtime_s", r"Runtime vs Pilot Length $L$", r"Pilot length $L$", "Mean runtime (s)", figure_path(out, task, f"{prefix}_runtime_vs_pilot_length")),
     ]
@@ -61,7 +65,7 @@ def make_performance_figures(cfg: dict, formats: str = "png", show_progress: boo
             ax.set_xticks(range(len(pivot.columns)), [f'{value:g}' for value in pivot.columns])
             ax.set_yticks(range(len(pivot.index)), [f'{value:g}' for value in pivot.index])
             ax.set_xlabel('SNR (dB)'); ax.set_ylabel(r'Pilot length $L$')
-            ax.set_title(f'{algorithm} {metric.upper()} by Communication Condition')
+            ax.set_title(f'{display_label(algorithm)} {metric.upper()} by Communication Condition')
             fig.colorbar(image, ax=ax, label='Mean solver runtime (s)' if metric == 'runtime_s' else metric.upper())
             fig.tight_layout()
             paths.extend(_save(fig, figure_path(out, task, f'{prefix}_{algorithm.lower()}_{metric}_condition_grid'), formats))

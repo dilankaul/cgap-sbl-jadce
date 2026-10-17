@@ -1,3 +1,4 @@
+from cgap_sbl_jadce.labels import display_label
 import hashlib
 import json
 from pathlib import Path
@@ -164,8 +165,8 @@ def interactive_figures(request):
             fig = go.Figure(go.Scatter(x=curve['x'], y=curve['y'], mode='lines+markers+text',
                 text=[f'{value:.6g}' if np.isfinite(value) else '' for value in curve['y']],
                 textposition='top center', connectgaps=False, name=f"Selected {curve['symbol']}"))
-            figures.append((curve['label'], _line_style(fig, curve['label'] + '<br>' + curve['fixed'],
-                curve['xlabel'], f"Selected {curve['symbol']}", xlim=sweep_limits(curve['x']))))
+            figures.append((curve['label'], _line_style(fig, curve['label'].replace('_g', '<sub>g</sub>') + '<br>' + curve['fixed'],
+                curve['xlabel'], "Selected " + curve['symbol'].replace('_g', '<sub>g</sub>'), xlim=sweep_limits(curve['x']))))
         return figures
     if category == 'activity':
         return _activity(cfg, request)
@@ -200,56 +201,76 @@ def interactive_figures(request):
     if category.endswith('_tune'):
         method = category.removesuffix('_tune')
         figures = []
-        label = ESTIMATORS[method].name
+        label = display_label(ESTIMATORS[method].name)
         from cgap_sbl_jadce.figures.estimator_parameter_sweeps import selected_parameter_label
-        context = selected_parameter_label(cfg, method)
+        context = selected_parameter_label(cfg, method).replace('κ_g', 'κ<sub>g</sub>')
         subtitle = '<br>' + context.replace(' · ', '<br>') if context else ''
-        if method == 'anc':
+        from cgap_sbl_jadce.variants import SPATIAL_METHODS, SYMBOLS
+        from cgap_sbl_jadce.figures.spatial_optuna_tuning import sample_axes
+        if method in SPATIAL_METHODS:
             trials = pd.read_csv(tuning_path(cfg, method, 'trials.csv')).sort_values('trial')
             selected = json.loads(tuning_path(cfg, method, 'selected.json').read_text())
-            parameters, score = selected['parameters'], selected['tuning_scores']
+            values, score = selected['parameters'], selected['tuning_scores']
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1, mode='markers', name='Trial F1'))
             fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1.cummax(), mode='lines', name='Best F1 so far'))
             fig.add_trace(go.Scatter(x=[score['trial'] + 1], y=[score['f1']], mode='markers', name='Selected trial',
                 marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
-            figures.append(('TPE search history', _line_style(fig, 'ANC TPE search history' + subtitle, 'Trial', 'Mean F1')))
-            fig = go.Figure(go.Scatter(x=trials.beta, y=trials.alpha, mode='markers',
-                marker={'color': trials.f1, 'colorscale': 'Viridis', 'showscale': True, 'colorbar': {'title': 'Mean F1'}},
-                customdata=trials[['trial', 'tau']].to_numpy(),
-                hovertemplate='Trial %{customdata[0]}<br>α=%{y}<br>β=%{x}<br>τ=%{customdata[1]}<extra></extra>'))
-            fig.add_trace(go.Scatter(x=[parameters['beta']], y=[parameters['alpha']], mode='markers', name='Selected pair',
-                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
-            figures.append(('Sampled parameter pairs', _style(fig, 'ANC TPE parameter samples' + subtitle, 'β', 'α')))
-        if method == 'gl':
-            trials = pd.read_csv(tuning_path(cfg, method, 'trials.csv')).sort_values('trial')
-            selected = json.loads(tuning_path(cfg, method, 'selected.json').read_text())
-            parameters, score = selected['parameters'], selected['tuning_scores']
+            figures.append(('TPE search history', _line_style(fig, method.upper() + ' TPE search history' + subtitle, 'Trial', 'Mean F1')))
+            for index, (x, y) in enumerate(sample_axes(method, cfg)):
+                fig = go.Figure(go.Scatter(x=trials[x], y=trials[y], mode='markers',
+                    marker={'color': trials.f1, 'colorscale': 'Viridis', 'showscale': True, 'colorbar': {'title': 'Mean F1'}},
+                    customdata=trials[['trial']].to_numpy(),
+                    hovertemplate='Trial %{customdata[0]}<br>' + SYMBOLS.get(x, x) + '=%{x}<br>' + SYMBOLS.get(y, y) + '=%{y}<extra></extra>'))
+                fig.add_trace(go.Scatter(x=[values[x]], y=[values.get(y, score.get(y))], mode='markers', name='Selected pair',
+                    marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
+                from cgap_sbl_jadce.settings import tuning_settings
+                tune = tuning_settings(cfg, method)
+                if tune.get(x + '_log'):
+                    fig.update_xaxes(type='log')
+                if tune.get(y + '_log'):
+                    fig.update_yaxes(type='log')
+                title = 'Sampled alpha and score' if y == 'f1' else 'Sampled alpha and threshold' if method == 'gl' else 'Sampled parameter pairs' if not index else 'Sampled α and ' + SYMBOLS[x]
+                figures.append((title, _style(fig, method.upper() + ' TPE parameter samples' + subtitle, SYMBOLS.get(x, x).replace('_g', '<sub>g</sub>'), SYMBOLS.get(y, y))))
+        sources = [('thresholds.csv', 'Threshold scores', 'Threshold τ')]
+        if tuning_path(cfg, method, 'row_norm_thresholds.csv').exists():
+            sources.append(('row_norm_thresholds.csv', 'Row norm threshold scores', 'Row norm threshold τ_Z'))
+        for filename, title, axis_label in sources:
+            df = pd.read_csv(tuning_path(cfg, method, filename)).sort_values('tau')
+            best = df.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1, mode='markers', name='Trial F1'))
-            fig.add_trace(go.Scatter(x=trials.trial + 1, y=trials.f1.cummax(), mode='lines', name='Best F1 so far'))
-            fig.add_trace(go.Scatter(x=[score['trial'] + 1], y=[score['f1']], mode='markers', name='Selected trial',
-                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
-            figures.append(('TPE search history', _line_style(fig, 'GL TPE search history' + subtitle, 'Trial', 'Mean F1')))
-            fig = go.Figure(go.Scatter(x=trials.alpha, y=trials.tau, mode='markers',
-                marker={'color': trials.f1, 'colorscale': 'Viridis', 'showscale': True, 'colorbar': {'title': 'Mean F1'}},
-                customdata=trials[['trial', 'f1']].to_numpy(),
-                hovertemplate='Trial %{customdata[0]}<br>α=%{x}<br>τ=%{y}<br>F1=%{customdata[1]}<extra></extra>'))
-            fig.add_trace(go.Scatter(x=[parameters['alpha']], y=[parameters['tau']], mode='markers', name='Selected trial',
-                marker={'symbol': 'star', 'size': 15, 'color': 'red'}))
-            figures.append(('Sampled alpha and threshold', _style(fig, 'GL TPE parameter samples' + subtitle, 'α', 'τ')))
-        df = pd.read_csv(tuning_path(cfg, method, 'thresholds.csv')).sort_values('tau')
-        best = df.sort_values(['f1', 'recall', 'precision'], ascending=False, kind='stable').iloc[0]
-        fig = go.Figure()
-        for metric in ('f1', 'precision', 'recall'):
-            fig.add_trace(go.Scatter(x=df.tau, y=df[metric], mode='lines', name=metric.capitalize()))
-            fig.add_trace(go.Scatter(x=[best.tau], y=[best[metric]], mode='markers', showlegend=False,
-                                    marker={'size': 9, 'line': {'color': 'black', 'width': 1}}))
-        fig.add_vline(x=best.tau, line_dash='dash', annotation_text=f'Selected τ={best.tau:g}')
-        figures.append(('Threshold scores', _line_style(fig, label + ' Detection Scores vs Threshold τ' + subtitle, 'Threshold τ', 'Score')))
+            for metric in ('f1', 'precision', 'recall'):
+                fig.add_trace(go.Scatter(x=df.tau, y=df[metric], mode='lines', name=metric.capitalize()))
+                fig.add_trace(go.Scatter(x=[best.tau], y=[best[metric]], mode='markers', showlegend=False,
+                                        marker={'size': 9, 'line': {'color': 'black', 'width': 1}}))
+            fig.add_vline(x=best.tau, line_dash='dash', annotation_text=(f'Best diagnostic τ_Z={best.tau:g}' if filename == 'row_norm_thresholds.csv'
+                                                                  else f'Selected τ={best.tau:g}'))
+            figures.append((title, _line_style(fig, label + ' ' + title + subtitle, axis_label, 'Score')))
+        energy_path = tuning_path(cfg, method, 'selected_channel_energy.npz')
+        if energy_path.exists():
+            with np.load(energy_path) as data:
+                for index, (q, original, estimated) in enumerate(zip(data['indices'], data['original'], data['estimated'])):
+                    fig = go.Figure()
+                    fig.add_trace(go.Scatter(x=np.arange(len(original)), y=original, mode='lines', name='Original'))
+                    fig.add_trace(go.Scatter(x=np.arange(len(estimated)), y=estimated, mode='lines', name='Estimated', line={'dash': 'dash'}))
+                    title = f'Effective-channel energy · tuning realization {q}'
+                    cell = ''
+                    if 'conditions' in data:
+                        L, snr = data['conditions'][index]
+                        cell = f'<br>L={L:g}, SNR={snr:g} dB'
+                    figures.append((title, _line_style(fig, label + ' ' + title + cell + subtitle,
+                                                      'Device index i', 'Row energy ‖z_i‖²')))
+        cell_path = tuning_path(cfg, method, 'condition_scores.csv')
+        if cell_path.exists():
+            cells = pd.read_csv(cell_path)
+            for metric, title in [('samples', 'Assigned realizations'), ('f1', 'Mean top-S F1')]:
+                grid = cells.pivot(index='snr_db', columns='L', values=metric).sort_index().sort_index(axis=1)
+                fig = go.Figure(go.Heatmap(x=grid.columns, y=grid.index, z=grid.to_numpy(), colorscale='Viridis',
+                    text=grid.to_numpy(), texttemplate='%{text:.3g}', colorbar={'title': title}))
+                figures.append((title, _style(fig, label + ' pooled tuning ' + title, 'Pilot length L', 'SNR (dB)')))
         return figures
-    if category == 'anc_grid_study':
-        df = pd.read_csv(result_path(out, 'anc_grid_study', 'alpha_beta.csv'))
+    if category == 'glc_grid_study':
+        df = pd.read_csv(result_path(out, 'glc_grid_study', 'alpha_beta.csv'))
         figures = []
         for metric, title, cmap in [('f1', 'Mean F1', 'Viridis'), ('nmse', 'Mean NMSE', 'Magma'), ('tau', 'Selected threshold', 'OrRd')]:
             pivot = df.pivot(index='alpha', columns='beta', values=metric).sort_index().sort_index(axis=1)
@@ -258,7 +279,7 @@ def interactive_figures(request):
             fig = go.Figure(go.Heatmap(x=pivot.columns, y=pivot.index, z=color, customdata=values,
                 colorscale=cmap, colorbar={'title': 'log₁₀ NMSE' if metric == 'nmse' else metric},
                 xgap=1, ygap=1, hovertemplate='α=%{y}, β=%{x}<br>Value=%{customdata:.5g}<extra></extra>'))
-            figures.append((title, _style(fig, 'ANC paper grid study · ' + title, 'β', 'α')))
+            figures.append((title, _style(fig, 'GLC paper grid study · ' + title, 'β', 'α')))
         return figures
     if category.endswith('_run') or category == 'comparison':
         method = category.removesuffix('_run') if category != 'comparison' else 'comparison'
@@ -269,8 +290,8 @@ def interactive_figures(request):
             data = pd.read_csv(folder / 'per_sample.csv').drop_duplicates('q').sort_values('q')
             figures = []
             for metric, label in [('f1', 'F₁'), ('nmse', 'NMSE (true active support)'), ('runtime_s', 'Solver runtime (s)')]:
-                fig = go.Figure(go.Scatter(x=data.q, y=data[metric], mode='lines', name=ESTIMATORS[method].name))
-                title = f'{ESTIMATORS[method].name} {label}<br>L={pair[0]}, SNR={pair[1]:g} dB'
+                fig = go.Figure(go.Scatter(x=data.q, y=data[metric], mode='lines', name=display_label(ESTIMATORS[method].name)))
+                title = f'{display_label(ESTIMATORS[method].name)} {label}<br>L={pair[0]}, SNR={pair[1]:g} dB'
                 figures.append((label, _line_style(fig, title, 'Evaluation realization index', label, log=metric == 'nmse')))
             gamma_path = folder / 'gamma_distribution.npz'
             if gamma_path.exists() and json.loads((folder / 'summary.json').read_text()).get('gamma_samples', 0):
@@ -280,11 +301,25 @@ def interactive_figures(request):
                 for mask, name in [(~a, 'Inactive MTD'), (a, 'Active MTD')]:
                     fig.add_trace(go.Histogram(x=gamma[mask], histnorm='probability density', opacity=.55, nbinsx=50, name=name))
                 fig.update_layout(barmode='overlay')
-                figures.append(('Gamma distribution', _style(fig, f'{ESTIMATORS[method].name} γ Distribution<br>L={pair[0]}, SNR={pair[1]:g} dB', 'γᵢ', 'Density')))
+                figures.append(('Gamma distribution', _style(fig, f'{display_label(ESTIMATORS[method].name)} γ Distribution<br>L={pair[0]}, SNR={pair[1]:g} dB', 'γᵢ', 'Density')))
+            energy_path = folder / 'selected_channel_energy.npz'
+            if energy_path.exists():
+                parameters = json.loads((folder / 'summary.json').read_text()).get('parameters', {})
+                context = ', '.join(f'{key}={value:g}' for key, value in parameters.items())
+                with np.load(energy_path) as archive:
+                    for q, original, estimated in zip(archive['indices'], archive['original'], archive['estimated']):
+                        fig = go.Figure()
+                        for values, name in [(original, 'Original'), (estimated, 'Estimated')]:
+                            fig.add_trace(go.Scatter(x=np.arange(len(values)), y=values, mode='lines', name=name))
+                        title = f'Effective-channel energy · evaluation realization {q}'
+                        figures.append((title, _line_style(fig,
+                            f'{display_label(ESTIMATORS[method].name)} {title}<br>L={pair[0]}, SNR={pair[1]:g} dB<br>{context}',
+                            'Device index i', 'Row energy ‖z_i‖²')))
             return figures
         df = pd.read_csv(result_path(out, method, 'aggregate.csv'))
         figures = []
-        nmse_label = 'NMSE (true active support)'
+        nmse_label = ('Support-masked NMSE (true active support)' if 'nmse_mode' in df and df.nmse_mode.eq('support_masked').all()
+                      else 'NMSE (true active support)' if 'nmse_mode' not in df or df.nmse_mode.eq('unmasked').all() else 'NMSE (estimate mode per method)')
         for algorithm, data in df[df.sweep == 'condition'].groupby('algorithm'):
             for metric, label, cmap in [('f1', 'F₁', 'Viridis'), ('nmse', nmse_label, 'Magma'), ('runtime_s', 'Mean solver runtime (s)', 'Cividis')]:
                 pivot = data.pivot(index='L', columns='snr_db', values=metric).sort_index().sort_index(axis=1)
@@ -293,7 +328,7 @@ def interactive_figures(request):
                 fig = go.Figure(go.Heatmap(x=pivot.columns, y=pivot.index, z=color, customdata=values,
                     colorscale=cmap, colorbar={'title': 'log₁₀ NMSE' if metric == 'nmse' else label},
                     hovertemplate='L=%{y}, SNR=%{x} dB<br>Value=%{customdata:.5g}<extra></extra>'))
-                figures.append((algorithm + ' ' + label, _style(fig, algorithm + ' ' + label + ' by Condition', 'SNR (dB)', 'Pilot length L')))
+                figures.append((display_label(algorithm) + ' ' + label, _style(fig, display_label(algorithm) + ' ' + label + ' by Condition', 'SNR (dB)', 'Pilot length L')))
         settings = evaluation_settings(cfg)
         limits = {'snr_db': sweep_limits(settings['snr_values']),
                   'L': sweep_limits(settings['pilot_lengths'])}
@@ -306,7 +341,7 @@ def interactive_figures(request):
                 fig = go.Figure()
                 for algorithm, values in data.groupby('algorithm'):
                     values = values.sort_values(x)
-                    fig.add_trace(go.Scatter(x=values[x], y=values[metric], mode='lines+markers', name=algorithm))
+                    fig.add_trace(go.Scatter(x=values[x], y=values[metric], mode='lines+markers', name=display_label(algorithm)))
                 title = label + ' vs ' + xlabel + '<br>Fixed ' + fixed
                 figures.append((title, _line_style(fig, title, xlabel, label, log=metric == 'nmse', xlim=limits[x])))
         gamma_path = result_path(out, method, 'gamma_distribution.npz') if method != 'comparison' else None
@@ -317,7 +352,7 @@ def interactive_figures(request):
             for mask, name in [(~a, 'Inactive MTD'), (a, 'Active MTD')]:
                 fig.add_trace(go.Histogram(x=gamma[mask], histnorm='probability density', opacity=.55, nbinsx=50, name=name))
             fig.update_layout(barmode='overlay')
-            figures.append(('Gamma distribution', _style(fig, ESTIMATORS[method].name + ' γ Distribution', 'γᵢ', 'Density')))
+            figures.append(('Gamma distribution', _style(fig, display_label(ESTIMATORS[method].name) + ' γ Distribution', 'γᵢ', 'Density')))
         return figures
     if category == 'convergence':
         fig = go.Figure()
@@ -326,7 +361,7 @@ def interactive_figures(request):
                 if f'{method}_nmse_history' in archive:
                     values = archive[f'{method}_nmse_history']
                     iterations = archive[f'{method}_iteration_history'] if f'{method}_iteration_history' in archive else np.arange(1, len(values) + 1)
-                    fig.add_trace(go.Scatter(x=iterations, y=values, mode='lines+markers', name=spec.name))
+                    fig.add_trace(go.Scatter(x=iterations, y=values, mode='lines+markers', name=display_label(spec.name)))
         return [('Convergence', _line_style(fig, 'Convergence at Reference Condition', 'Iteration', 'NMSE (true active support)', log=True))]
     raise ValueError('Unknown figure type')
 
@@ -353,15 +388,20 @@ def source_version(request):
         from cgap_sbl_jadce.settings import tuning_pairs
         for pair in tuning_pairs(cfg, method):
             paths += [tuning_path(cfg, method, name, pair) for name in ('selected.json', 'summary.json')]
-    elif category == 'anc_grid_study':
+    elif category == 'glc_grid_study':
         paths += [result_path(out, category, name) for name in ('alpha_beta.csv', 'summary.json')]
     elif category.endswith('_run') and request.get('condition'):
         from cgap_sbl_jadce.paths import run_path
         paths += [run_path(cfg, category.removesuffix('_run'), name, request['condition'])
-                  for name in ('per_sample.csv', 'summary.json', 'gamma_distribution.npz')]
+                  for name in ('per_sample.csv', 'summary.json', 'gamma_distribution.npz', 'selected_channel_energy.npz')]
     elif category.endswith('_tune'):
         method = category.removesuffix('_tune')
         paths += [tuning_path(cfg, method, name, request.get('condition')) for name in ('selected.json', 'thresholds.csv', 'trials.csv')]
+        paths.append(tuning_path(cfg, method, 'selected_channel_energy.npz', request.get('condition')))
+        paths.append(tuning_path(cfg, method, 'row_norm_thresholds.csv', request.get('condition')))
+        cells = tuning_path(cfg, method, 'condition_scores.csv', request.get('condition'))
+        if cells.exists():
+            paths.append(cells)
     else:
         group = {'kappa': 'kappa_calibration', 'convergence': 'convergence'}.get(category, category.removesuffix('_run'))
         paths += [result_path(out, group, name) for name in ('aggregate.csv', 'summary.json', 'run_summary.json', 'gamma_distribution.npz', 'convergence.npz', 'kappa_sweep.csv')]

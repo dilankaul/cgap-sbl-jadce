@@ -51,7 +51,7 @@ The interaction matrix need not be positive semidefinite. The Gaussian-inspired
 quadratic energy is not treated as a proper Gaussian hyperprior, nor as a fixed
 global objective whose monotonic improvement or convergence is guaranteed.
 
-Both SBL methods stop when
+All SBL-family methods stop when
 
 \[
 \|\gamma^{[k]}-\gamma^{[k-1]}\|_2/\|\gamma^{[k-1]}\|_2<\delta,
@@ -62,7 +62,7 @@ positive initialization `gamma_init=0.1`. The final channel estimate is the
 unmasked posterior mean recomputed from the final gamma. Detection uses
 `gamma_i >= tau_A`, with independently tuned thresholds for CGAP-SBL and SBL.
 
-## ANC implementation
+## Spatial dependence and GLC implementation
 
 The spatial dependence matrix uses the paper's finite-distance model,
 
@@ -80,19 +80,80 @@ not an empirical activity covariance.
 Equations (65)–(69) specify
 
 \[
-\Omega_{\rm ANC}=\alpha(\beta\mathbf1-C),\qquad
+\Omega_{\rm GLC}=\alpha(\beta\mathbf1_N\mathbf1_N^T-C),\qquad
 \lambda_i=\alpha[\beta G-s_i]_+,
 \quad G=\sum_j\gamma_j,\quad s=C\gamma.
 \]
 
-Here `1` is the all-ones matrix, not the identity; the ANC diagonal is retained.
-`alpha,beta >= 0` are fixed tuning parameters. The ANC solver stores `C` sparsely
-and evaluates this expression without forming dense `Omega_ANC`. A separate
+Here `1` is the all-ones matrix, not the identity; the GLC diagonal is retained.
+`alpha,beta >= 0` are fixed tuning parameters. The GLC solver stores `C` sparsely
+and evaluates this expression without forming dense `Omega_GLC`. A separate
 general solver accepts any finite symmetric `Omega`.
+
+## Six spatial interactions
+
+Retain the diagonal of $\mathbf C$ and define
+
+$$
+\mathbf J=\frac{1}{N}\mathbf1_N\mathbf1_N^T,\qquad
+\xi_i=\sum_j C_{ij},\qquad
+\boldsymbol\Xi=\operatorname{diag}(\xi_1,\ldots,\xi_N),\qquad
+\mathbf F=\boldsymbol\Xi^{-1/2}\mathbf C\boldsymbol\Xi^{-1/2},\qquad
+\mathbf L_{\mathrm{norm}}=\mathbf I_N-\mathbf F.
+$$
+
+Require finite, real, symmetric, nonnegative graph weights and positive degrees.
+The following interaction matrices define
+$\boldsymbol\lambda^{[k]}=[\boldsymbol\Omega^{[k]}\boldsymbol\gamma^{[k-1]}]_+$.
+Constant interactions omit the iteration superscript.
+
+| Variant | Interaction $\boldsymbol\Omega$ | TPE parameters |
+| --- | --- | --- |
+| GLC — Global–Local Contrast | $\alpha(\beta\mathbf1_N\mathbf1_N^T-\mathbf C)$ | α, β |
+| NGLC — Normalized Global–Local Contrast | $\alpha(\beta\mathbf J-\mathbf F)$ | α, β |
+| RGL — Regularized Graph Laplacian | $\alpha(\mathbf I_N-\kappa_{\mathrm g}\mathbf F)$ | α, κ_g |
+| GL — Normalized Graph Laplacian | $\alpha(\mathbf I_N-\mathbf F)$ | α |
+| GD — Graph Diffusion | $\alpha(\mathbf I_N-\mathbf T_t)$, $\mathbf T_t=\exp[-t(\mathbf I_N-\mathbf F)]$ | α, t |
+| AGA — Adaptive Graph Affinity | $\alpha(\beta\mathbf J-\mathbf F_{\mathrm{AGA}}^{[k]})$ | α, β, h |
+
+Use $\kappa_{\mathrm g}$ for graph coupling, distinct from activity-model κ.
+Strict RGL requires $0\leq\kappa_{\mathrm g}<1$; GL is its boundary at 1.
+GD uses $t\geq0$; $\mathbf T_t$ avoids conflicting with the physical channel
+$\mathbf H$. GD evaluates the sparse matrix-exponential action, without a dense
+exponential. AGA uses affinity $\mathbf A^{[k]}$, distinct from noise $\mathbf W$:
+
+$$
+\bar\gamma_i=\max(\gamma_i^{[k-1]},\epsilon_\gamma),\qquad
+A_{ij}^{[k]}=C_{ij}\exp\!\left[-\frac{(\log\bar\gamma_i-\log\bar\gamma_j)^2}{2h^2}\right],
+\quad h>0,
+$$
+
+$$
+\xi_{\mathrm{AGA},i}^{[k]}=\sum_j A_{ij}^{[k]},\qquad
+\boldsymbol\Xi_{\mathrm{AGA}}^{[k]}=\operatorname{diag}(\xi_{\mathrm{AGA},i}^{[k]}),\qquad
+\mathbf F_{\mathrm{AGA}}^{[k]}=(\boldsymbol\Xi_{\mathrm{AGA}}^{[k]})^{-1/2}
+\mathbf A^{[k]}(\boldsymbol\Xi_{\mathrm{AGA}}^{[k]})^{-1/2}.
+$$
+
+AGA recomputes its affinity and degrees from the previous γ on every iteration.
+The positive floor ε_γ (default `1e-12`) affects logarithms only. All methods keep
+
+$$
+\eta_i^{[k]}=\Sigma_{ii}^{[k]}+\frac{\|\boldsymbol\mu_{i,:}^{[k]}\|_2^2}{M},\qquad
+\gamma_i^{[k]}=\frac{2\eta_i^{[k]}}
+{1+\sqrt{1+4\lambda_i^{[k]}\eta_i^{[k]}/M}}.
+$$
+
+The penalty has no additional division by M. At α=0 all six recover conventional
+SBL exactly; GD also does so at t=0. Recompute the final unmasked posterior mean
+from final γ. Adaptive positive-part penalties do not assert a fixed global
+MAP/MM objective or a new convergence guarantee.
+
+See [README](../README.md#spatial-variants-and-notation) for independent TPE domains, storage and plots.
 
 ## Evaluation
 
-For realization `q`, `S_q=sum(a)` varies naturally. MMV-OMP and MMV-CoSaMP receive
+For realization `q`, `S_q=sum(a)` equals S in fixed-count mode and varies in variable-activity mode. MMV-OMP and MMV-CoSaMP receive
 only the feasible oracle count `B_q=min(S_q,L,N)`, never the true identities.
 Their estimated supports use the top `B_q` recovered row energies. SBL methods
 receive neither `S_q` nor `B_q`. Channel NMSE uses the unmasked final posterior
@@ -116,7 +177,7 @@ realizations and conditions. H, a, Z and per-L Theta are saved once per
 realization; Y, W and sigma2 are saved per unique condition. All algorithm tasks
 read those same inputs. The data distribution and communication seeds are unchanged.
 
-Spatial dependence generation constructs and saves each C in compressed CSR format. ANC loads the
+Spatial dependence generation constructs and saves each C in compressed CSR format. Every spatial variant loads the
 saved matrix. OMP, CoSaMP and SBL do not need a spatial matrix.
-SBL and ANC select their parameters independently on the tuning data before
+SBL and all six spatial variants select their parameters independently on the tuning data before
 held-out evaluation; all methods use the same true-active-support NMSE.

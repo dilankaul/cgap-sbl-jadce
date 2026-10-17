@@ -146,7 +146,8 @@ def completion_plan(config, method, conditions=None, action='run'):
             expected = {'definition': evaluation_definition(cfg, method, condition=pair), 'condition': list(pair),
                         'selection_digest': selection_digest(selections[pair]) if pair in selections else None,
                         'gamma_count': min(cfg['evaluation'].get('gamma_distribution_samples', 0),
-                                           cfg['run']['num_evaluation_samples'])}
+                                           cfg['run']['num_evaluation_samples']),
+                        'energy_indices': cfg.get('figures', {}).get('evaluation_indices', [])}
             issue = _checkpoint_issue(folder, expected)
             if issue:
                 plan.blocked[pair] = issue

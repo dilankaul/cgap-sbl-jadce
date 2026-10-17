@@ -1,3 +1,5 @@
+from cgap_sbl_jadce.variants import SPATIAL_METHODS
+from cgap_sbl_jadce.labels import display_label
 import json
 
 from cgap_sbl_jadce.tasks import task_actions
@@ -48,7 +50,7 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
                 validate_recovery(record['request'])
             except (OSError, ValueError, KeyError) as error:
                 can_resume = False
-                st.warning('Resume unavailable: ' + str(error))
+                st.warning('Resume unavailable: ' + display_label(str(error)))
         if status in ACTIVE and command == 'stop':
             can_resume = False
         try:
@@ -61,15 +63,15 @@ def worker_panel(st, jobs, config, task, action, conditions=None):
             if controls[2].button('Stop', icon=':material/stop:', disabled=status not in ACTIVE or command == 'stop', width='stretch'):
                 jobs.control(record['id'], 'stop'); st.rerun()
         except (OSError, ValueError) as error:
-            st.error(str(error))
+            st.error(display_label(str(error)))
         logs, progress = jobs.log(record['id'])
         if progress:
             st.progress(min(1., progress['done']/max(1,progress['total'])),
-                        text=f"{progress['label']}: {progress['done']}/{progress['total']}")
+                        text=f"{display_label(progress['label'])}: {progress['done']}/{progress['total']}")
         if record.get('error'):
-            st.error(record['error'])
+            st.error(display_label(record['error']))
         with st.expander('Live log', expanded=status in ACTIVE):
-            st.code(logs or 'No recent log messages.', language=None)
+            st.code(display_label(logs) or 'No recent log messages.', language=None)
     panel()
 
 
@@ -91,7 +93,7 @@ def optional_input_controls(st, cfg, config, jobs, method, pairs, action='run'):
             except (OSError, ValueError, KeyError) as error:
                 base_issues.append(str(error))
         for reason in base_issues:
-            st.info(reason)
+            st.info(display_label(reason))
         request = {'kind': 'task', 'task': 'communication', 'action': 'run', 'config': str(config),
                    'conditions': [list(pair)], 'methods': [method]}
         own = jobs.task_job(config, 'communication', 'run', conditions=[list(pair)])
@@ -108,7 +110,7 @@ def optional_input_controls(st, cfg, config, jobs, method, pairs, action='run'):
                 jobs.resume(own['id']) if recoverable else jobs.start(request)
                 st.rerun()
             except (OSError, ValueError) as error:
-                st.error(str(error))
+                st.error(display_label(str(error)))
     else:
         st.success('Communication inputs are ready.')
         if ESTIMATORS[method].tuning_grid and tuning_settings(cfg, method)['selection_mode'] == 'per_condition':
@@ -127,6 +129,8 @@ def condition_status_panel(st, cfg, config, jobs, method, plan, action='run'):
     optional_plan = planner(config, method, pairs) if pairs else None
     with st.expander('Condition status', expanded=True):
         sweep_pairs = {value[:2] for value in evaluation_conditions(cfg)}
+        from cgap_sbl_jadce.settings import condition_grid
+        grid_pairs = set(condition_grid(cfg['communication']['grid'])) if method == 'communication' and 'grid' in cfg.get('communication', {}) else set()
         widths = [1, 1, 1, 2, 1]
         with st.container(border=True, key='condition_status_table'):
             for column, label in zip(st.columns(widths), ['Pilot length L', 'SNR (dB)', 'Type', 'Status', '']):
@@ -138,9 +142,10 @@ def condition_status_panel(st, cfg, config, jobs, method, plan, action='run'):
                     status = ('Completed' if pair in current_plan.completed else 'Incompatible' if pair in current_plan.blocked
                               else 'Unfinished' if pair in current_plan.resume else 'Not started')
                     columns = st.columns(widths, vertical_alignment='center')
-                    for column, text in zip(columns, [str(pair[0]), f'{pair[1]:g}', 'Reference' if kind == 'Sweep' and pair not in sweep_pairs else kind, status]):
+                    row_type = ('Grid' if pair in grid_pairs else 'Reference') if kind == 'Sweep' and pair not in sweep_pairs else kind
+                    for column, text in zip(columns, [str(pair[0]), f'{pair[1]:g}', row_type, status]):
                         column.write(text)
-                    if action == 'tune' and method in {'anc', 'gl'} and pair not in current_plan.blocked:
+                    if action == 'tune' and method in set(SPATIAL_METHODS) and pair not in current_plan.blocked:
                         from cgap_sbl_jadce.paths import tuning_path
                         progress_path = tuning_path(cfg, method, 'search_progress.json', pair)
                         if progress_path.exists():
@@ -158,7 +163,7 @@ def condition_status_panel(st, cfg, config, jobs, method, plan, action='run'):
                             try:
                                 remove_condition(cfg, pair)
                             except (OSError, ValueError) as error:
-                                st.error(str(error))
+                                st.error(display_label(str(error)))
                             else:
                                 st.session_state.pop('additional_pair_' + prefix, None)
                                 st.session_state.pop('pairs_' + prefix, None)
@@ -184,17 +189,17 @@ def condition_status_panel(st, cfg, config, jobs, method, plan, action='run'):
                         reset_settings_forms(st)
                         st.rerun()
                     except (OSError, ValueError) as error:
-                        st.error(str(error))
+                        st.error(display_label(str(error)))
         if pairs and method != 'communication':
             optional_input_controls(st, cfg, config, jobs, method, pairs, action=action)
 
 
 def task_page(st, cfg, config, jobs, task, action):
     spec = ESTIMATORS.get(task)
-    group = 'Analysis' if task in {'comparison','convergence','anc_grid_study'} else 'Algorithms' if spec else 'Data preparation'
+    group = 'Analysis' if task in {'comparison','convergence','glc_grid_study'} else 'Algorithms' if spec else 'Data preparation'
     st.caption(f'{group} / {action.capitalize()}')
     description = task_actions(task)[action].description
-    st.title(f'{action.capitalize()} {spec.name}' if spec else description[0].upper()+description[1:])
+    st.title(f'{action.capitalize()} {display_label(spec.name)}' if spec else description[0].upper()+description[1:])
     from cgap_sbl_jadce.gui.setup_editor import edit_settings
     from cgap_sbl_jadce.gui.workflow import numerical_state
     from cgap_sbl_jadce.file_cache import validation_snapshot
@@ -257,25 +262,40 @@ def task_page(st, cfg, config, jobs, task, action):
         if key in st.session_state:
             st.session_state[key] = [method for method in st.session_state[key] if method in available]
         methods = st.multiselect('Algorithms', available, default=available,
-                                format_func=lambda method: ESTIMATORS[method].name, key=key,
+                                format_func=lambda method: display_label(ESTIMATORS[method].name), key=key,
                                 disabled=not available)
     if spec:
         if action == 'tune':
             count = len(conditions) if conditions is not None else (len(tuning_pairs(cfg, task)) if tuning_settings(cfg, task)['selection_mode'] == 'per_condition' else 1)
-            if task in {'anc', 'gl'}:
-                from cgap_sbl_jadce.settings import anc_search_settings, gl_search_settings
-                search = gl_search_settings(cfg) if task == 'gl' else anc_search_settings(cfg)
-                st.caption(f"{count} conditions · TPE: {search['trials']} trials × {search['samples']} tuning realizations")
+            if task in set(SPATIAL_METHODS):
+                from cgap_sbl_jadce.settings import spatial_search_settings
+                search = spatial_search_settings(cfg, task)
+                if tuning_settings(cfg, task)['selection_mode'] == 'pooled':
+                    st.caption(f"One pooled TPE study: {search['trials']} trials × {search['samples']} assigned tuning realizations")
+                else:
+                    st.caption(f"{count} conditions · TPE: {search['trials']} trials × {search['samples']} tuning realizations")
             else:
                 candidates = len(spec.tuning_grid(cfg))
                 st.caption(f'{count} conditions × {candidates} parameter candidates × {cfg["run"]["num_tuning_samples"]} tuning realizations.')
-        if spec.tuning_grid:
+        if spec.tuning_grid and tuning_settings(cfg, task)['selection_mode'] == 'pooled':
+            from cgap_sbl_jadce.settings import pooled_assignment
+            from collections import Counter
+            counts = Counter((row['L'], row['snr_db']) for row in pooled_assignment(cfg))
+            st.caption('Pooled top-S tuning · one shared selection')
+            st.dataframe([{'Pilot length L': L, 'SNR (dB)': snr, 'Realizations': count} for (L, snr), count in sorted(counts.items(), key=lambda item: (item[0][1], item[0][0]))], hide_index=True)
+            if task in SPATIAL_METHODS:
+                from cgap_sbl_jadce.paths import tuning_path
+                progress_path = tuning_path(cfg, task, 'search_progress.json')
+                if progress_path.exists():
+                    progress = json.loads(progress_path.read_text())
+                    st.caption(f"Trials: {progress['completed']}/{progress['total']}")
+        elif spec.tuning_grid:
             st.caption('Per-condition tuning' if tuning_settings(cfg, task)['selection_mode'] == 'per_condition'
                 else f"Reference tuning: L={tuning_settings(cfg, task)['reference_pilot_length']}, SNR={tuning_settings(cfg, task)['reference_snr_db']:g} dB.")
     reasons = (['Select at least one condition.'] if conditions == [] else
                blocking_reasons(cfg, task, action, conditions, methods, condition))
     for reason in reasons:
-        st.info(reason)
+        st.info(display_label(reason))
     own = jobs.task_job(config, task, action, conditions=conditions)
     request = {'kind': 'task', 'task': task, 'action': action, 'config': str(config)}
     for key, value in [('conditions', conditions), ('methods', methods), ('realization_index', q), ('condition', condition)]:
@@ -290,7 +310,7 @@ def task_page(st, cfg, config, jobs, task, action):
             label = selected_plan.label(selected=conditions is not None)
             st.caption(selected_plan.summary)
             for (L, snr), reason in selected_plan.blocked.items():
-                st.info(f'L={L}, SNR={snr:g} dB: {reason}')
+                st.info(f'L={L}, SNR={snr:g} dB: {display_label(reason)}')
             controls = st.columns(3)
             fresh = label.startswith('Rerun')
             disabled = bool(reasons) or busy or not selected_plan.pairs
@@ -337,7 +357,7 @@ def task_page(st, cfg, config, jobs, task, action):
                 jobs.resume(own['id']) if label == 'Resume' else jobs.start(request)
                 st.rerun()
     except (OSError, ValueError) as error:
-        st.error(str(error))
+        st.error(display_label(str(error)))
     worker_panel(st, jobs, config, task, action, conditions)
     st.divider()
     figure_panel(st, cfg, config, jobs, task, action, state=state)

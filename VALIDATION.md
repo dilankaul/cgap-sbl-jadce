@@ -4,7 +4,7 @@ Run `PYTHONPATH=src pytest -q`.
 
 The suite covers complex-MMV dimensions, Gaussian generation, unit-norm QPSK
 pilots, optimized Cholesky posterior calculations, stable CGAP-SBL updates,
-zero-penalty SBL equivalence, sparse ANC, spatial cutoffs, independent seeds,
+zero-penalty SBL equivalence, sparse GLC, spatial cutoffs, independent seeds,
 calibration, oracle greedy budgets and probability-preserving figures.
 
 Workflow checks cover:
@@ -12,8 +12,8 @@ Workflow checks cover:
 - Communication generation archives reproduce the deterministic communication model exactly.
 - Independent estimator tasks use saved inputs and never regenerate communication.
 - OMP/CoSaMP require neither tuning results nor spatial matrices.
-- SBL tunes its own threshold without running ANC or loading C.
-- ANC tunes alpha, beta and tau on tuning data; a separate Run action evaluates held-out data.
+- SBL tunes its own threshold without running GLC or loading C.
+- GLC tunes alpha, beta and tau on tuning data; a separate Run action evaluates held-out data.
 - Tune needs no evaluation archives; Run reuses selections unchanged and never retunes.
 - Solver-call timers exclude archive loading and metric calculation.
 - Failed and abruptly terminated writes preserve previous complete files.
@@ -35,7 +35,7 @@ Workflow checks cover:
   preserve zero activation probabilities and maintain log NMSE scales.
 - Selected-condition views and publication exports regenerate from matching numerical inputs.
 - Analysis selectors include only compatible completed conditions; single-algorithm comparison works.
-- Convergence needs completed SBL/ANC evaluation, excludes greedy algorithms, and supports SBL alone without C.
+- Convergence needs completed SBL/GLC evaluation, excludes greedy algorithms, and supports SBL alone without C.
 - Paused tasks allow another independent worker to run before continuation.
 - Paused workers reattach after controller restart; killed workers resume from checkpoints.
 - Import-safe GUI/task entry points, selected PNG diagnostics, local fonts and paper PDFs.
@@ -58,7 +58,7 @@ scope and are not promoted to current results.
 - Grouped setup edits preserve effective values and independently owned algorithm settings.
 - Setup and task editors share one configuration and never launch a task when saving.
 - Relevant edits mark results incompatible and block successors; restoring values restores eligibility.
-- ANC tuning edits leave OMP, CoSaMP and SBL results usable; tuning policies can differ per algorithm.
+- GLC tuning edits leave OMP, CoSaMP and SBL results usable; tuning policies can differ per algorithm.
 - Adding L/SNR conditions preserves existing condition measurements, even after communication archives expand.
 - Figure selections, YAML formatting and unrelated settings do not invalidate scoped recovery.
 - Running tasks reject relevant edits until paused, while unrelated edits remain allowed.
@@ -113,7 +113,7 @@ Sweep labels, separate Resume/Rerun after Stop, worker Complete preserving finis
 conditions, scoped resets before solver calls, interrupted-reset recovery and
 linked-path protection. Parameter plots are checked against saved selections,
 including missing-point gaps, incompatible-selection exclusion, independent SBL
-thresholds, visible ANC parameter labels and real PNG/PDF export of both new sweep
+thresholds, visible GLC parameter labels and real PNG/PDF export of both new sweep
 plots and retained diagnostics. No research datasets are regenerated.
 
 
@@ -121,6 +121,39 @@ GL validation covers sparse penalties versus explicit normalized Laplacians,
 lagged gamma, zero-alpha/isolated-self-loop SBL recovery, retained diagonals,
 connectivity scaling and invalid graphs. Workflow coverage exercises independent
 TPE alpha/tau selection, interruption before and after Optuna tell, deterministic
-resume without repeated completed solver calls, scoped resets, separate ANC
-ownership, the fifth GUI card and condition controls, evaluation, comparison,
+resume without repeated completed solver calls, scoped resets, separate GLC
+ownership, the independent GL GUI card and condition controls, evaluation, comparison,
 convergence, interactive plots and real PNG/PDF exports.
+
+
+The canonical GLC name is used in task/configuration/solver/storage identifiers,
+with no saved-result migration. Variant tests compare all six penalties to explicit
+paper interactions, check lagged AGA recomputation, exact alpha-zero SBL recovery,
+GD t=0, RGL's strict domain and GL limit, logs-only AGA flooring, retained diagonals,
+sparse execution without dense spatial matrices/inverses and invalid graph rejection.
+New-variant workflow tests cover independent parameter domains, shared saved tuning
+samples, interrupted solver resume, scoped reruns, comparison/convergence, all parameter
+sweeps, interactive figures and native-font PNG/PDF exports on tiny fixtures.
+
+
+2026-10-17: pooled tuning, retained estimates and sampling-scale validation
+passed the full sequential local suite: 454 passed, 1 skipped, in 705.21 s.
+Command: OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 PYTHONPATH=src pytest -q
+--durations=20 --maxfail=1 -o addopts=''. Parallel execution was stopped after
+two existing GUI-worker 30-second timeouts under concurrent load; their time
+limits were not changed, and both passed in the full sequential run.
+
+New coverage checks the 36-condition input grid, deterministic 11/12 allocation,
+all seven pooled SBL-family workflows, top-S scoring without within-trial thresholds,
+winning complex estimates/gamma, solver-free gamma/Z/top-K rescoring, unmasked and
+support-masked true-active NMSE, analysis changes during checkpoint resume,
+all tuning anchors in portable input signatures, saved-data PNG/Plotly/native-font
+PDF diagnostics and actual realization-condition labels. Sampling checks cover
+each algorithm's independent bounds/log flags, positive logarithmic domains,
+strict RGL exclusion of 1, actual Optuna distributions and GUI Save behavior.
+The default setup validates; seeds and solver equations were not changed.
+
+Current experimental results were cleared as requested. A recoverable /tmp copy
+was verified against all 16,069 inventoried files (537,780,036 bytes); the active
+results tree contains no files. Source settings remain. No new research runs
+were launched. The obsolete AGA worker was stopped after a completed-unit pause.

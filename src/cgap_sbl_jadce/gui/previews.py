@@ -16,17 +16,22 @@ PREVIEWS = {
     'gl_tune': 'GL Optuna tuning',
     'gl_tuning_sweeps': 'GL selected parameter sweeps',
     'gl_run': 'GL performance and gamma distribution',
-    'anc_tune': 'ANC Optuna tuning',
-    'anc_tuning_sweeps': 'ANC selected parameter sweeps',
+    'glc_tune': 'GLC Optuna tuning',
+    'glc_tuning_sweeps': 'GLC selected parameter sweeps',
     'sbl_tuning_sweeps': 'SBL selected threshold sweeps',
-    'anc_grid_study': 'ANC paper grid study',
+    'glc_grid_study': 'GLC paper grid study',
     'omp_run': 'OMP performance',
     'cosamp_run': 'CoSaMP performance',
     'sbl_run': 'SBL performance and gamma distribution',
-    'anc_run': 'ANC performance and gamma distribution',
+    'glc_run': 'GLC performance and gamma distribution',
     'comparison': 'Algorithm comparison',
     'convergence': 'Convergence',
 }
+from cgap_sbl_jadce.variants import SPATIAL_METHODS
+for method in SPATIAL_METHODS:
+    PREVIEWS.update({method + '_tune': method.upper() + ' Optuna tuning',
+                     method + '_tuning_sweeps': method.upper() + ' selected parameter sweeps',
+                     method + '_run': method.upper() + ' performance and gamma distribution'})
 SAMPLE_PREVIEWS = {'activity', 'communication', 'spatial'}
 
 
@@ -52,19 +57,19 @@ def missing_preview_inputs(cfg, category):
         from cgap_sbl_jadce.figures.estimator_parameter_sweeps import parameter_sweeps
         method = category.removesuffix('_tuning_sweeps')
         return [] if parameter_sweeps(cfg, method) else [task_dir(cfg['run']['output_dir'], method) / 'tuning']
-    if category == 'anc_grid_study':
+    if category == 'glc_grid_study':
         path = result_path(cfg['run']['output_dir'], category, 'summary.json')
         if not path.exists() or json.loads(path.read_text()).get('status') != 'complete':
             return [path]
     if category.endswith('_tune'):
         method = category.removesuffix('_tune')
-        names = ['thresholds.csv'] + (['trials.csv'] if method in {'anc', 'gl'} else [])
+        names = ['thresholds.csv'] + (['trials.csv'] if method in SPATIAL_METHODS else [])
         return [tuning_path(cfg, method, name) for name in names if not tuning_path(cfg, method, name).exists()]
     sources = {
         'active_counts': [('activity', 'tuning_activity.npz'), ('activity', 'evaluation_activity.npz')],
         'kappa': [('kappa_calibration', 'kappa_sweep.csv')],
         'sbl_tune': [('sbl', 'tuning/thresholds.csv')],
-        'anc_grid_study': [('anc_grid_study', 'alpha_beta.csv')],
+        'glc_grid_study': [('glc_grid_study', 'alpha_beta.csv')],
         'comparison': [('comparison', 'aggregate.csv')],
         'convergence': [('convergence', 'convergence.npz')],
     }
@@ -101,9 +106,9 @@ def render_preview(request, destination):
             return plot_tuning_parameter_sweeps(cfg, category.removesuffix('_tuning_sweeps'), formats='both')
         if category == 'activity':
             return plot_activity_realization(cfg, split, index, formats='both')
-        if category == 'anc_grid_study':
-            from cgap_sbl_jadce.figures.anc_parameter_tuning import plot_anc_grid_study
-            return plot_anc_grid_study(cfg, formats='both')
+        if category == 'glc_grid_study':
+            from cgap_sbl_jadce.figures.glc_parameter_tuning import plot_glc_grid_study
+            return plot_glc_grid_study(cfg, formats='both')
         if category == 'active_counts':
             return plot_activity_s_distribution(cfg, formats='both')
         if category == 'kappa':
@@ -144,7 +149,7 @@ def stored_tuning_options(cfg, method):
         selected = json.loads(path.read_text())
         condition = selected.get('definition', {}).get('condition')
         if condition:
-            options.append(('reference' if path.parent == folder else 'per_condition', int(condition[0]), float(condition[1])))
+            options.append(('pooled' if path.parent.name == 'pooled' else 'reference' if path.parent == folder else 'per_condition', int(condition[0]), float(condition[1])))
     return options
 
 
@@ -152,7 +157,7 @@ def tuning_preview_config(cfg, method, request):
     from cgap_sbl_jadce.settings import grouped_config
     from cgap_sbl_jadce.experiments.estimators import condition_config
     if request.get('tuning_layout'):
-        if request['tuning_layout'] not in {'reference', 'per_condition'}:
+        if request['tuning_layout'] not in {'reference', 'per_condition', 'pooled'}:
             raise ValueError('Unknown saved tuning layout')
         cfg = grouped_config(cfg)
         cfg['algorithms'][method]['tuning']['selection_mode'] = request['tuning_layout']

@@ -54,7 +54,7 @@ algorithms:
   cosamp_max_iter: 20
   cosamp_tol: 0.0001
   cosamp_lambda_reg: 0.01
-  anc:
+  glc:
     tuning:
       trials: 4
       samples: 4
@@ -64,6 +64,54 @@ algorithms:
       trials: 4
       samples: 4
       startup_trials: 2
+  nglc:
+    tuning:
+      search_method: optuna_tpe
+      trials: 4
+      samples: 4
+      startup_trials: 2
+      optuna_seed: 17389
+      alpha_low: 0.0
+      alpha_high: 100.0
+      beta_low: 0.0
+      beta_high: 2.0
+  rgl:
+    tuning:
+      search_method: optuna_tpe
+      trials: 4
+      samples: 4
+      startup_trials: 2
+      optuna_seed: 17389
+      alpha_low: 0.0
+      alpha_high: 100.0
+      graph_kappa_low: 0.0
+      graph_kappa_high: 0.999
+  gd:
+    tuning:
+      search_method: optuna_tpe
+      trials: 4
+      samples: 4
+      startup_trials: 2
+      optuna_seed: 17389
+      alpha_low: 0.0
+      alpha_high: 100.0
+      diffusion_time_low: 0.0
+      diffusion_time_high: 10.0
+  aga:
+    tuning:
+      search_method: optuna_tpe
+      trials: 4
+      samples: 4
+      startup_trials: 2
+      optuna_seed: 17389
+      alpha_low: 0.0
+      alpha_high: 100.0
+      beta_low: 0.0
+      beta_high: 2.0
+      affinity_bandwidth_low: 0.1
+      affinity_bandwidth_high: 5.0
+    solver:
+      gamma_log_floor: 1.0e-12
 tuning:
   reference_snr_db: 12
   reference_pilot_length: 20

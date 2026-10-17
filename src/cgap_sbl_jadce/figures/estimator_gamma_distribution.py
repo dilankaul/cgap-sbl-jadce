@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from cgap_sbl_jadce.labels import display_label
 from pathlib import Path
 import json
 import matplotlib.pyplot as plt
@@ -20,7 +22,7 @@ def plot_gamma_distribution(cfg: dict, method: str, formats: str = "png") -> lis
     if summary.get('gamma_samples', 0) == 0:
         return []
     settings = fr"$L={summary['reference_pilot_length']:g}$, $\mathrm{{SNR}}={summary['reference_snr_db']:g}$ dB"
-    label, stem = spec.name, f"{method}_gamma_distribution"
+    label, stem = display_label(spec.name), f"{method}_gamma_distribution"
     paths: list[Path] = []
     figure_style = {"axes.titlesize": 12, "axes.labelsize": 12,
                     "xtick.labelsize": 10, "ytick.labelsize": 10,

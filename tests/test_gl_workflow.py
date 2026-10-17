@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from cgap_sbl_jadce.experiments import estimators, gl_optuna_tuning
+from cgap_sbl_jadce.experiments import estimators
+from cgap_sbl_jadce.experiments import spatial_tuning as gl_optuna_tuning
 from cgap_sbl_jadce.io import save_yaml
 from cgap_sbl_jadce.paths import tuning_path, task_dir, run_path
 from cgap_sbl_jadce.settings import grouped_config, request_settings, validate_gl_search
@@ -53,8 +54,8 @@ def test_gl_tuning_run_comparison_convergence_and_all_exports(saved_data, tmp_pa
     assert selected['definition']['method'] == 'CGAP-SBL-GL'
     assert selected['definition']['samples'] == 2
     assert selected['search_method'] == 'optuna_tpe'
-    assert len(paths) == 7 and all(path.exists() for path in paths)
-    assert not tuning_path(cfg, 'anc', 'selected.json', pair).exists()
+    assert len(paths) == 9 and all(path.exists() for path in paths)
+    assert not tuning_path(cfg, 'glc', 'selected.json', pair).exists()
     assert completion_plan(config, 'gl', [pair], action='tune').completed == [pair]
     tune_cfg = estimators.condition_config(cfg, pair, 'gl')
     trials = pd.read_csv(tuning_path(tune_cfg, 'gl', 'trials.csv'))
@@ -62,13 +63,14 @@ def test_gl_tuning_run_comparison_convergence_and_all_exports(saved_data, tmp_pa
     assert trials.iloc[0].alpha == 0
     request = {'config': str(config), 'category': 'gl_tune', 'condition': list(pair)}
     figures = interactive_figures(request)
-    assert [label for label, _ in figures] == ['TPE search history', 'Sampled alpha and threshold', 'Threshold scores']
+    assert [label for label, _ in figures] == ['TPE search history', 'Sampled alpha and threshold', 'Threshold scores',
+        'Row norm threshold scores', 'Effective-channel energy · tuning realization 0']
     np.testing.assert_allclose(figures[1][1].data[0].x, trials.alpha)
     assert 'Selected α=' in figures[0][1].layout.title.text
     assert 'β' not in figures[0][1].layout.title.text
     assert missing_preview_inputs(tune_cfg, 'gl_tune') == []
     exports = render_preview(request, tmp_path / 'exports')
-    assert len(exports) == 6 and {path.suffix for path in exports} == {'.png', '.pdf'}
+    assert len(exports) == 10 and {path.suffix for path in exports} == {'.png', '.pdf'}
     for path in exports:
         assert path.read_bytes().startswith(b'\x89PNG\r\n\x1a\n' if path.suffix == '.png' else b'%PDF-')
     sweep_request = {'config': str(config), 'category': 'gl_tuning_sweeps'}
@@ -125,18 +127,18 @@ def test_gl_resume_keeps_trial_sequence_and_completed_realizations(saved_data, t
     assert not list(task_dir(cfg['run']['output_dir'], 'gl').rglob('.checkpoints/*/*.npz'))
 
 
-def test_gl_settings_and_scoped_reruns_preserve_anc_and_other_conditions(saved_data, monkeypatch):
+def test_gl_settings_and_scoped_reruns_preserve_glc_and_other_conditions(saved_data, monkeypatch):
     from cgap_sbl_jadce.gui.algorithm_actions import completion_plan
     from cgap_sbl_jadce.additional_conditions import add_condition
     cfg = settings(saved_data)
-    anc_definition = estimators.tuning_definition(cfg, 'anc')
-    anc_settings = request_settings(cfg, {'task': 'anc', 'action': 'tune'})
+    glc_definition = estimators.tuning_definition(cfg, 'glc')
+    glc_settings = request_settings(cfg, {'task': 'glc', 'action': 'tune'})
     cfg['algorithms']['gl']['tuning']['alpha_high'] = 25.
-    assert estimators.tuning_definition(cfg, 'anc') == anc_definition
-    assert request_settings(cfg, {'task': 'anc', 'action': 'tune'}) == anc_settings
-    anc_path = tuning_path(cfg, 'anc', 'untouched.txt', (7, 12.))
-    anc_path.parent.mkdir(parents=True)
-    anc_path.write_text('ANC results are independently owned')
+    assert estimators.tuning_definition(cfg, 'glc') == glc_definition
+    assert request_settings(cfg, {'task': 'glc', 'action': 'tune'}) == glc_settings
+    glc_path = tuning_path(cfg, 'glc', 'untouched.txt', (7, 12.))
+    glc_path.parent.mkdir(parents=True)
+    glc_path.write_text('GLC results are independently owned')
     calls = []
     monkeypatch.setitem(estimators.ESTIMATORS, 'gl', replace(estimators.ESTIMATORS['gl'], solve=solver(calls)))
     pairs = [(7, 12.), (5, 12.)]
@@ -144,7 +146,7 @@ def test_gl_settings_and_scoped_reruns_preserve_anc_and_other_conditions(saved_d
     saved = tuning_path(cfg, 'gl', 'selected.json', pairs[1]).read_bytes()
     run_task('gl', cfg, action='tune', conditions=[pairs[0]], show_progress=False)
     assert tuning_path(cfg, 'gl', 'selected.json', pairs[1]).read_bytes() == saved
-    assert anc_path.read_text() == 'ANC results are independently owned'
+    assert glc_path.read_text() == 'GLC results are independently owned'
     assert len(calls) == 18
     config = Path(cfg['run']['output_dir']) / 'source.yaml'
     save_yaml(config, cfg)
@@ -155,7 +157,7 @@ def test_gl_settings_and_scoped_reruns_preserve_anc_and_other_conditions(saved_d
     assert (9, 10.) not in estimators.tuning_conditions(cfg, method='gl')
 
 
-def test_gl_gui_is_fifth_algorithm_with_independent_settings_and_condition_controls(saved_data, tmp_path, monkeypatch):
+def test_gl_gui_has_independent_settings_and_condition_controls(saved_data, tmp_path, monkeypatch):
     from streamlit.testing.v1 import AppTest
     cfg = settings(saved_data)
     config = tmp_path / 'source.yaml'
@@ -164,7 +166,7 @@ def test_gl_gui_is_fifth_algorithm_with_independent_settings_and_condition_contr
     monkeypatch.setenv('CGAP_GUI_CONFIG', str(config))
     app = AppTest.from_file(Path(__file__).resolve().parents[1] / 'src/cgap_sbl_jadce/gui/app.py', default_timeout=30).run()
     assert not app.exception
-    assert app.button(key='open_algorithm_anc') and app.button(key='open_algorithm_gl')
+    assert app.button(key='open_algorithm_glc') and app.button(key='open_algorithm_gl')
     app.button(key='open_algorithm_gl').click().run()
     app.button(key='open_gl_tune').click().run()
     assert not app.exception

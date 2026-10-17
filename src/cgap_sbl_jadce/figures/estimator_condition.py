@@ -1,3 +1,4 @@
+from cgap_sbl_jadce.labels import display_label
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -21,8 +22,26 @@ def plot_condition_scores(cfg, method, condition, formats='png'):
         if metric == 'nmse' and data.nmse.gt(0).any():
             ax.set_yscale('log')
     L, snr = condition
-    axes[0].set_title(f'{ESTIMATORS[method].name} Evaluation\n' + fr'$L={L:g}$, $\mathrm{{SNR}}={snr:g}$ dB')
+    axes[0].set_title(f'{display_label(ESTIMATORS[method].name)} Evaluation\n' + fr'$L={L:g}$, $\mathrm{{SNR}}={snr:g}$ dB')
     axes[-1].set_xlabel('Evaluation realization index')
     _apply_figure_style(fig, figure_style)
     fig.tight_layout()
-    return _save(fig, folder / 'figures' / 'realization_scores', formats)
+    paths = _save(fig, folder / 'figures' / 'realization_scores', formats)
+    import json
+    import numpy as np
+    source = folder / 'selected_channel_energy.npz'
+    if source.exists():
+        parameters = json.loads((folder / 'summary.json').read_text()).get('parameters', {})
+        context = ', '.join(f'{key}={value:g}' for key, value in parameters.items())
+        with np.load(source) as data:
+            for q, original, estimated in zip(data['indices'], data['original'], data['estimated']):
+                fig, ax = plt.subplots(figsize=(6.4, 4.2))
+                ax.plot(original, label='Original', linewidth=1.)
+                ax.plot(estimated, label='Estimated', linewidth=1., linestyle='--')
+                ax.set_xlabel(r'Device index $i$')
+                ax.set_ylabel(r'Effective-channel row energy $\|z_i\|_2^2$')
+                ax.set_title(f'{display_label(ESTIMATORS[method].name)} · Evaluation realization {q}\n'
+                             f'L={L:g}, SNR={snr:g} dB' + ('\n' + context if context else ''))
+                ax.set_ylim(bottom=0); ax.grid(True, alpha=.2); ax.legend(); fig.tight_layout()
+                paths.extend(_save(fig, folder / 'figures' / f'channel_energy_{int(q):04d}', formats))
+    return paths
